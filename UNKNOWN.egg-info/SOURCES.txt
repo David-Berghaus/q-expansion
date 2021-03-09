@@ -1,5 +1,12 @@
+.gitignore
+README.md
 my_pullback.c
+my_pullback.pxd
+my_pullback.pyx
 point_matching.c
+point_matching.pxd
+point_matching.pyx
+run.sage
 setup.py
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/SOURCES.txt
