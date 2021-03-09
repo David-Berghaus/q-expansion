@@ -1,6 +1,6 @@
-UNKNOWN.egg-info/
+/UNKNOWN.egg-info
 *.pyc
-build/
+/build
 push
 dist
 \#*
