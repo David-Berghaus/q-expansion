@@ -18,7 +18,8 @@ cdef _get_J_block_matrix_dp(int M,int weight,int Q,coordinates):
     cdef np.complex128_t [:, :] J_view = J
     cdef double complex two_pi_i = 2*math.pi*1j
     cdef double complex z_horo, czd, weight_fact, fact
-    cdef int j, n, c, d
+    cdef double c, d
+    cdef int j, n
     cdef double one_over_2Q = 1.0/(2*Q)
     for j in range(coord_len):
         (z_horo,_,_,c,d,_) = coordinates[j]
@@ -46,21 +47,6 @@ cdef _get_W_block_matrix_dp(int Ms,int Mf,int weight,coordinates):
             W_view[j,l-Ms] = y_fund_fact*cexp(two_pi_i*l*z_fund)
     return W
 
-cdef _get_W_block_matrix_normalized_column_dp(int l_normalized,int weight,coordinates): #column corresponding to c_l_normalized = 1
-    cdef int weight_half = weight//2
-    cdef int coord_len = len(coordinates)
-    W_col = np.empty(coord_len,dtype=np.complex_)
-    cdef np.complex128_t [:] W_col_view = W_col
-    cdef double complex two_pi_i = 2*math.pi*1j
-    cdef int j
-    cdef double complex z_fund
-    cdef double y_fund_fact
-    for j in range(coord_len):
-        (_,_,_,_,_,z_fund) = coordinates[j]
-        y_fund_fact = cimag(z_fund)**weight_half
-        W_col_view[j] = y_fund_fact*cexp(two_pi_i*l_normalized*z_fund)
-    return W_col
-
 cdef _compute_V_block_matrix_dp(V_view,J,int cii,int cjj,int Ms,int Mf,int weight,double Y,coordinates): #computes a V-block-matrix and stores it in V
     W = _get_W_block_matrix_dp(Ms,Mf,weight,coordinates)
     np.matmul(J,W,out=V_view)
@@ -76,15 +62,6 @@ cdef _compute_V_tilde_block_matrix_dp(V_view,J,int cii,int cjj,int Ms,int Mf,int
         two_pi = 2*math.pi
         for i in range(Ms,M+1):
             V_view[i-1,i-Ms] -= Y_pow_weight_half*cexp(-two_pi*i*Y)
-
-cdef _compute_V_tilde_block_matrix_normalized_column_dp(V_column_view,J,int cii,int cjj,int l_normalized,int weight,double Y,coordinates): #computes a normalized column of V_tilde-block-matrix and stores it in V
-    W_col = _get_W_block_matrix_normalized_column_dp(l_normalized,weight,coordinates)
-    np.matmul(J,W_col,out=V_column_view)
-    if cii == cjj:
-        weight_half = weight//2
-        Y_pow_weight_half = Y**weight_half
-        two_pi = 2*math.pi
-        V_column_view[l_normalized-1] -= Y_pow_weight_half*cexp(-two_pi*l_normalized*Y)
 
 cpdef get_V_tilde_matrix_dp(S,int M,double Y,int weight):
     cdef int Ms = 1
@@ -121,8 +98,8 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y,int weight,int multiplicity): #Re
     for i in range(1,nc):
         normalization[i] = []
     V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
-    b = np.zeros(nc*M,dtype=np.complex_)
-    cdef int cii,cjj,Ms,Mf,l_normalized
+    b = np.zeros(shape=(nc*M,1),dtype=np.complex_)
+    cdef int cii,cjj,Ms,Mf
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
@@ -133,11 +110,11 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y,int weight,int multiplicity): #Re
                 Mf = Ms+M-1
                 _compute_V_tilde_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
                 if cjj == 0:
-                    b_view = b[cii*M:(cii+1)*M]
+                    b_view = b[cii*M:(cii+1)*M] #Weird python would create a (nc*M,) shape out of b_view[cii*M:(cii+1)*M,0]...
                     for i in range(len(normalization[cjj])):
                         if normalization[cjj][i] != 0:
-                            l_normalized = i+1
-                    _compute_V_tilde_block_matrix_normalized_column_dp(b_view,J,cii,cjj,l_normalized,weight,Y,coordinates)
+                            l_normalized = i+1 #we set c_l_normalized = 1
+                    _compute_V_tilde_block_matrix_dp(b_view,J,cii,cjj,l_normalized,l_normalized,weight,Y,coordinates)
     np.negative(b,out=b)
     return V,b
 
@@ -159,7 +136,7 @@ cpdef get_V_matrix_dp(S,int M,double Y,int weight):
                 _compute_V_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
     return V
 
-def get_coefficients(S,int weight,int multiplicity,double Y=0,int M=0,prec=14):
+def get_coefficients_dp(S,int weight,int multiplicity,double Y=0,int M=0,prec=14):
     if Y == 0:
         Y = S.group().minimal_height()*0.8
     if M == 0:
