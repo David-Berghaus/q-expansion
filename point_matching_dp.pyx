@@ -12,9 +12,9 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from my_pullback cimport my_pullback_pts_dp
 
-cdef _get_J_block_matrix_dp(int M,int weight,int Q,coordinates):
+cdef _get_J_block_matrix_dp(int Ms,int Mf,int weight,int Q,coordinates):
     cdef int coord_len = len(coordinates)
-    J = np.empty(shape=(M,coord_len),dtype=np.complex_,order="F") #Fortran order allows more efficient access here
+    J = np.empty(shape=(Mf-Ms+1,coord_len),dtype=np.complex_,order="F") #Fortran order allows more efficient access here
     cdef np.complex128_t [:, :] J_view = J
     cdef double complex two_pi_i = 2*math.pi*1j
     cdef double complex z_horo, czd, weight_fact, fact
@@ -27,8 +27,8 @@ cdef _get_J_block_matrix_dp(int M,int weight,int Q,coordinates):
         czd = c*z_horo+d
         weight_fact = (cabs(czd)/czd)**weight
         fact = weight_fact*one_over_2Q
-        for n in range(1,M+1):
-            J_view[n-1,j] = fact*cexp(-two_pi_i*n*x_horo)
+        for n in range(Ms,Mf+1):
+            J_view[n-Ms,j] = fact*cexp(-two_pi_i*n*x_horo)
     return J
 
 cdef _get_W_block_matrix_dp(int Ms,int Mf,int weight,coordinates):
@@ -51,6 +51,10 @@ cdef _compute_V_block_matrix_dp(V_view,J,int cii,int cjj,int Ms,int Mf,int weigh
     W = _get_W_block_matrix_dp(Ms,Mf,weight,coordinates)
     np.matmul(J,W,out=V_view)
 
+cdef _compute_V_block_matrix_normalized_column_dp(b_view,J,int cii,int cjj,int l_normalized,int weight,double Y,coordinates): #Computes column of V corresponding to l_normalized
+    W = _get_W_block_matrix_dp(l_normalized,l_normalized,weight,coordinates)
+    np.matmul(J,W,out=b_view)
+
 cdef _compute_V_tilde_block_matrix_dp(V_view,J,int cii,int cjj,int Ms,int Mf,int weight,double Y,coordinates): #computes a V_tilde-block-matrix and stores it in V
     _compute_V_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
     cdef int M = Mf-Ms+1
@@ -60,8 +64,8 @@ cdef _compute_V_tilde_block_matrix_dp(V_view,J,int cii,int cjj,int Ms,int Mf,int
         weight_half = weight//2
         Y_pow_weight_half = Y**weight_half
         two_pi = 2*math.pi
-        for i in range(Ms,M+1):
-            V_view[i-1,i-Ms] -= Y_pow_weight_half*cexp(-two_pi*i*Y)
+        for i in range(Ms,Mf+1):
+            V_view[i-Ms,i-Ms] -= Y_pow_weight_half*cexp(-two_pi*i*Y)
 
 cpdef get_V_tilde_matrix_dp(S,int M,double Y,int weight):
     cdef int Ms = 1
@@ -76,7 +80,7 @@ cpdef get_V_tilde_matrix_dp(S,int M,double Y,int weight):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             if len(coordinates) != 0:
-                J = _get_J_block_matrix_dp(M,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
+                J = _get_J_block_matrix_dp(Ms,Mf,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
                 V_view = V[cii*M:(cii+1)*M,cjj*M:(cjj+1)*M] #using a memory view is certainly not efficient here
                 _compute_V_tilde_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
     return V
@@ -104,17 +108,19 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y,int weight,int multiplicity): #Re
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             if len(coordinates) != 0:
-                J = _get_J_block_matrix_dp(M,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
                 V_view = V[cii*M:(cii+1)*M,cjj*M:(cjj+1)*M] #using a memory view is certainly not efficient here
-                Ms = len(normalization[cjj])+1
-                Mf = Ms+M-1
-                _compute_V_tilde_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
+                Msjj = len(normalization[cjj])+1
+                Mfjj = Msjj+M-1
+                Msii = len(normalization[cii])+1
+                Mfii = Msii+M-1
+                J = _get_J_block_matrix_dp(Msii,Mfii,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
+                _compute_V_tilde_block_matrix_dp(V_view,J,cii,cjj,Msjj,Mfjj,weight,Y,coordinates)
                 if cjj == 0:
                     b_view = b[cii*M:(cii+1)*M] #Weird python would create a (nc*M,) shape out of b_view[cii*M:(cii+1)*M,0]...
                     for i in range(len(normalization[cjj])):
                         if normalization[cjj][i] != 0:
                             l_normalized = i+1 #we set c_l_normalized = 1
-                    _compute_V_tilde_block_matrix_dp(b_view,J,cii,cjj,l_normalized,l_normalized,weight,Y,coordinates)
+                    _compute_V_block_matrix_normalized_column_dp(b_view,J,cii,cjj,l_normalized,weight,Y,coordinates)
     np.negative(b,out=b)
     return V,b
 
@@ -131,7 +137,7 @@ cpdef get_V_matrix_dp(S,int M,double Y,int weight):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             if len(coordinates) != 0:
-                J = _get_J_block_matrix_dp(M,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
+                J = _get_J_block_matrix_dp(Ms,Mf,weight,Q,coordinates) #we compute J here to re-use it later for normalized column
                 V_view = V[cii*M:(cii+1)*M,cjj*M:(cjj+1)*M] #using a memory view is certainly not efficient here
                 _compute_V_block_matrix_dp(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates)
     return V
