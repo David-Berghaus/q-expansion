@@ -63,7 +63,7 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
             tmp = y_fund_fact*((two_pi_i*l*z_fund).exp())
             acb_set(acb_mat_entry(W, j, l-Ms), tmp.value)
 
-cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int cii,int cjj,int Ms,int Mf,int weight,Y,coordinates,int bit_prec): #computes a V-block-matrix and stores it in V
+cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf,int weight,coordinates,int bit_prec): #computes a V-block-matrix and stores it in V
     coord_len = len(coordinates)
     cdef acb_mat_t W
     acb_mat_init(W, coord_len, Mf-Ms+1)
@@ -79,20 +79,33 @@ cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,acb_mat
     acb_mat_approx_mul(b_view,J,W,bit_prec)
     acb_mat_clear(W) #It would be more efficient to re-use these allocations...
 
-cdef _compute_V_tilde_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int cii,int cjj,int Ms,int Mf,int weight,Y,coordinates,int bit_prec): #computes a V_tilde-block-matrix and stores it in V
-    _compute_V_block_matrix_arb_wrap(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates,bit_prec)
+cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bit_prec): #transforms V to V_tilde by subtracting the diagonal elements
     cdef int M = Mf-Ms+1
     cdef int weight_half, i
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef RealBall Y_pow_weight_half, two_pi, tmp
-    if cii == cjj:
-        weight_half = weight//2
-        Y_pow_weight_half = Y**weight_half
-        two_pi = 2*get_pi_ball(bit_prec)
-        for i in range(Ms,M+1):
-            tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
-            acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
+    weight_half = weight//2
+    Y_pow_weight_half = Y**weight_half
+    two_pi = 2*get_pi_ball(bit_prec)
+    for i in range(Ms,Mf+1):
+        tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
+        acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
+
+# cdef _compute_V_tilde_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int cii,int cjj,int Ms,int Mf,int weight,Y,coordinates,int bit_prec): #computes a V_tilde-block-matrix and stores it in V
+#     _compute_V_block_matrix_arb_wrap(V_view,J,Ms,Mf,weight,coordinates,bit_prec)
+#     cdef int M = Mf-Ms+1
+#     cdef int weight_half, i
+#     cdef RR = RealBallField(bit_prec)
+#     cdef CC = ComplexBallField(bit_prec)
+#     cdef RealBall Y_pow_weight_half, two_pi, tmp
+#     if cii == cjj:
+#         weight_half = weight//2
+#         Y_pow_weight_half = Y**weight_half
+#         two_pi = 2*get_pi_ball(bit_prec)
+#         for i in range(Ms,M+1):
+#             tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
+#             acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
 
 cpdef get_V_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
     cdef int Ms = 1
@@ -114,7 +127,7 @@ cpdef get_V_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
                 acb_mat_init(J, M, coord_len)
                 _get_J_block_matrix_arb_wrap(J,Ms,Mf,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
                 acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                _compute_V_block_matrix_arb_wrap(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates,bit_prec)
+                _compute_V_block_matrix_arb_wrap(V_view,J,Ms,Mf,weight,coordinates,bit_prec)
                 acb_mat_clear(J) #It would be more efficient to re-use these allocations...
                 acb_mat_window_clear(V_view)
     return V
@@ -134,15 +147,27 @@ cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
-            if len(coordinates) != 0:
-                coord_len = len(coordinates)
+            coord_len = len(coordinates)
+            acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
+            if coord_len != 0:
                 acb_mat_init(J, M, coord_len)
                 _get_J_block_matrix_arb_wrap(J,Ms,Mf,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                _compute_V_tilde_block_matrix_arb_wrap(V_view,J,cii,cjj,Ms,Mf,weight,Y,coordinates,bit_prec)
+                _compute_V_block_matrix_arb_wrap(V_view,J,Ms,Mf,weight,coordinates,bit_prec)
                 acb_mat_clear(J) #It would be more efficient to re-use these allocations...
-                acb_mat_window_clear(V_view)
+            if cii == cjj:
+                _subtract_diagonal_terms(V_view,Ms,Mf,weight,Y,bit_prec)
+            acb_mat_window_clear(V_view)
     return V
+
+cdef _get_l_normalized(cjj,normalization):
+    cdef int i
+    cdef int l_normalized = 0
+    for i in range(len(normalization[cjj])):
+        if normalization[cjj][i] != 0:
+            l_normalized = i+1 #we set c_l_normalized = 1
+    if l_normalized == 0:
+        raise NameError("Could not determine l_normalized...")
+    return l_normalized
 
 cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int weight,int multiplicity,int bit_prec): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
     cdef int Q = M+8
@@ -164,27 +189,29 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int weight,int multiplicity,int bi
         normalization[i] = []
     cdef Matrix_complex_ball_dense V = MatrixSpace(CC,nc*M,nc*M).zero()
     cdef Matrix_complex_ball_dense b = MatrixSpace(CC,nc*M,1).zero()
-    cdef int cii,cjj,Ms,Mf
+    cdef int cii,cjj
     cdef acb_mat_t V_view, J, b_view
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
-            if len(coordinates) != 0:
-                coord_len = len(coordinates)
+            coord_len = len(coordinates)
+            acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
+            if coord_len != 0:
                 acb_mat_init(J, M, coord_len)
                 Msjj = len(normalization[cjj])+1
                 Mfjj = Msjj+M-1
                 Msii = len(normalization[cii])+1
                 Mfii = Msii+M-1
                 _get_J_block_matrix_arb_wrap(J,Msii,Mfii,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                _compute_V_tilde_block_matrix_arb_wrap(V_view,J,cii,cjj,Msjj,Mfjj,weight,Y,coordinates,bit_prec)
+                _compute_V_block_matrix_arb_wrap(V_view,J,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
                     acb_mat_window_init(b_view,b.value,cii*M,0,(cii+1)*M,1)
-                    for i in range(len(normalization[cjj])):
-                        if normalization[cjj][i] != 0:
-                            l_normalized = i+1 #we set c_l_normalized = 1
+                    l_normalized = _get_l_normalized(cjj,normalization)
                     _compute_V_block_matrix_normalized_column_arb_wrap(b_view,J,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
+                    acb_mat_window_clear(b_view)
+            if cii == cjj:
+                _subtract_diagonal_terms(V_view,Msjj,Mfjj,weight,Y,bit_prec)
+            acb_mat_window_clear(V_view)
     acb_mat_neg(b.value, b.value)
     return V,b
 

@@ -10,7 +10,6 @@ point_matching_arb_wrap.pyx
 point_matching_dp.c
 point_matching_dp.pxd
 point_matching_dp.pyx
-point_matching_dp_old.c
 run.sage
 setup.py
 UNKNOWN.egg-info/PKG-INFO
