@@ -12,6 +12,7 @@ point_matching_dp.pxd
 point_matching_dp.pyx
 run.sage
 setup.py
+unit_tests.sage
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt
