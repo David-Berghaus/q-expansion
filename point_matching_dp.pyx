@@ -64,7 +64,8 @@ cdef _subtract_diagonal_terms(V_view,int Ms,int Mf,int weight,double Y): #transf
     for i in range(Ms,Mf+1):
         V_view[i-Ms,i-Ms] -= Y_pow_weight_half*cexp(-two_pi*i*Y)
 
-cpdef get_V_tilde_matrix_dp(S,int M,double Y,int weight):
+cpdef get_V_tilde_matrix_dp(S,int M,double Y):
+    cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
     cdef int Q = M+8
@@ -94,12 +95,16 @@ cdef _get_l_normalized(cjj,normalization):
         raise NameError("Could not determine l_normalized...")
     return l_normalized
 
-cpdef get_V_tilde_matrix_b_dp(S,int M,double Y,int weight,int multiplicity): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
+cpdef get_V_tilde_matrix_b_dp(S,int M,double Y): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
+    cdef int weight = S.weight()
+    G = S.group()
+    cdef int multiplicity = G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
     cdef int Q = M+8
     pb = my_pullback_pts_dp(S,1-Q,Q,Y)
-    G = S.group()
     cdef int nc = G.ncusps()
     normalization = dict()
+    if multiplicity == 0:
+        raise NameError("The space of cuspforms is of dimension zero for this weight!")
     if multiplicity == 1:
         normalization[0] = [1]
     if multiplicity == 2:
@@ -133,7 +138,8 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y,int weight,int multiplicity): #Re
     np.negative(b,out=b)
     return V,b
 
-cpdef get_V_matrix_dp(S,int M,double Y,int weight):
+cpdef get_V_matrix_dp(S,int M,double Y):
+    cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
     cdef int Q = M+8
@@ -151,62 +157,14 @@ cpdef get_V_matrix_dp(S,int M,double Y,int weight):
                 _compute_V_block_matrix_dp(V_view,J,Ms,Mf,weight,coordinates)
     return V
 
-def get_coefficients_dp(S,int weight,int multiplicity,double Y=0,int M=0,prec=14):
+def get_coefficients_dp(S,double Y=0,int M=0,prec=14):
     if Y == 0:
         Y = S.group().minimal_height()*0.9
     if M == 0:
+        weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,prec))
     print("Y = ", Y)
     print("M = ", M)
-    V,b = get_V_tilde_matrix_b_dp(S,M,Y,weight,multiplicity)
+    V,b = get_V_tilde_matrix_b_dp(S,M,Y)
     c = np.linalg.solve(V,b)
-    # T = get_V_tilde_matrix_dp(S,M,Y,weight)
-    # V2 = T[1:,1:]
-    # b2 = -T[1:,0]
-    # c2 = np.linalg.solve(V2,b2)
-    # print(c2[:M])
-    # print("")
     return c[:M] #Expansion coefficients at first cusp
-
-# cdef get_V_tilde_element(int n,int l,int cii,int cjj,int Q,int weight,double Y,coordinates):
-#     cdef double complex two_pi_i_n = 2*math.pi*1j*n
-#     cdef double complex two_pi_i_l = 2*math.pi*1j*l
-#     cdef int weight_half = weight//2
-#     cdef double complex V_el = 0.
-#     cdef double complex weight_fact, z_horo, z_pb
-#     cdef int a,b,c,d
-#     for (z_horo,a,b,c,d,z_pb) in coordinates:
-#         weight_fact = (cabs(c*z_horo+d)/(c*z_horo+d))**weight
-#         V_el += weight_fact*cimag(z_pb)**weight_half*cexp(two_pi_i_l*z_pb)*cexp(-two_pi_i_n*creal(z_horo))
-#     cdef double one_over_2Q = 1.0/(2*Q)
-#     V_el *= one_over_2Q
-#     if cii == cjj:
-#         if n == l:
-#             V_el -= Y**weight_half*cexp(-2*math.pi*n*Y)
-#     return V_el
-
-# cpdef get_V_tilde_matrix_by_element_dp(S,int M,double Y,int weight):
-#     cdef int Ms = 1
-#     cdef int Mf = M
-#     cdef int Q = M+8
-#     pb = my_pullback_pts_dp(S,1-Q,Q,Y)
-#     cdef int nc = S.group().ncusps()
-#     G = S.group()
-#     V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
-#     cdef int cii,cjj,n,l
-#     for cii in range(nc):
-#         for cjj in range(nc):
-#             V_view = V[cii*M:(cii+1)*M,cjj*M:(cjj+1)*M]
-#             coordinates = pb[cii][cjj]
-#             if len(coordinates) != 0:
-#                 for n in range(1,M+1):
-#                     for l in range(1,M+1):
-#                         V_view[n-1,l-1] = get_V_tilde_element(n,l,cii,cjj,Q,weight,Y,coordinates)
-#     return V
-
-# cpdef get_coefficients_test(S,int M,double Y,int weight):
-#     V = get_V_tilde_matrix_by_element_dp(S,M,Y,weight)
-#     Nrows, Ncols = V.shape 
-#     A = V[:(Nrows-1),1:]
-#     b = -V[:(Nrows-1),0]
-#     return np.linalg.solve(A,b)

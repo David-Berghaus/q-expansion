@@ -97,7 +97,8 @@ cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bi
         tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
         acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
 
-cpdef get_V_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
+cpdef get_V_matrix_arb_wrap(S,int M,Y,int bit_prec):
+    cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
     cdef int Q = M+8
@@ -122,7 +123,8 @@ cpdef get_V_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
                 acb_mat_window_clear(V_view)
     return V
 
-cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int weight,int bit_prec):
+cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
+    cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
     cdef int Q = M+8
@@ -159,14 +161,18 @@ cdef _get_l_normalized(cjj,normalization):
         raise NameError("Could not determine l_normalized...")
     return l_normalized
 
-cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int weight,int multiplicity,int bit_prec): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
+cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
+    cdef int weight = S.weight()
+    G = S.group()
+    cdef int multiplicity = G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
     cdef int Q = M+8
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
-    G = S.group()
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef int nc = G.ncusps()
     normalization = dict()
+    if multiplicity == 0:
+        raise NameError("The space of cuspforms is of dimension zero for this weight!")
     if multiplicity == 1:
         normalization[0] = [1]
     if multiplicity == 2:
@@ -208,17 +214,18 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int weight,int multiplicity,int bi
     sig_off()
     return V,b
 
-def get_coefficients_arb_wrap(S,int weight,int multiplicity,int digit_prec,Y=0,int M=0):
+def get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     bit_prec = digits_to_bits(digit_prec)
     RR = RealBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
         Y = RR(S.group().minimal_height()*0.8)
     if M == 0:
+        weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
     print("Y = ", Y)
     print("M = ", M)
     cdef Matrix_complex_ball_dense V,b
-    V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,weight,multiplicity,bit_prec)
+    V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
     sig_on()
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
