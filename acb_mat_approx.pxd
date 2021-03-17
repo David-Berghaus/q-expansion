@@ -13,6 +13,7 @@ cdef extern from "arb_wrap.h":
     int acb_mat_approx_solve(acb_mat_t X, const acb_mat_t A, const acb_mat_t B, long prec)
     int acb_mat_approx_inv(acb_mat_t X, const acb_mat_t A, long prec)
     void acb_mat_approx_mul(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
+    void acb_mat_approx_mul_classical(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
 
     void acb_mat_window_init(acb_mat_t window, const acb_mat_t mat, long r1, long c1, long r2, long c2)
     void acb_mat_window_clear(acb_mat_t window)

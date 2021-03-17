@@ -10,9 +10,9 @@ point_matching_arb_wrap.pyx
 point_matching_dp.c
 point_matching_dp.pxd
 point_matching_dp.pyx
-point_matching_dp_old.c
 run.sage
 setup.py
+unit_tests.sage
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt

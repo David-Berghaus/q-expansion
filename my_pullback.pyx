@@ -51,6 +51,9 @@ cpdef my_pullback_pts_dp(S,int Qs,int Qf,double Y): #Slow version
             Pb[cii][cjj].append((z_horo,a,b,c,d,z3))
     return Pb
 
+cdef apply_moebius_transformation_dp(z,a,b,c,d): #z is a double complex and a,b,c,d are doubles
+    return (a*z+b)/(c*z+d)
+
 cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
     RR = RealBallField(prec)
     CC = ComplexBallField(prec)
