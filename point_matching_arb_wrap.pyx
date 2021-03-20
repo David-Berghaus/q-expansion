@@ -252,7 +252,7 @@ def get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
 #     acb_printd(acb_mat_entry(inv_low,0,M-1), 16)
 #     acb_printd(acb_mat_entry(inv_high,0,M-1), 16)
 
-cdef extern from "acb_mat_approx_helpers.c":
+cdef extern from "acb_mat_approx_helpers.h":
     void acb_approx_dotc(acb_t res, const acb_t s, int subtract, acb_srcptr x, long xstep, acb_srcptr y, long ystep, long len, long prec)
     void test_acb_mat_approx_dot()
 
