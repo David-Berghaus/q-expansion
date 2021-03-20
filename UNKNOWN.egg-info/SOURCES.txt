@@ -2,6 +2,7 @@
 README.md
 acb_mat_approx.pxd
 arb_wrap.h
+iterative_solvers.c
 my_pullback.c
 my_pullback.pxd
 my_pullback.pyx
