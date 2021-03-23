@@ -7,6 +7,11 @@ import Cython.Compiler.Options
 Cython.Compiler.Options.annotate=True
 
 setup(
-    ext_modules=cythonize(["my_pullback.pyx","point_matching_dp.pyx","point_matching_arb_wrap.pyx","iterative_solvers.pyx"],annotate=True),
+    ext_modules=cythonize(["my_pullback.pyx",
+    "point_matching_dp.pyx",
+    "point_matching_arb_wrap.pyx",
+    "iterative_solvers_arb_wrap.pyx",
+    "iterative_solvers_dp.pyx",
+    "acb_mat_class.pyx"],annotate=True),
     zip_safe=False,
 )

@@ -1,8 +1,12 @@
 .gitignore
 README.md
 acb_mat_approx.pxd
+acb_mat_approx_helpers.h
+acb_mat_class.c
 arb_wrap.h
-iterative_solvers.c
+iterative_solvers_arb_wrap.c
+iterative_solvers_dp.c
+iterative_solvers_dp.pyx
 my_pullback.c
 my_pullback.pxd
 my_pullback.pyx

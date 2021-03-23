@@ -17,7 +17,9 @@ def test_gmres():
     for i in range(10):
         A[i,i] *= 10
     b = np.random.rand(10,1)+np.random.rand(10,1)*1j
-    x_gmres = gmres_mgs(A,b)
+    res = gmres_mgs_dp(A,b)
+    print("x: ", np.linalg.solve(A,b))
+    return res
 
 def apply_givens(Q, v, k):
     """Apply the first k Givens rotations in Q to v.
@@ -47,7 +49,7 @@ def apply_givens(Q, v, k):
         v[j] = v1
         v[j+1] = v2
 
-def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
+def gmres_mgs_dp(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
     """Generalized Minimum Residual Method (GMRES) based on MGS.
     GMRES iteratively refines the initial solution guess to the system
     Ax = b
@@ -103,7 +105,8 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
        http://www-users.cs.umn.edu/~saad/books.html
     .. [2] C. T. Kelley, http://www4.ncsu.edu/~ctk/matlab_roots.html
     """
-    cdef int outer, inner, k, niter, max_outer, max_inner
+    cdef int outer, k, niter, max_outer, max_inner
+    cdef int inner = 0
     # Convert inputs to linear system, with error checking
     A, M, x, b, postprocess = make_system(A, M, x0, b)
     cdef int dimen = A.shape[0]
@@ -183,20 +186,17 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
 
         # Preallocate for Givens Rotations, Hessenberg matrix and Krylov Space
         # Space required is O(dimen*max_inner).
-        # NOTE:  We are dealing with row-major matrices, so we traverse in a
-        #        row-major fashion,
-        #        i.e., H and V's transpose is what we store.
         Q = []  # Givens Rotations
         # Upper Hessenberg matrix, which is then
         #   converted to upper tri with Givens Rots
         H = np.zeros((max_inner+1, max_inner+1), dtype=complex)
-        V = np.zeros((max_inner+1, dimen), dtype=complex)  # Krylov Space
+        V = np.zeros((dimen, max_inner+1), dtype=complex)  # Krylov Space
         # vs store the pointers to each column of V.
         #   This saves a considerable amount of time.
         vs = []
         # v = r/normr
-        V[0, :] = scal(1.0/normr, r)
-        vs.append(V[0, :])
+        V[:, 0] = scal(1.0/normr, r)
+        vs.append(V[:, 0])
 
         # This is the RHS vector for the problem in the Krylov Space
         g = np.zeros((dimen,), dtype=complex)
@@ -205,7 +205,7 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
         for inner in range(max_inner):
 
             # New Search Direction
-            v = V[inner+1, :]
+            v = V[:, inner+1]
             v[:] = np.ravel(M*(A*vs[-1]))
             vs.append(v)
             normv_old = norm(v)
@@ -214,27 +214,27 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
             for k in range(inner+1):
                 vk = vs[k]
                 alpha = dotc(vk, v)
-                H[inner, k] = alpha
+                H[k, inner] = alpha
                 v[:] = axpy(vk, v, dimen, -alpha)
 
             normv = norm(v)
-            H[inner, inner+1] = normv
+            H[inner+1, inner] = normv
 
             # Check for breakdown
-            if H[inner, inner+1] != 0.0:
-                v[:] = scal(1.0/H[inner, inner+1], v)
+            if H[inner+1, inner] != 0.0:
+                v[:] = scal(1.0/H[inner+1, inner], v)
 
             # Apply previous Givens rotations to H
             if inner > 0:
-                apply_givens(Q, H[inner, :], inner)
+                apply_givens(Q, H[:, inner], inner)
 
             # Calculate and apply next complex-valued Givens Rotation
             # ==> Note that if max_inner = dimen, then this is unnecessary
             # for the last inner
             #     iteration, when inner = dimen-1.
             if inner != dimen-1:
-                if H[inner, inner+1] != 0:
-                    [c, s, r] = lartg(H[inner, inner], H[inner, inner+1])
+                if H[inner+1, inner] != 0:
+                    [c, s, r] = lartg(H[inner, inner], H[inner+1, inner])
                     Qblock = np.array([[c, s], [-np.conjugate(s), c]],
                                       dtype=complex)
                     Q.append(Qblock)
@@ -245,8 +245,8 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
 
                     # Apply effect of Givens Rotation to H
                     H[inner, inner] = dotu(Qblock[0, :],
-                                           H[inner, inner:inner+2])
-                    H[inner, inner+1] = 0.0
+                                           H[inner:inner+2, inner])
+                    H[inner+1, inner] = 0.0
 
             niter += 1
 
@@ -261,8 +261,8 @@ def gmres_mgs(A, b, x0=None, tol=1e-5, restrt=None, maxiter=None, M=None):
         # end inner loop, back to outer loop
 
         # Find best update to x in Krylov Space V.  Solve inner x inner system.
-        y = sp.linalg.solve(H[0:inner+1, 0:inner+1].T, g[0:inner+1])
-        update = np.ravel(V[:inner+1, :].T.dot(y.reshape(-1, 1)))
+        y = sp.linalg.solve(H[0:inner+1, 0:inner+1], g[0:inner+1]) #H is upper triangular
+        update = np.ravel(V[:, :inner+1].dot(y.reshape(-1, 1)))
         x = x + update
         r = b - np.ravel(A*x)
 

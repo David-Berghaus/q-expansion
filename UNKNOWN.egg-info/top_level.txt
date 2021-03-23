@@ -1,4 +1,6 @@
-iterative_solvers
+acb_mat_class
+iterative_solvers_arb_wrap
+iterative_solvers_dp
 my_pullback
 point_matching_arb_wrap
 point_matching_dp
