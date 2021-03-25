@@ -1,5 +1,7 @@
 #Based on: https://github.com/pyamg/pyamg/blob/main/pyamg/krylov/_gmres_mgs.py
 
+#These functions are used as prototypes for the arb-version and should only be used for testing purposes
+
 from __future__ import print_function
 import numpy as np
 import scipy as sp

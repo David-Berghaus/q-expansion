@@ -51,6 +51,11 @@ def test_gmres():
     for i in range(dimen):
         A[i,i] *= 10
     b = np.random.rand(dimen,1)+np.random.rand(dimen,1)*1j
+    M = np.linalg.inv(A)
+    for i in range(dimen):
+        for j in range(dimen):
+            M[i,j] -= 0.1+0.1j #Add some pertubation
+
     cdef ComplexBall cb_cast
     cdef Acb_Mat A_arb = Acb_Mat(dimen,dimen)
     for i in range(dimen):
@@ -62,9 +67,14 @@ def test_gmres():
         cb_cast = CBF(b[i][0])
         acb_set(acb_mat_entry(b_arb.value,i,0), cb_cast.value)
     cdef Acb_Mat x0_arb = Acb_Mat(dimen,1) #Zero vector
+    cdef Acb_Mat M_arb = Acb_Mat(dimen,dimen)
+    for i in range(dimen):
+        for j in range(dimen):
+            cb_cast = CBF(M[i,j])
+            acb_set(acb_mat_entry(M_arb.value,i,j), cb_cast.value)
 
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(A_arb, b_arb, x0_arb, prec, tol)
-    x_gmres_dp = gmres_mgs_dp(A, b)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(A_arb, b_arb, x0_arb, prec, tol, M=M_arb)
+    x_gmres_dp = gmres_mgs_dp(A, b, M=M)
     x_gmres_arb_wrap[0].str(10)
     print(x_gmres_dp[0])
 
@@ -148,13 +158,13 @@ cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
         acb_approx_add(v2,v2,t,prec)
         # v[j] = v1
         # v[j+1] = v2
-        acb_approx_set(acb_mat_entry(v.value,j,0),v1)
-        acb_approx_set(acb_mat_entry(v.value,j+1,0),v2)
+        acb_swap(acb_mat_entry(v.value,j,0),v1)
+        acb_swap(acb_mat_entry(v.value,j+1,0),v2)
     acb_clear(v1)
     acb_clear(v2)
     acb_clear(t)
 
-def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol, restrt=None, maxiter=None, M=None):
+def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol, restrt=None, maxiter=None, M=None, LU=None):
     """Generalized Minimum Residual Method (GMRES) based on MGS.
     GMRES iteratively refines the initial solution guess to the system
     Ax = b
@@ -180,8 +190,8 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
           and GMRES does not restart
         - if restrt is int, maxiter is the max number of outer iterations,
           and restrt is the max number of inner iterations
-    M : array, matrix, sparse matrix, LinearOperator
-        n x n, inverted preconditioner, i.e. solve M A x = M b.
+    M : matrix, inverted preconditioner, i.e. solve M A x = M b.
+    LU : matrix, approximate LU-decomposition of matrix A. (we assume both factors to be stored in this matrix with unit diagonal)
     Returns
     -------
     (xNew, info)
@@ -213,8 +223,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
     cdef int outer, k, niter, max_outer, max_inner
     cdef int inner = 0 #To avoid compiler warning
     cdef int dimen = acb_mat_nrows(A.value)
-    # Convert inputs to linear system, with error checking
-    #A, M, x, b, postprocess = make_system(A, M, x0, b)
+
     cdef Acb_Mat x = Acb_Mat(dimen,1)
     acb_mat_set(x.value, x0.value)
 
@@ -222,14 +231,12 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
     arb_init(normr)
     arb_init(normv)
     arb_init(arb_tmp)
-    cdef acb_t c, s, acb_tmp, acb_tmp2
+    cdef acb_t c, s, acb_tmp, acb_tmp2, acb_tmp3
     acb_init(c)
     acb_init(s)
     acb_init(acb_tmp)
     acb_init(acb_tmp2)
-
-    cdef acb_mat_t aliasing_avoider_matrix
-
+    acb_init(acb_tmp3)
 
 #     def axpy(x,y,n,a): #returns scalar a * vector x + vector y
 #         return a*x+y
@@ -277,6 +284,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
 
     # Apply preconditioner
     #r = np.ravel(M*r)
+    apply_preconditioner(r, M, LU, prec)
 
     #normr = norm(r)
     sig_on()
@@ -326,7 +334,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
 
         for inner in range(max_inner):
 
-            # # New Search Direction
+            # New Search Direction
             # v = V[:, inner+1]
             # v[:] = np.ravel(M*(A*vs[-1]))
             # vs.append(v)
@@ -337,6 +345,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
             sig_on()
             acb_mat_approx_mul(v.value, A.value, acb_mat_win_cast.value, prec)
             sig_off()
+            apply_preconditioner(v, M, LU, prec)
 
             #  Modified Gram Schmidt
             for k in range(inner+1):
@@ -351,10 +360,10 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
                 acb_mat_approx_scalar_addmul(v.value, v.value, acb_mat_win_cast.value, acb_tmp, prec)
 
             # normv = norm(v)
-            # H[inner+1, inner] = normv
             sig_on()
             acb_mat_approx_norm(normv,v.value,prec)
             sig_off()
+            # H[inner+1, inner] = normv
             acb_approx_set_arb(acb_mat_entry(H.value, inner+1, inner), normv)
 
             # Check for breakdown
@@ -396,13 +405,13 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
                     # Apply Givens Rotation to g,
                     #   the RHS for the linear system in the Krylov Subspace.
                     # g[inner:inner+2] = np.dot(Qblock, g[inner:inner+2])
-                    acb_mat_win_cast = g.get_window(inner, 0, inner+2, 1) #Might want to replace this with a custom version
-                    acb_mat_init(aliasing_avoider_matrix, 2, 1) #Arb currently does not work for aliasing window-matrices
-                    acb_mat_set(aliasing_avoider_matrix, acb_mat_win_cast.value)
-                    sig_on()
-                    acb_mat_approx_mul(acb_mat_win_cast.value, Qblock.value, aliasing_avoider_matrix, prec)
-                    sig_off()
-                    acb_mat_clear(aliasing_avoider_matrix)
+                    acb_approx_mul(acb_tmp,acb_mat_entry(Qblock.value,0,0),acb_mat_entry(g.value,inner,0),prec)
+                    acb_approx_mul(acb_tmp2,acb_mat_entry(Qblock.value,0,1),acb_mat_entry(g.value,inner+1,0),prec)
+                    acb_approx_add(acb_tmp3,acb_tmp,acb_tmp2,prec)
+                    acb_approx_mul(acb_tmp,acb_mat_entry(Qblock.value,1,0),acb_mat_entry(g.value,inner,0),prec)
+                    acb_approx_mul(acb_tmp2,acb_mat_entry(Qblock.value,1,1),acb_mat_entry(g.value,inner+1,0),prec)
+                    acb_approx_add(acb_mat_entry(g.value,inner+1,0),acb_tmp,acb_tmp2,prec)
+                    acb_swap(acb_mat_entry(g.value,inner,0),acb_tmp3)
 
                     # Apply effect of Givens Rotation to H
                     # H[inner, inner] = dotu(Qblock[0, :],
@@ -454,8 +463,9 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
         sig_off()
 
 
-    #     # Apply preconditioner
-    #     r = np.ravel(M*r)
+        # Apply preconditioner
+        # r = np.ravel(M*r)
+        apply_preconditioner(r, M, LU, prec)
         # normr = norm(r)
         sig_on()
         acb_mat_approx_norm(normr,r.value,prec)
@@ -466,5 +476,51 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
             return (x, 0)
 
     # end outer loop
+    arb_clear(normr)
+    arb_clear(normv)
+    arb_clear(arb_tmp)
+    acb_clear(c)
+    acb_clear(s)
+    acb_clear(acb_tmp)
+    acb_clear(acb_tmp2)
+    acb_clear(acb_tmp3)
 
     return (x, niter)
+
+cdef apply_preconditioner(x, M, LU, int prec): #Apply preconditioner (if available) on x
+    """
+    Parameters
+    ----------
+    x : vector / matrix (view)
+    M : array, matrix, sparse matrix, LinearOperator
+        n x n, inverted preconditioner, i.e. solve M A x = M b.
+    LU : approximate LU-decomposition of matrix A.
+    """
+
+    cdef Acb_Mat M_cast, x_cast
+    cdef Acb_Mat_Win x_win_cast #Use this in case x is a window
+    cdef acb_mat_t aliasing_avoider_matrix
+
+    if M != None and LU != None:
+        raise NameError("Please select only one preconditioner!")
+        
+    if M != None:
+        M_cast = M
+        if type(x) is Acb_Mat:
+            x_cast = x
+            sig_on()
+            acb_mat_approx_mul(x_cast.value, M_cast.value, x_cast.value, prec)
+            sig_off()
+        elif type(x) is Acb_Mat_Win:
+            x_win_cast = x
+            dimen = acb_mat_nrows(x_win_cast.value)
+            acb_mat_init(aliasing_avoider_matrix, dimen, 1) #Arb currently does not work for aliasing window-matrices
+            acb_mat_set(aliasing_avoider_matrix, x_win_cast.value)
+            sig_on()
+            acb_mat_approx_mul(x_win_cast.value, M_cast.value, aliasing_avoider_matrix, prec)
+            sig_off()
+            acb_mat_clear(aliasing_avoider_matrix)
+    
+    if LU != None:
+        raise NameError("This case is not implemented yet!")
+    

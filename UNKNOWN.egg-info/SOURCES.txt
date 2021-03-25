@@ -3,8 +3,11 @@ README.md
 acb_mat_approx.pxd
 acb_mat_approx_helpers.h
 acb_mat_class.c
+acb_mat_class.pxd
+acb_mat_class.pyx
 arb_wrap.h
 iterative_solvers_arb_wrap.c
+iterative_solvers_arb_wrap.pyx
 iterative_solvers_dp.c
 iterative_solvers_dp.pyx
 my_pullback.c

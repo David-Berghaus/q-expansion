@@ -192,65 +192,72 @@ acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, l
     }
 }
 
-void //Computes x dot y where x&y are len*1 matrices.
-acb_mat_approx_dot(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
-{
-    int len = acb_mat_nrows(x);
-    acb_ptr vec_x = _acb_vec_init(len);
-    acb_ptr vec_y = _acb_vec_init(len);
-
-    for (int i = 0; i < len; i++) //Add column entries to vector
-    {
-        acb_approx_set(vec_x + i,acb_mat_entry(x,i,0));
-        acb_approx_set(vec_y + i,acb_mat_entry(y,i,0));
-    }
-
-    acb_approx_dot(res, 0, 0, vec_x, 1, vec_y, 1, len, prec);
-
-    _acb_vec_clear(vec_x, len);
-    _acb_vec_clear(vec_y, len);
-}
-
 void //Computes conjugate(x) dot y where x&y are len*1 matrices.
 acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
 {
     int len = acb_mat_nrows(x);
-    acb_ptr vec_x = _acb_vec_init(len);
-    acb_ptr vec_y = _acb_vec_init(len);
+    arb_ptr tmp1, tmp2;
+    TMP_INIT;
 
-    for (int i = 0; i < len; i++) //Add column entries to vector & conjugate x
+    TMP_START;
+    tmp1 = TMP_ALLOC(sizeof(arb_struct) * len);
+    tmp2 = TMP_ALLOC(sizeof(arb_struct) * len);
+
+    int i;
+    for (i = 0; i < len; i++)
     {
-        acb_conj(vec_x + i,acb_mat_entry(x,i,0));
-        acb_approx_set(vec_y + i,acb_mat_entry(y,i,0));
+        tmp1[i] = *acb_realref(acb_mat_entry(x, i, 0));
+        tmp2[i] = *acb_realref(acb_mat_entry(y, i, 0));
     }
+    arb_approx_dot(acb_realref(res), NULL, 0, tmp1, 1, tmp2, 1, len, prec);
 
-    acb_approx_dot(res, 0, 0, vec_x, 1, vec_y, 1, len, prec);
+    for (i = 0; i < len; i++)
+        tmp2[i] = *acb_imagref(acb_mat_entry(y, i, 0));
+    arb_approx_dot(acb_imagref(res), NULL, 0, tmp1, 1, tmp2, 1, len, prec);
 
-    _acb_vec_clear(vec_x, len);
-    _acb_vec_clear(vec_y, len);
+    for (i = 0; i < len; i++)
+        tmp1[i] = *acb_imagref(acb_mat_entry(x, i, 0));
+    arb_approx_dot(acb_realref(res), acb_realref(res), 0, tmp1, 1, tmp2, 1, len, prec);
+
+    for (i = 0; i < len; i++)
+        tmp2[i] = *acb_realref(acb_mat_entry(y, i, 0));
+    arb_approx_dot(acb_imagref(res), acb_imagref(res), 1, tmp1, 1, tmp2, 1, len, prec);
+
+    // acb_ptr vec_x = _acb_vec_init(len);
+    // acb_ptr vec_y = _acb_vec_init(len);
+
+    // for (int i = 0; i < len; i++) //Add column entries to vector & conjugate x
+    // {
+    //     acb_conj(vec_x + i,acb_mat_entry(x,i,0));
+    //     acb_approx_set(vec_y + i,acb_mat_entry(y,i,0));
+    // }
+
+    // acb_approx_dot(res, 0, 0, vec_x, 1, vec_y, 1, len, prec);
+
+    // _acb_vec_clear(vec_x, len);
+    // _acb_vec_clear(vec_y, len);
 }
 
-void acb_mat_approx_norm(arb_t res, acb_mat_t x, long prec){
-    acb_t tmp;
-    acb_init(tmp);
-    acb_mat_approx_dotc(tmp, x, x, prec); //There might be a faster way to compute this
-    arb_set(res,acb_realref(tmp)); //Should we do approx set here?
-    arb_sqrt(res,res,prec);
-    acb_clear(tmp);
-}
+void acb_mat_approx_norm(arb_t res, acb_mat_t x, long prec){ //returns sqrt(real(dotc(x, x)))
+    arb_ptr tmp;
+    TMP_INIT;
 
-void test_acb_mat_approx_dot()
-{
-    acb_mat_t x, y;
-    acb_mat_init(x, 3, 1);
-    acb_mat_init(y, 3, 1);
-    acb_mat_ones(x);
-    acb_mat_ones(y);
-    acb_onei(acb_mat_entry(x,0,0));
-    acb_t res;
-    acb_init(res);
-    acb_mat_approx_dot(res, x, y, 53);
-    acb_printd(res,10);
+    TMP_START;
+    int i;
+    int len = acb_mat_nrows(x);
+    tmp = TMP_ALLOC(sizeof(arb_struct) * len);
+
+    for (i = 0; i < len; i++)
+        tmp[i] = *acb_realref(acb_mat_entry(x, i, 0));
+    arb_approx_dot(res, NULL, 0, tmp, 1, tmp, 1, len, prec);
+
+    for (i = 0; i < len; i++)
+        tmp[i] = *acb_imagref(acb_mat_entry(x, i, 0));
+    arb_approx_dot(res, res, 0, tmp, 1, tmp, 1, len, prec);
+
+    arf_sqrt(arb_midref(res), arb_midref(res), prec, ARF_RND_DOWN);    
+
+    TMP_END;
 }
 
 void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
