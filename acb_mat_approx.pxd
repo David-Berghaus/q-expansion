@@ -2,7 +2,7 @@
 
 # distutils: depends = acb_mat.h
 
-from sage.libs.arb.types cimport acb_t, acb_ptr, acb_srcptr, acb_mat_t, acb_poly_t, mag_t
+from sage.libs.arb.types cimport acb_t, acb_ptr, acb_srcptr, acb_mat_t, acb_poly_t, mag_t, arf_t
 
 # acb_mat.h
 cdef extern from "arb_wrap.h":
@@ -17,3 +17,5 @@ cdef extern from "arb_wrap.h":
 
     void acb_mat_window_init(acb_mat_t window, const acb_mat_t mat, long r1, long c1, long r2, long c2)
     void acb_mat_window_clear(acb_mat_t window)
+
+    void arf_printd(const arf_t x, long d)

@@ -14,6 +14,8 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from acb_mat_approx cimport *
 from my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
+from acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from acb_mat_class import Acb_Mat, Acb_Mat_Win
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)

@@ -3,6 +3,8 @@ import numpy as np
 from point_matching_dp import get_coefficients_dp, get_V_tilde_matrix_b_dp, get_V_tilde_matrix_dp
 from point_matching_arb_wrap import get_coefficients_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_arb_wrap
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
+from psage.groups.permutation_alg import MyPermutation
+from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 def run_unit_tests():
     run_unit_tests_dp()
@@ -14,10 +16,13 @@ def run_unit_tests_dp():
     test_get_V_tilde_matrix_dp()
 
 def test_get_coefficients_dp():
-    S = AutomorphicFormSpace(Gamma0(2),weight=12) #Search for a multiplicity two old-form
+    r='(1 2 5)(3)(4 7 9)(6 10 8)'
+    s='(1)(2)(3 4)(5 6)(7 8)(9 10)'
+    G=MySubgroup(o2=s,o3=r) #This is a non-congruence subgroup
+    S = AutomorphicFormSpace(G,weight=4) #Search for a multiplicity two new-form
     C = get_coefficients_dp(S)
-    assert abs(C[0][0]-252)/abs(C[0][0]+252) < 1e-12
-    assert abs(C[1][0]-(-2048))/abs(C[1][0]+(-2048)) < 1e-12
+    assert abs(C[0][0]-(1.1779944322516185-1.177994432251737j))/abs(C[0][0]+(1.1779944322516185-1.177994432251737j)) < 1e-12
+    assert abs(C[1][0]-(2.2534750215544057-5.440369959505566j))/abs(C[1][0]+(2.2534750215544057-5.440369959505566j)) < 1e-12
     print("test_get_coefficients_dp ok")
 
 def test_get_V_tilde_matrix_b_dp():
