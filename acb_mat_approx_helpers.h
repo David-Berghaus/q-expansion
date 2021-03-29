@@ -326,3 +326,25 @@ lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)
         acb_clear(f_sign);
     }
 }
+
+void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, long prec) //Sets entries of A to prec (increases and decreases of precision are allowed)
+{
+    arf_t arf_tmp;
+    arf_init(arf_tmp);
+    long nrows, ncols, i, j;
+    nrows = acb_mat_nrows(A);
+    ncols = acb_mat_ncols(A);
+
+    for (i = 0; i < nrows; i++)
+    {
+        for (j = 0; j < ncols; j++)
+        {
+            arf_set_round(arf_tmp, arb_midref(acb_realref(acb_mat_entry(A,i,j))), prec, ARF_RND_DOWN);
+            arf_swap(arb_midref(acb_realref(acb_mat_entry(res,i,j))), arf_tmp);;
+            arf_set_round(arf_tmp, arb_midref(acb_imagref(acb_mat_entry(A,i,j))), prec, ARF_RND_DOWN);
+            arf_swap(arb_midref(acb_imagref(acb_mat_entry(res,i,j))), arf_tmp);
+        }
+    }
+
+    arf_clear(arf_tmp);
+}

@@ -13,6 +13,7 @@ iterative_solvers_dp.pyx
 my_pullback.c
 my_pullback.pxd
 my_pullback.pyx
+plu_class.c
 point_matching_arb_wrap.c
 point_matching_arb_wrap.pyx
 point_matching_dp.c

@@ -1,4 +1,5 @@
-#Based on: https://github.com/pyamg/pyamg/blob/main/pyamg/krylov/_gmres_mgs.py
+#This is an implementation of GMRES MGS for acb-matrices. 
+#It is based on: https://github.com/pyamg/pyamg/blob/main/pyamg/krylov/_gmres_mgs.py
 
 import math
 from cysignals.signals cimport sig_on, sig_off
@@ -15,6 +16,7 @@ from sage.matrix.matrix_space import MatrixSpace
 from acb_mat_approx cimport *
 from acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from acb_mat_class import Acb_Mat, Acb_Mat_Win
+from plu_class cimport PLU_Mat
 
 cdef extern from "acb_mat_approx_helpers.h":
     void acb_approx_mul(acb_t res, const acb_t x, const acb_t y, long prec)
@@ -34,90 +36,50 @@ cdef extern from "acb_mat_approx_helpers.h":
     void acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, long prec)
     void acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, const acb_t c, long prec)
     void acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
+    void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, long prec)
 
     void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
     void lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)
 
-def test_gmres():
-    import numpy as np
-    from iterative_solvers_dp import gmres_mgs_dp
-    cdef int dimen = 100
-    cdef int prec = 53
-    RBF = RealBallField(prec)
-    CBF = ComplexBallField(prec)
-    tol = RBF(1e-5)
+def test_gmres(S,int digit_prec,Y=0,int M=0):
+    from psage.modform.maass.automorphic_forms_alg import get_M_for_holom   
+    from point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_arb_wrap
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = RBF(S.group().minimal_height()*0.8)
+    if M == 0:
+        weight = S.weight()
+        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+    print("Y = ", Y)
+    print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
+    cdef Matrix_complex_ball_dense V, b
+    V, b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
+    dimen = acb_mat_nrows(V.value)
+    cdef Acb_Mat V2, V2_inv, b2, res, res2
+    V2 = Acb_Mat(dimen, dimen)
+    V2_inv = Acb_Mat(dimen, dimen)
+    V2._set_mcbd(V)
+    b2, res, res2 = Acb_Mat(dimen, 1), Acb_Mat(dimen, 1), Acb_Mat(dimen, 1)
+    b2._set_mcbd(b)
 
-    A = np.random.rand(dimen,dimen)+np.random.rand(dimen,dimen)*1j
-    for i in range(dimen):
-        A[i,i] *= 10
-    b = np.random.rand(dimen,1)+np.random.rand(dimen,1)*1j
-    M = np.linalg.inv(A)
-    for i in range(dimen):
-        for j in range(dimen):
-            M[i,j] -= 0.1+0.1j #Add some pertubation
-
-    cdef ComplexBall cb_cast
-    cdef Acb_Mat A_arb = Acb_Mat(dimen,dimen)
-    for i in range(dimen):
-        for j in range(dimen):
-            cb_cast = CBF(A[i,j])
-            acb_set(acb_mat_entry(A_arb.value,i,j), cb_cast.value)
-    cdef Acb_Mat b_arb = Acb_Mat(dimen,1)
-    for i in range(dimen):
-        cb_cast = CBF(b[i][0])
-        acb_set(acb_mat_entry(b_arb.value,i,0), cb_cast.value)
-    cdef Acb_Mat x0_arb = Acb_Mat(dimen,1) #Zero vector
-    cdef Acb_Mat M_arb = Acb_Mat(dimen,dimen)
-    for i in range(dimen):
-        for j in range(dimen):
-            cb_cast = CBF(M[i,j])
-            acb_set(acb_mat_entry(M_arb.value,i,j), cb_cast.value)
-
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(A_arb, b_arb, x0_arb, prec, tol, M=M_arb)
-    x_gmres_dp = gmres_mgs_dp(A, b, M=M)
-    x_gmres_arb_wrap[0].str(10)
-    print(x_gmres_dp[0])
-
-def test_givens():
-    CBF = ComplexBallField(53)
-    Q = []
-    Q_entry = Acb_Mat(2,2)
-    cdef ComplexBall cb
-    cb = CBF(0.8910632 +0.j)
-    acb_set(acb_mat_entry(Q_entry.value,0,0),cb.value)
-    cb = CBF(0.23526728+0.38814389j)
-    acb_set(acb_mat_entry(Q_entry.value,0,1),cb.value)
-    cb = CBF(-0.23526728+0.38814389j)
-    acb_set(acb_mat_entry(Q_entry.value,1,0),cb.value)
-    cb = CBF(0.8910632 +0.j)
-    acb_set(acb_mat_entry(Q_entry.value,1,1),cb.value)
-    Q.append(Q_entry)
-    v_source = Acb_Mat(6,1)
-    v = v_source.get_window(0,0,6,6)
-    cb = CBF(0.22712716-2.39280626j)
-    acb_set(acb_mat_entry(v.value,0,0),cb.value)
-    cb = CBF(4.68967002+2.80871354j)
-    acb_set(acb_mat_entry(v.value,1,0),cb.value)
-    cb = CBF(2.3997535 +0.j)
-    acb_set(acb_mat_entry(v.value,2,0),cb.value)
-    cb = CBF(0.        +0.j)
-    acb_set(acb_mat_entry(v.value,3,0),cb.value)
-    cb = CBF(0.        +0.j)
-    acb_set(acb_mat_entry(v.value,4,0),cb.value)
-    cb = CBF(0.        +0.j)
-    acb_set(acb_mat_entry(v.value,5,0),cb.value)
-    apply_givens(Q,v,1,53)
-    for i in range(6):
-        acb_printd(acb_mat_entry(v.value,i,0),10)
-        print('')
-    #Should return:
-    # (0.2155255644 + 0.3489235562j)  +/-  (0, 0j)
-    # (5.054109916 + 3.153848315j)  +/-  (0, 0j)
-    # (2.3997535 + 0j)  +/-  (0, 0j)
-    # (0 + 0j)  +/-  (0, 0j)
-    # (0 + 0j)  +/-  (0, 0j)
-    # (0 + 0j)  +/-  (0, 0j)
-
+    tol = RBF(10.0)**(-digit_prec)
+    low_prec = 64
+    acb_mat_approx_inv(V2_inv.value, V2.value, low_prec)
+    # cdef ComplexBall pert = CBF(1e-16+1e-16j)
+    # for i in range(M):
+    #     for j in range(M):
+    #         acb_approx_sub(acb_mat_entry(V2_inv.value,i,j), acb_mat_entry(V2_inv.value,i,j), pert.value, inv_prec)
+    # acb_mat_change_prec(V2_inv.value, V2_inv.value, bit_prec)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V2, b2, res2, bit_prec, tol, M=V2_inv)
+    res2 = x_gmres_arb_wrap[0]
+    print("test result for Gamma0(1): ")
+    acb_add_ui(acb_mat_entry(res2.value,0,0), acb_mat_entry(res2.value,0,0), 24, bit_prec)
+    acb_printd(acb_mat_entry(res2.value,0,0), digit_prec)
+    # print('')
+    # x_gmres_arb_wrap[0].str(10)
 
 cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     """Apply the first k Givens rotations in Q to v.
@@ -164,7 +126,7 @@ cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     acb_clear(v2)
     acb_clear(t)
 
-def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol, restrt=None, maxiter=None, M=None, LU=None):
+def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol, restrt=None, maxiter=None, M=None, PLU=None):
     """Generalized Minimum Residual Method (GMRES) based on MGS.
     GMRES iteratively refines the initial solution guess to the system
     Ax = b
@@ -191,7 +153,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
         - if restrt is int, maxiter is the max number of outer iterations,
           and restrt is the max number of inner iterations
     M : matrix, inverted preconditioner, i.e. solve M A x = M b.
-    LU : matrix, approximate LU-decomposition of matrix A. (we assume both factors to be stored in this matrix with unit diagonal)
+    PLU : matrix, approximate PLU-decomposition of matrix A. (as it gets computed by arb)
     Returns
     -------
     (xNew, info)
@@ -206,10 +168,6 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
             ==  =============================================
     Notes
     -----
-        - The LinearOperator class is in scipy.sparse.linalg.interface.
-          Use this class if you prefer to define A or M as a mat-vec routine
-          as opposed to explicitly constructing the matrix.  A.psolve(..) is
-          still supported as a legacy.
         - For robustness, modified Gram-Schmidt is used to orthogonalize the
           Krylov Space Givens Rotations are used to provide the residual norm
           each iteration
@@ -237,19 +195,6 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
     acb_init(acb_tmp)
     acb_init(acb_tmp2)
     acb_init(acb_tmp3)
-
-#     def axpy(x,y,n,a): #returns scalar a * vector x + vector y
-#         return a*x+y
-#     def dotu(x,y): #returns dot product
-#         return np.dot(x,y)
-#     def dotc(x,y): #returns dot product of conjugate(x) and y
-#         return np.dot(np.conjugate(x),y)
-#     def scal(a,x): #returns scalar a * vector x
-#         return a*x
-
-#     # Make full use of direct access to BLAS by defining own norm
-#     def norm(z):
-#         return np.sqrt(np.real(dotc(z, z)))
 
     # Set number of outer and inner iterations
     if restrt:
@@ -284,12 +229,19 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
 
     # Apply preconditioner
     #r = np.ravel(M*r)
-    apply_preconditioner(r, M, LU, prec)
+    apply_preconditioner(r, M, PLU, prec)
 
     #normr = norm(r)
     sig_on()
     acb_mat_approx_norm(normr,r.value,prec)
     sig_off()
+
+    # Scale tol by ||r_0||_2, we use the preconditioned residual
+    # because this is left preconditioned GMRES.
+    # if normr != 0.0:
+    #     tol = tol*normr
+    # if arb_is_zero(normr) == 0:
+    #     arb_mul(tol.value, tol.value, normr, prec)
 
     # Use separate variable to track iterations.  If convergence fails, we
     # cannot simply report niter = (outer-1)*max_outer + inner.  Numerical
@@ -345,7 +297,7 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
             sig_on()
             acb_mat_approx_mul(v.value, A.value, acb_mat_win_cast.value, prec)
             sig_off()
-            apply_preconditioner(v, M, LU, prec)
+            apply_preconditioner(v, M, PLU, prec)
 
             #  Modified Gram Schmidt
             for k in range(inner+1):
@@ -462,10 +414,9 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
         acb_mat_approx_sub(r.value, b.value, r.value, prec)
         sig_off()
 
-
         # Apply preconditioner
         # r = np.ravel(M*r)
-        apply_preconditioner(r, M, LU, prec)
+        apply_preconditioner(r, M, PLU, prec)
         # normr = norm(r)
         sig_on()
         acb_mat_approx_norm(normr,r.value,prec)
@@ -487,21 +438,21 @@ def gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol,
 
     return (x, niter)
 
-cdef apply_preconditioner(x, M, LU, int prec): #Apply preconditioner (if available) on x
+cdef apply_preconditioner(x, M, PLU, int prec): #Apply preconditioner (if available) on x
     """
     Parameters
     ----------
     x : vector / matrix (view)
-    M : array, matrix, sparse matrix, LinearOperator
-        n x n, inverted preconditioner, i.e. solve M A x = M b.
-    LU : approximate LU-decomposition of matrix A.
+    M : preconditioner matrix, i.e. sets x=M*x
+    PLU : approximate LU-decomposition of matrix A, i.e. sets x=(P*L*U)^(-1)*x
     """
 
     cdef Acb_Mat M_cast, x_cast
     cdef Acb_Mat_Win x_win_cast #Use this in case x is a window
     cdef acb_mat_t aliasing_avoider_matrix
+    cdef PLU_Mat PLU_cast
 
-    if M != None and LU != None:
+    if M != None and PLU != None:
         raise NameError("Please select only one preconditioner!")
         
     if M != None:
@@ -521,6 +472,15 @@ cdef apply_preconditioner(x, M, LU, int prec): #Apply preconditioner (if availab
             sig_off()
             acb_mat_clear(aliasing_avoider_matrix)
     
-    if LU != None:
-        raise NameError("This case is not implemented yet!")
-    
+    if PLU != None:
+        PLU_cast = PLU
+        if type(x) is Acb_Mat:
+            x_cast = x
+            sig_on()
+            acb_mat_approx_solve_lu_precomp(x_cast.value, PLU_cast.P, PLU_cast.value, x_cast.value, prec)
+            sig_off()
+        elif type(x) is Acb_Mat_Win:
+            x_win_cast = x
+            sig_on()
+            acb_mat_approx_solve_lu_precomp(x_win_cast.value, PLU_cast.P, PLU_cast.value, x_win_cast.value, prec)
+            sig_off()

@@ -12,6 +12,7 @@ setup(
     "point_matching_arb_wrap.pyx",
     "iterative_solvers_arb_wrap.pyx",
     "iterative_solvers_dp.pyx",
-    "acb_mat_class.pyx"],annotate=True),
+    "acb_mat_class.pyx",
+    "plu_class.pyx"],annotate=True),
     zip_safe=False,
 )

@@ -3,6 +3,7 @@ from cysignals.signals cimport sig_on, sig_str, sig_off
 from sage.libs.arb.arb cimport *
 from sage.libs.arb.acb cimport *
 from sage.libs.arb.acb_mat cimport *
+from sage.matrix.matrix_complex_ball_dense cimport *
 
 from acb_mat_approx cimport *
 
@@ -37,6 +38,14 @@ cdef class Acb_Mat():
                 if j != ncols-1:
                     print(', '),
             print(']')
+    
+    def _set_mcbd(self, Matrix_complex_ball_dense B): #Sets elements of Acb_Mat to the ones specified by B
+        cdef int i, j, nrows, ncols
+        nrows = acb_mat_nrows(B.value)
+        ncols = acb_mat_ncols(B.value)
+        for i in range(nrows):
+            for j in range(ncols):
+                acb_set(acb_mat_entry(self.value,i,j), acb_mat_entry(B.value,i,j))
 
 
 cdef class Acb_Mat_Win():
