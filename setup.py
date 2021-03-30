@@ -1,18 +1,23 @@
 #sage setup.py develop
 #python setup.py build_ext -> for getting html file
 
-from setuptools import setup
+from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
-Cython.Compiler.Options.annotate=True
+
+Cython.Compiler.Options.annotate=False #Set to "True" if html should be created that highlights python parts
+
+extensions = [
+    Extension("classes.acb_mat_class", ["classes/acb_mat_class.pyx"]),
+    Extension("classes.plu_class", ["classes/plu_class.pyx"]),
+    Extension("pullback.my_pullback", ["pullback/my_pullback.pyx"]),
+    Extension("point_matching.point_matching_dp", ["point_matching/point_matching_dp.pyx"]),
+    Extension("point_matching.point_matching_arb_wrap", ["point_matching/point_matching_arb_wrap.pyx"]),
+    Extension("iterative_solvers.gmres_dp", ["iterative_solvers/gmres_dp.pyx"]),
+    Extension("iterative_solvers.gmres_arb_wrap", ["iterative_solvers/gmres_arb_wrap.pyx"]),
+]
 
 setup(
-    ext_modules=cythonize(["my_pullback.pyx",
-    "point_matching_dp.pyx",
-    "point_matching_arb_wrap.pyx",
-    "iterative_solvers_arb_wrap.pyx",
-    "iterative_solvers_dp.pyx",
-    "acb_mat_class.pyx",
-    "plu_class.pyx"],annotate=True),
+    ext_modules=cythonize(extensions),
     zip_safe=False,
 )

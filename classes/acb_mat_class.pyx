@@ -5,7 +5,7 @@ from sage.libs.arb.acb cimport *
 from sage.libs.arb.acb_mat cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 
-from acb_mat_approx cimport *
+from arblib_helpers.acb_mat_approx cimport *
 
 cdef class Acb_Mat():
     """

@@ -6,8 +6,8 @@ from sage.libs.arb.acb cimport *
 from sage.libs.arb.acb_mat cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 
-from acb_mat_approx cimport *
-from acb_mat_class cimport Acb_Mat
+from arblib_helpers.acb_mat_approx cimport *
+from classes.acb_mat_class cimport Acb_Mat
 
 cdef class PLU_Mat():
     """
