@@ -15,7 +15,6 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 from arblib_helpers.acb_mat_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from classes.acb_mat_class import Acb_Mat, Acb_Mat_Win
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)
@@ -99,58 +98,29 @@ cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bi
         tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
         acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
 
-cpdef get_V_matrix_arb_wrap(S,int M,Y,int bit_prec):
-    cdef int weight = S.weight()
-    cdef int Ms = 1
-    cdef int Mf = M
-    cdef int Q = M+8
-    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
-    cdef int nc = S.group().ncusps()
-    G = S.group()
-    cdef RR = RealBallField(bit_prec)
-    cdef CC = ComplexBallField(bit_prec)
-    cdef Matrix_complex_ball_dense V = MatrixSpace(CC,nc*M,nc*M).zero()
-    cdef int cii,cjj
-    cdef acb_mat_t V_view, J
-    for cii in range(nc):
-        for cjj in range(nc):
-            coordinates = pb[cii][cjj]
-            if len(coordinates) != 0:
-                coord_len = len(coordinates)
-                acb_mat_init(J, M, coord_len)
-                _get_J_block_matrix_arb_wrap(J,Ms,Mf,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                _compute_V_block_matrix_arb_wrap(V_view,J,Ms,Mf,weight,coordinates,bit_prec)
-                acb_mat_clear(J) #It would be more efficient to re-use these allocations...
-                acb_mat_window_clear(V_view)
-    return V
-
 cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
     cdef int Q = M+8
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
-    cdef int nc = S.group().ncusps()
     G = S.group()
-    cdef RR = RealBallField(bit_prec)
-    cdef CC = ComplexBallField(bit_prec)
-    cdef Matrix_complex_ball_dense V = MatrixSpace(CC,nc*M,nc*M).zero()
+    cdef int nc = G.ncusps()
+    cdef Acb_Mat V = Acb_Mat(nc*M,nc*M)
     cdef int cii,cjj
-    cdef acb_mat_t V_view, J
+    cdef Acb_Mat_Win V_view
+    cdef Acb_Mat J
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             coord_len = len(coordinates)
-            acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
+            V_view = V.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
             if coord_len != 0:
-                acb_mat_init(J, M, coord_len)
-                _get_J_block_matrix_arb_wrap(J,Ms,Mf,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                _compute_V_block_matrix_arb_wrap(V_view,J,Ms,Mf,weight,coordinates,bit_prec)
-                acb_mat_clear(J) #It would be more efficient to re-use these allocations...
+                J = Acb_Mat(M, coord_len)
+                _get_J_block_matrix_arb_wrap(J.value,Ms,Mf,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
+                _compute_V_block_matrix_arb_wrap(V_view.value,J.value,Ms,Mf,weight,coordinates,bit_prec)
             if cii == cjj:
-                _subtract_diagonal_terms(V_view,Ms,Mf,weight,Y,bit_prec)
-            acb_mat_window_clear(V_view)
+                _subtract_diagonal_terms(V_view.value,Ms,Mf,weight,Y,bit_prec)
     return V
 
 cdef _get_l_normalized(cjj,normalization):
@@ -163,15 +133,14 @@ cdef _get_l_normalized(cjj,normalization):
         raise NameError("Could not determine l_normalized...")
     return l_normalized
 
-cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec): #Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
-    cdef int weight = S.weight()
+cdef _get_normalization(S):
+    """
+    Returns normalization for each cusp.
+    A feature to be implemented in the future is to test if the normalization
+    works correctly (with a double-precision computation).
+    """
     G = S.group()
-    cdef int multiplicity = G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
-    cdef int Q = M+8
-    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
-    cdef RR = RealBallField(bit_prec)
-    cdef CC = ComplexBallField(bit_prec)
-    cdef int nc = G.ncusps()
+    cdef int multiplicity = G.dimension_cusp_forms(S.weight()) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of cuspforms is of dimension zero for this weight!")
@@ -183,34 +152,45 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec): #Returns V_tilde,b 
         normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
     if multiplicity > 2:
         raise NameError("This case has not been implemented yet")
-    for i in range(1,nc):
+    for i in range(1,G.ncusps()):
         normalization[i] = []
-    cdef Matrix_complex_ball_dense V = MatrixSpace(CC,nc*M,nc*M).zero()
-    cdef Matrix_complex_ball_dense b = MatrixSpace(CC,nc*M,1).zero()
+    return normalization
+
+cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
+    """
+    Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
+    """
+    cdef int weight = S.weight()
+    G = S.group()
+    cdef int Q = M+8
+    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
+    cdef int nc = G.ncusps()
+    normalization = _get_normalization(S)
+
+    cdef Acb_Mat V = Acb_Mat(nc*M,nc*M)
+    cdef Acb_Mat b = Acb_Mat(nc*M,1)
     cdef int cii,cjj
-    cdef acb_mat_t V_view, J, b_view
+    cdef Acb_Mat_Win V_view, b_view
+    cdef Acb_Mat J
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             coord_len = len(coordinates)
-            acb_mat_window_init(V_view,V.value,cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
+            V_view = V.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
             Msjj = len(normalization[cjj])+1
             Mfjj = Msjj+M-1
             Msii = len(normalization[cii])+1
             Mfii = Msii+M-1
             if coord_len != 0:
-                acb_mat_init(J,M,coord_len)
-                _get_J_block_matrix_arb_wrap(J,Msii,Mfii,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                _compute_V_block_matrix_arb_wrap(V_view,J,Msjj,Mfjj,weight,coordinates,bit_prec)
+                J = Acb_Mat(M,coord_len)
+                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
+                _compute_V_block_matrix_arb_wrap(V_view.value,J.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
-                    acb_mat_window_init(b_view,b.value,cii*M,0,(cii+1)*M,1)
+                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
                     l_normalized = _get_l_normalized(cjj,normalization)
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view,J,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
-                    acb_mat_window_clear(b_view)
-                acb_mat_clear(J)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
             if cii == cjj:
-                _subtract_diagonal_terms(V_view,Msjj,Mfjj,weight,Y,bit_prec)
-            acb_mat_window_clear(V_view)
+                _subtract_diagonal_terms(V_view.value,Msjj,Mfjj,weight,Y,bit_prec)
     sig_on()
     acb_mat_neg(b.value, b.value)
     sig_off()
@@ -226,9 +206,10 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
     print("Y = ", Y)
     print("M = ", M)
-    cdef Matrix_complex_ball_dense V,b
+    cdef Acb_Mat V,b
     V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
     sig_on()
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
-    return b[:M]
+    b.str(10)
+    return b.get_window(0,0,M,1)
