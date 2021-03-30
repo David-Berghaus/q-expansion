@@ -10,7 +10,7 @@ cdef extern from "complex.h":
 
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
-from my_pullback cimport my_pullback_pts_dp
+from pullback.my_pullback cimport my_pullback_pts_dp
 
 cdef _get_J_block_matrix_dp(int Ms,int Mf,int weight,int Q,coordinates):
     cdef int coord_len = len(coordinates)
@@ -157,7 +157,7 @@ cpdef get_V_matrix_dp(S,int M,double Y):
                 _compute_V_block_matrix_dp(V_view,J,Ms,Mf,weight,coordinates)
     return V
 
-def get_coefficients_dp(S,double Y=0,int M=0,prec=14):
+cpdef get_coefficients_dp(S,double Y=0,int M=0,prec=14):
     if Y == 0:
         Y = S.group().minimal_height()*0.9
     if M == 0:

@@ -1,10 +1,11 @@
 import numpy as np
 
-from point_matching_dp import get_coefficients_dp, get_V_tilde_matrix_b_dp, get_V_tilde_matrix_dp
-from point_matching_arb_wrap import get_coefficients_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_arb_wrap
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
+
+from point_matching.point_matching_dp import get_coefficients_dp, get_V_tilde_matrix_b_dp, get_V_tilde_matrix_dp
+from point_matching.point_matching_arb_wrap import get_coefficients_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_arb_wrap
 
 def run_unit_tests():
     run_unit_tests_dp()

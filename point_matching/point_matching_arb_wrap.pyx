@@ -12,10 +12,10 @@ from sage.matrix.matrix_space import MatrixSpace
 
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
-from acb_mat_approx cimport *
-from my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
-from acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from acb_mat_class import Acb_Mat, Acb_Mat_Win
+from arblib_helpers.acb_mat_approx cimport *
+from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
+from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from classes.acb_mat_class import Acb_Mat, Acb_Mat_Win
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)
@@ -216,7 +216,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec): #Returns V_tilde,b 
     sig_off()
     return V,b
 
-def get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     bit_prec = digits_to_bits(digit_prec)
     RR = RealBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
@@ -232,24 +232,3 @@ def get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
     return b[:M]
-
-# def test_low_precision_inverse(S): #Test if matrix can be inverted with much lower precision so that we can later use it as a preconditioner
-#     bit_prec = digits_to_bits(500)
-#     RR = RealBallField(bit_prec)
-#     Y = RR(S.group().minimal_height()*0.8)
-#     M = 376
-#     cdef Matrix_complex_ball_dense V,b
-#     V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,12,1,bit_prec)
-#     print "V computed"
-#     cdef acb_mat_t inv_low, inv_high
-#     acb_mat_init(inv_low, M, M)
-#     acb_mat_init(inv_high, M, M)
-#     acb_mat_approx_inv(inv_low,V.value,64)
-#     print "low inverse computed"
-#     acb_mat_approx_inv(inv_high,V.value,bit_prec)
-#     print "high inverse computed"
-#     acb_printd(acb_mat_entry(inv_low,0,0), 16)
-#     acb_printd(acb_mat_entry(inv_high,0,0), 16)
-#     print('')
-#     acb_printd(acb_mat_entry(inv_low,0,M-1), 16)
-#     acb_printd(acb_mat_entry(inv_high,0,M-1), 16)
