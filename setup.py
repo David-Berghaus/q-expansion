@@ -10,6 +10,7 @@ Cython.Compiler.Options.annotate=False #Set to "True" if html should be created 
 extensions = [
     Extension("classes.acb_mat_class", ["classes/acb_mat_class.pyx"]),
     Extension("classes.plu_class", ["classes/plu_class.pyx"]),
+    Extension("classes.block_factored_mat_class", ["classes/block_factored_mat_class.pyx"]),
     Extension("pullback.my_pullback", ["pullback/my_pullback.pyx"]),
     Extension("point_matching.point_matching_dp", ["point_matching/point_matching_dp.pyx"]),
     Extension("point_matching.point_matching_arb_wrap", ["point_matching/point_matching_arb_wrap.pyx"]),

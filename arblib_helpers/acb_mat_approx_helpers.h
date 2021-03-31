@@ -5,9 +5,9 @@
 #include "acb_approx_helpers.h"
 
 void
-acb_mat_approx_add(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
+acb_mat_approx_add(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, slong prec)
 {
-    long i, j, r, c;
+    slong i, j, r, c;
     r = acb_mat_nrows(mat1);
     c = acb_mat_ncols(mat1);
 
@@ -21,9 +21,9 @@ acb_mat_approx_add(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, lo
 }
 
 void
-acb_mat_approx_sub(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
+acb_mat_approx_sub(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, slong prec)
 {
-    long i, j, r, c;
+    slong i, j, r, c;
     r = acb_mat_nrows(mat1);
     c = acb_mat_ncols(mat1);
 
@@ -37,9 +37,9 @@ acb_mat_approx_sub(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, lo
 }
 
 void //Computes A*c+B and stores it in res
-acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, const acb_t c, long prec)
+acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, const acb_t c, slong prec)
 {
-    long i, j, rows, cols;
+    slong i, j, rows, cols;
     rows = acb_mat_nrows(A);
     cols = acb_mat_ncols(A);
     acb_t t;
@@ -58,9 +58,9 @@ acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, cons
 }
 
 void //Computes c*A where c is a complex scalar and A is a matrix
-acb_mat_approx_scalar_mul(acb_mat_t res, const acb_mat_t A, const acb_t c, long prec)
+acb_mat_approx_scalar_mul(acb_mat_t res, const acb_mat_t A, const acb_t c, slong prec)
 {
-    long i, j, rows, cols;
+    slong i, j, rows, cols;
     rows = acb_mat_nrows(A);
     cols = acb_mat_ncols(A);
 
@@ -74,9 +74,9 @@ acb_mat_approx_scalar_mul(acb_mat_t res, const acb_mat_t A, const acb_t c, long 
 }
 
 void //Computes c*A where c is a real scalar and A is a matrix
-acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, long prec)
+acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, slong prec)
 {
-    long i, j, rows, cols;
+    slong i, j, rows, cols;
     rows = acb_mat_nrows(A);
     cols = acb_mat_ncols(A);
 
@@ -90,7 +90,7 @@ acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, l
 }
 
 void //Computes conjugate(x) dot y where x&y are len*1 matrices.
-acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
+acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, slong prec)
 {
     int len = acb_mat_nrows(x);
     arb_ptr tmp1, tmp2;
@@ -121,7 +121,7 @@ acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
     arb_approx_dot(acb_imagref(res), acb_imagref(res), 1, tmp1, 1, tmp2, 1, len, prec);
 }
 
-void acb_mat_approx_norm(arb_t res, acb_mat_t x, long prec){ //returns sqrt(real(dotc(x, x)))
+void acb_mat_approx_norm(arb_t res, acb_mat_t x, slong prec){ //returns sqrt(real(dotc(x, x)))
     arb_ptr tmp;
     TMP_INIT;
 
@@ -143,7 +143,7 @@ void acb_mat_approx_norm(arb_t res, acb_mat_t x, long prec){ //returns sqrt(real
     TMP_END;
 }
 
-void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
+void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, slong prec)
 {
     if (acb_is_zero(z) != 0)
         acb_one(res);
@@ -152,7 +152,7 @@ void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
 }
 
 void //See Algorithm 1 of https://www.netlib.org/lapack/lawnspdf/lawn148.pdf
-lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)
+lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, slong prec)
 {
     arb_t f_abs, g_abs, fg_norm, arb_tmp;
     acb_t f_sign;
@@ -210,11 +210,11 @@ lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)
     }
 }
 
-void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, long prec) //Sets entries of A to prec (increases and decreases of precision are allowed)
+void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, slong prec) //Sets entries of A to prec (increases and decreases of precision are allowed)
 {
     arf_t arf_tmp;
     arf_init(arf_tmp);
-    long nrows, ncols, i, j;
+    slong nrows, ncols, i, j;
     nrows = acb_mat_nrows(A);
     ncols = acb_mat_ncols(A);
 
@@ -230,4 +230,20 @@ void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, long prec) //Sets entries o
     }
 
     arf_clear(arf_tmp);
+}
+
+void //Computes the product of each element of A and B (i.e., array multiplication)
+acb_mat_approx_array_mul(acb_mat_t res, const acb_mat_t A, const acb_mat_t B, slong prec)
+{
+    slong i, j, rows, cols;
+    rows = acb_mat_nrows(A);
+    cols = acb_mat_ncols(A);
+
+    for (i = 0; i < rows; i++)
+    {
+        for (j = 0; j < cols; j++)
+        {
+            acb_approx_mul(acb_mat_entry(res, i, j),acb_mat_entry(A, i, j),acb_mat_entry(B, i, j),prec);
+        }
+    }
 }

@@ -9,14 +9,15 @@ UNKNOWN.egg-info/not-zip-safe
 UNKNOWN.egg-info/top_level.txt
 arblib_helpers/__init__.py
 arblib_helpers/acb_approx_helpers.h
-arblib_helpers/acb_mat_approx.pxd
 arblib_helpers/acb_mat_approx_helpers.h
-arblib_helpers/acb_mat_approx_helpers.pxd
 arblib_helpers/arb_wrap.h
 classes/__init__.py
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
+classes/block_factored_mat_class.c
+classes/block_factored_mat_class.pxd
+classes/block_factored_mat_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx

@@ -12,7 +12,7 @@ from sage.matrix.matrix_space import MatrixSpace
 
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
-from arblib_helpers.acb_mat_approx cimport *
+from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 
@@ -211,5 +211,4 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     sig_on()
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
-    b.str(10)
     return b.get_window(0,0,M,1)

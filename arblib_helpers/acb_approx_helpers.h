@@ -3,7 +3,7 @@
 #include "acb.h"
 
 void
-acb_approx_mul(acb_t res, const acb_t x, const acb_t y, long prec)
+acb_approx_mul(acb_t res, const acb_t x, const acb_t y, slong prec)
 {
     arf_complex_mul(arb_midref(acb_realref(res)), arb_midref(acb_imagref(res)),
         arb_midref(acb_realref(x)), arb_midref(acb_imagref(x)), 
@@ -11,14 +11,14 @@ acb_approx_mul(acb_t res, const acb_t x, const acb_t y, long prec)
 }
 
 void
-acb_approx_add(acb_t res, const acb_t x, const acb_t y, long prec)
+acb_approx_add(acb_t res, const acb_t x, const acb_t y, slong prec)
 {
     arf_add(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)), arb_midref(acb_realref(y)), prec, ARF_RND_DOWN);
     arf_add(arb_midref(acb_imagref(res)), arb_midref(acb_imagref(x)), arb_midref(acb_imagref(y)), prec, ARF_RND_DOWN);
 }
 
 void
-acb_approx_sub(acb_t res, const acb_t x, const acb_t y, long prec)
+acb_approx_sub(acb_t res, const acb_t x, const acb_t y, slong prec)
 {
     arf_sub(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)), arb_midref(acb_realref(y)), prec, ARF_RND_DOWN);
     arf_sub(arb_midref(acb_imagref(res)), arb_midref(acb_imagref(x)), arb_midref(acb_imagref(y)), prec, ARF_RND_DOWN);
@@ -39,14 +39,14 @@ acb_approx_set_arb(acb_t res, const arb_t x)
 }
 
 void
-acb_approx_div_arb(acb_t res, const acb_t x, const arb_t y, long prec)
+acb_approx_div_arb(acb_t res, const acb_t x, const arb_t y, slong prec)
 {
     arf_div(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)), arb_midref(y), prec, ARF_RND_DOWN);
     arf_div(arb_midref(acb_imagref(res)), arb_midref(acb_imagref(x)), arb_midref(y), prec, ARF_RND_DOWN);
 }
 
 void
-acb_approx_inv(acb_t z, const acb_t x, long prec)
+acb_approx_inv(acb_t z, const acb_t x, slong prec)
 {
     arf_set(arb_midref(acb_realref(z)), arb_midref(acb_realref(x)));
     arf_set(arb_midref(acb_imagref(z)), arb_midref(acb_imagref(x)));
@@ -61,7 +61,7 @@ acb_approx_inv(acb_t z, const acb_t x, long prec)
 }
 
 void
-acb_approx_div(acb_t z, const acb_t x, const acb_t y, long prec)
+acb_approx_div(acb_t z, const acb_t x, const acb_t y, slong prec)
 {
     acb_t t;
     acb_init(t);
@@ -71,14 +71,14 @@ acb_approx_div(acb_t z, const acb_t x, const acb_t y, long prec)
 }
 
 void
-acb_approx_mul_arb(acb_t res, const acb_t x, const arb_t y, long prec)
+acb_approx_mul_arb(acb_t res, const acb_t x, const arb_t y, slong prec)
 {
     arf_mul(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)), arb_midref(y), prec, ARF_RND_DOWN);
     arf_mul(arb_midref(acb_imagref(res)), arb_midref(acb_imagref(x)), arb_midref(y), prec, ARF_RND_DOWN);
 }
 
 void
-arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, long prec)
+arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, slong prec)
 {
     if (arb_is_zero(y))
     {
@@ -101,7 +101,7 @@ arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, long prec)
     }
 }
 
-void acb_approx_abs(arb_t r, const acb_t z, long prec)
+void acb_approx_abs(arb_t r, const acb_t z, slong prec)
 {
     arb_approx_hypot(r, acb_realref(z), acb_imagref(z), prec);
 }
