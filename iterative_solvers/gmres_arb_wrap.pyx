@@ -13,10 +13,8 @@ from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
 from sage.matrix.matrix_space import MatrixSpace
 
-from arblib_helpers.acb_mat_approx cimport *
-from arblib_helpers.acb_mat_approx_helpers cimport *
+from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from classes.acb_mat_class import Acb_Mat, Acb_Mat_Win
 from classes.plu_class cimport PLU_Mat
 
 def test_gmres(S,int digit_prec,Y=0,int M=0):
