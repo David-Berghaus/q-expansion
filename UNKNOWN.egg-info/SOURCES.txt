@@ -8,6 +8,7 @@ UNKNOWN.egg-info/dependency_links.txt
 UNKNOWN.egg-info/not-zip-safe
 UNKNOWN.egg-info/top_level.txt
 arblib_helpers/__init__.py
+arblib_helpers/acb_approx.pxd
 arblib_helpers/acb_approx_helpers.h
 arblib_helpers/acb_mat_approx_helpers.h
 arblib_helpers/arb_wrap.h

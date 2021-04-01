@@ -15,6 +15,7 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)
@@ -85,7 +86,26 @@ cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,acb_mat
     sig_off()
     acb_mat_clear(W) #It would be more efficient to re-use these allocations...
 
-cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bit_prec): #transforms V to V_tilde by subtracting the diagonal elements
+cdef Acb_Mat get_diagonal_terms(int Ms,int Mf,int weight,Y,int bit_prec):
+    cdef int M = Mf-Ms+1
+    cdef int weight_half, i
+    cdef RR = RealBallField(bit_prec)
+    cdef CC = ComplexBallField(bit_prec)
+    cdef RealBall Y_pow_weight_half, two_pi, tmp
+    weight_half = weight//2
+    Y_pow_weight_half = Y**weight_half
+    two_pi = 2*get_pi_ball(bit_prec)
+    cdef Acb_Mat diag = Acb_Mat(M, 1) #We could use real entries here...
+    for i in range(Ms,Mf+1):
+        tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
+        acb_set_arb(acb_mat_entry(diag.value,i-Ms,0),tmp.value)
+
+    return diag
+
+cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bit_prec):
+    """
+    Transforms V to V_tilde by subtracting the diagonal elements
+    """
     cdef int M = Mf-Ms+1
     cdef int weight_half, i
     cdef RR = RealBallField(bit_prec)
@@ -172,6 +192,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
     cdef int cii,cjj
     cdef Acb_Mat_Win V_view, b_view
     cdef Acb_Mat J
+
     for cii in range(nc):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
@@ -194,7 +215,54 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
     sig_on()
     acb_mat_neg(b.value, b.value)
     sig_off()
-    return V,b
+    return V, b
+
+cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
+    """
+    Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
+    V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
+    """
+    cdef int weight = S.weight()
+    G = S.group()
+    cdef int Q = M+8
+    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
+    cdef int nc = G.ncusps()
+    normalization = _get_normalization(S)
+
+    cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    V_factored = block_factored_mat.A
+    diag_factored = block_factored_mat.diag
+    cdef Acb_Mat b = Acb_Mat(nc*M,1)
+    cdef int cii,cjj
+    cdef Acb_Mat_Win b_view
+    cdef Acb_Mat J, W
+    cdef Block_Factored_Element block_factored_element
+
+    for cii in range(nc):
+        for cjj in range(nc):
+            coordinates = pb[cii][cjj]
+            coord_len = len(coordinates)
+            Msjj = len(normalization[cjj])+1
+            Mfjj = Msjj+M-1
+            Msii = len(normalization[cii])+1
+            Mfii = Msii+M-1
+            if coord_len != 0:
+                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                block_factored_element = V_factored[cii][cjj]
+                J = block_factored_element.J
+                W = block_factored_element.W
+                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
+                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                if cjj == 0:
+                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
+                    l_normalized = _get_l_normalized(cjj,normalization)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
+            if cii == cjj:
+                diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
+    sig_on()
+    acb_mat_neg(b.value, b.value)
+    sig_off()
+    return block_factored_mat, b
 
 cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     bit_prec = digits_to_bits(digit_prec)
@@ -212,3 +280,21 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
     return b.get_window(0,0,M,1)
+
+def test_act_on_vec(S):
+    M = 7
+    dimen = M*S.group().ncusps()
+    RBF = RealBallField(64)
+    tmp = get_V_tilde_matrix_b_arb_wrap(S,M,RBF(0.1),64)
+    tmp_f = get_V_tilde_matrix_factored_b_arb_wrap(S,M,RBF(0.1),64)
+    cdef Acb_Mat b = Acb_Mat(dimen,1)
+    cdef Acb_Mat V, x
+
+    tmp_f[0].act_on_vec(b, tmp_f[1], 64)
+    b.str(10)
+    print('')
+
+    V = tmp[0]
+    x = tmp[1]
+    acb_mat_approx_mul(b.value, V.value, x.value, 64)
+    b.str(10)
