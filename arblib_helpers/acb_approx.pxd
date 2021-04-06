@@ -42,7 +42,8 @@ cdef extern from "arb_wrap.h":
     void acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, const acb_t c, long prec)
     void acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, long prec)
     void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, long prec)
-    void acb_mat_approx_array_mul(acb_mat_t res, const acb_mat_t A, const acb_mat_t B, long prec)
+    void acb_mat_approx_left_mul_diag(acb_mat_t res, const acb_mat_t D, const acb_mat_t A, long prec)
+    void acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t D, long prec)
 
     void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
     void lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)

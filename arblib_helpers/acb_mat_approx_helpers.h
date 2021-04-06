@@ -232,8 +232,8 @@ void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, slong prec) //Sets entries 
     arf_clear(arf_tmp);
 }
 
-void //Computes the product of each element of A and B (i.e., array multiplication)
-acb_mat_approx_array_mul(acb_mat_t res, const acb_mat_t A, const acb_mat_t B, slong prec)
+void //Computes D*A where D is a diagonal matrix which is stored as a Nx1 vector
+acb_mat_approx_left_mul_diag(acb_mat_t res, const acb_mat_t D, const acb_mat_t A, slong prec)
 {
     slong i, j, rows, cols;
     rows = acb_mat_nrows(A);
@@ -243,7 +243,23 @@ acb_mat_approx_array_mul(acb_mat_t res, const acb_mat_t A, const acb_mat_t B, sl
     {
         for (j = 0; j < cols; j++)
         {
-            acb_approx_mul(acb_mat_entry(res, i, j),acb_mat_entry(A, i, j),acb_mat_entry(B, i, j),prec);
+            acb_approx_mul(acb_mat_entry(res, i, j), acb_mat_entry(A, i, j), acb_mat_entry(D, i, 0), prec);
+        }
+    }
+}
+
+void //Computes A*D where D is a diagonal matrix which is stored as a Nx1 vector
+acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t D, slong prec)
+{
+    slong i, j, rows, cols;
+    rows = acb_mat_nrows(A);
+    cols = acb_mat_ncols(A);
+
+    for (i = 0; i < rows; i++)
+    {
+        for (j = 0; j < cols; j++)
+        {
+            acb_approx_mul(acb_mat_entry(res, i, j), acb_mat_entry(A, i, j), acb_mat_entry(D, j, 0), prec);
         }
     }
 }
