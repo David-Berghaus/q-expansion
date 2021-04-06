@@ -31,31 +31,47 @@ def test_gmres(S,int digit_prec,Y=0,int M=0):
     print("Y = ", Y)
     print("M = ", M)
     print("dimen = ", S.group().ncusps()*M)
-    cdef Matrix_complex_ball_dense V, b
+    cdef Acb_Mat V, b, V_inv, res, x0
+    cdef PLU_Mat plu
     V, b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
     dimen = acb_mat_nrows(V.value)
-    cdef Acb_Mat V2, V2_inv, b2, res, res2
-    V2 = Acb_Mat(dimen, dimen)
-    V2_inv = Acb_Mat(dimen, dimen)
-    V2._set_mcbd(V)
-    b2, res, res2 = Acb_Mat(dimen, 1), Acb_Mat(dimen, 1), Acb_Mat(dimen, 1)
-    b2._set_mcbd(b)
-
+    x0 = Acb_Mat(dimen, 1)
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
-    acb_mat_approx_inv(V2_inv.value, V2.value, low_prec)
-    # cdef ComplexBall pert = CBF(1e-16+1e-16j)
-    # for i in range(M):
-    #     for j in range(M):
-    #         acb_approx_sub(acb_mat_entry(V2_inv.value,i,j), acb_mat_entry(V2_inv.value,i,j), pert.value, inv_prec)
-    # acb_mat_change_prec(V2_inv.value, V2_inv.value, bit_prec)
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V2, b2, res2, bit_prec, tol, M=V2_inv)
-    res2 = x_gmres_arb_wrap[0]
+
+    V_inv = Acb_Mat(dimen, dimen)
+    cdef Acb_Mat diag = Acb_Mat(dimen, 1)
+    for j in range(dimen):
+        acb_set(acb_mat_entry(diag.value,j,0), acb_mat_entry(V.value, j, j))
+        for i in range(dimen):
+            acb_div(acb_mat_entry(V.value,i,j), acb_mat_entry(V.value,i,j), acb_mat_entry(diag.value,j,0), bit_prec)
+    acb_mat_approx_inv(V_inv.value, V.value, low_prec)
+    # epsilon = CBF(RBF(10.0)**(-150), RBF(10.0)**(-150))
+    # _get_coefficient_guess(1, 12, x0, epsilon, bit_prec) #ONLY MODULAR GROUP HERE
+    # for i in range(dimen):
+    #     acb_approx_mul(acb_mat_entry(x0.value,i,0), acb_mat_entry(x0.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, M=V_inv)
+
+    # plu = PLU_Mat(V, low_prec)
+    # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
+
+    res = x_gmres_arb_wrap[0]
+    for i in range(dimen):
+        acb_div(acb_mat_entry(res.value,i,0), acb_mat_entry(res.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
     print("test result for Gamma0(1): ")
-    acb_add_ui(acb_mat_entry(res2.value,0,0), acb_mat_entry(res2.value,0,0), 24, bit_prec)
-    acb_printd(acb_mat_entry(res2.value,0,0), digit_prec)
+    acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
+    acb_printd(acb_mat_entry(res.value,0,0), digit_prec)
     # print('')
-    # x_gmres_arb_wrap[0].str(10)
+    # res.str(10)
+
+def _get_coefficient_guess(N, weight, Acb_Mat x0, ComplexBall epsilon, prec): #Works only for Gamma0(N) and is only used for testing
+    from sage.modular.modform.constructor import CuspForms
+    CF = CuspForms(N, weight)
+    dimen = x0.nrows()
+    q = CF.q_expansion_basis(dimen+2)[0]
+    for i in range(dimen):
+        acb_set_si(acb_mat_entry(x0.value,i,0), q[i+2])
+        acb_approx_sub(acb_mat_entry(x0.value,i,0), acb_mat_entry(x0.value,i,0), epsilon.value, prec)
 
 cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     """Apply the first k Givens rotations in Q to v.
@@ -102,7 +118,24 @@ cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     acb_clear(v2)
     acb_clear(t)
 
-cpdef gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall tol, restrt=None, maxiter=None, M=None, PLU=None):
+# cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec):
+#     """
+#     Computes A*x and stores result in b.
+#     A can be a 'Acb_Mat' or a 'Block_Factored_Mat'
+#     """
+#     cdef Acb_Mat acb_mat_cast
+#     cdef Block_Factored_Mat block_factored_mat_cast
+#     if isinstance(A, Acb_Mat):
+#         sig_on()
+#         acb_mat_approx_mul(b.value, A.value, x.value, prec)
+#         sig_off()
+#     elif isinstance(A, Block_Factored_Mat):
+#         A.act_on_vec(b.value, x.value, prec)
+#     else:
+#         raise TypeError("A is of wrong type!")
+
+
+cpdef gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=None, maxiter=None, M=None, PLU=None):
     """Generalized Minimum Residual Method (GMRES) based on MGS.
     GMRES iteratively refines the initial solution guess to the system
     Ax = b
@@ -154,12 +187,19 @@ cpdef gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall to
        http://www-users.cs.umn.edu/~saad/books.html
     .. [2] C. T. Kelley, http://www4.ncsu.edu/~ctk/matlab_roots.html
     """
+    #We use these variables to cast python objects to C-classes on which we can call native acb-functions
+    #This conversion is a bit tedious but should not be inefficient
+    cdef Acb_Mat acb_mat_cast
+    cdef Acb_Mat_Win acb_mat_win_cast, acb_mat_win_cast2
+
     cdef int outer, k, niter, max_outer, max_inner
     cdef int inner = 0 #To avoid compiler warning
     cdef int dimen = acb_mat_nrows(A.value)
 
     cdef Acb_Mat x = Acb_Mat(dimen,1)
-    acb_mat_set(x.value, x0.value)
+    if x0 != None:
+        acb_mat_cast = x0
+        acb_mat_set(x.value, acb_mat_cast.value)
 
     cdef arb_t normr, normv, arb_tmp
     arb_init(normr)
@@ -226,11 +266,6 @@ cpdef gmres_mgs_arb_wrap(Acb_Mat A, Acb_Mat b, Acb_Mat x0, int prec, RealBall to
 
     cdef Acb_Mat H, V, g, Qblock
     cdef Acb_Mat_Win v
-
-    #We use these variables to cast python objects to C-classes on which we can call native acb-functions
-    #This conversion is a bit tedious but should not be inefficient
-    cdef Acb_Mat acb_mat_cast
-    cdef Acb_Mat_Win acb_mat_win_cast, acb_mat_win_cast2
 
     # Begin GMRES
     for outer in range(max_outer):
