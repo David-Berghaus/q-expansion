@@ -33,6 +33,7 @@ cdef extern from "arb_wrap.h":
     void acb_approx_mul_arb(acb_t res, const acb_t x, const arb_t y, long prec)
     void acb_approx_abs(arb_t r, const acb_t z, long prec)
     void arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, long prec)
+    void acb_approx_inv(acb_t z, const acb_t x, long prec)
 
     void acb_mat_approx_add(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
     void acb_mat_approx_sub(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)

@@ -102,6 +102,22 @@ cdef Acb_Mat get_diagonal_terms(int Ms,int Mf,int weight,Y,int bit_prec):
 
     return diag
 
+cdef Acb_Mat get_diagonal_inv_terms(int Ms,int Mf,int weight,Y,int bit_prec):
+    cdef int M = Mf-Ms+1
+    cdef int weight_half, i
+    cdef RR = RealBallField(bit_prec)
+    cdef CC = ComplexBallField(bit_prec)
+    cdef RealBall Y_pow_minus_weight_half, two_pi, tmp
+    minus_weight_half = -weight//2
+    Y_pow_minus_weight_half = Y**minus_weight_half
+    two_pi = 2*get_pi_ball(bit_prec)
+    cdef Acb_Mat diag_inv = Acb_Mat(M, 1) #We could use real entries here...
+    for i in range(Ms,Mf+1):
+        tmp = Y_pow_minus_weight_half*((two_pi*i*Y).exp())
+        acb_set_arb(acb_mat_entry(diag_inv.value,i-Ms,0),tmp.value)
+
+    return diag_inv
+
 cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bit_prec):
     """
     Transforms V to V_tilde by subtracting the diagonal elements
@@ -232,8 +248,9 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
+    diag_inv_factored = block_factored_mat.diag_inv
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
-    cdef int cii,cjj
+    cdef int cii, cjj
     cdef Acb_Mat_Win b_view
     cdef Acb_Mat J, W
     cdef Block_Factored_Element block_factored_element
@@ -259,6 +276,8 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
                     _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
+                diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
+
     sig_on()
     acb_mat_neg(b.value, b.value)
     sig_off()
@@ -290,11 +309,16 @@ def test_act_on_vec(S):
     cdef Acb_Mat b = Acb_Mat(dimen,1)
     cdef Acb_Mat V, x
 
-    tmp_f[0].act_on_vec(b, tmp_f[1], 64)
+    tmp_f[0].act_on_vec_sc(b, tmp_f[1], 64)
     b.str(10)
     print('')
 
     V = tmp[0]
+    cdef Acb_Mat diag_cast
+    cdef Block_Factored_Mat block_cast
+    block_cast = tmp_f[0]
+    diag_cast = block_cast.diag_inv[0]
+    acb_mat_approx_right_mul_diag(V.value, V.value, diag_cast.value, 64)
     x = tmp[1]
     acb_mat_approx_mul(b.value, V.value, x.value, 64)
     b.str(10)

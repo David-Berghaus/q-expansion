@@ -70,27 +70,37 @@ def test_gmres(S,int digit_prec,Y=0,int M=0):
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
 
-    # V_inv = Acb_Mat(dimen, dimen)
-    # cdef Acb_Mat diag = Acb_Mat(dimen, 1)
-    # for j in range(dimen):
-    #     acb_set(acb_mat_entry(diag.value,j,0), acb_mat_entry(V.value, j, j))
-    #     for i in range(dimen):
-    #         acb_div(acb_mat_entry(V.value,i,j), acb_mat_entry(V.value,i,j), acb_mat_entry(diag.value,j,0), bit_prec)
-    # acb_mat_approx_inv(V_inv.value, V.value, low_prec)
+    V_inv = Acb_Mat(dimen, dimen)
+    cdef Acb_Mat diag, diag_inv
+    diag = Acb_Mat(dimen, 1)
+    diag_inv = Acb_Mat(dimen, 1)
+    cdef RealBall tmp
+    weight_half = weight//2
+    cdef RealBall Y_pow_weight_half = Y**weight_half
+    from point_matching.point_matching_arb_wrap import get_pi_ball
+    cdef RealBall two_pi = 2*get_pi_ball(bit_prec)
+    for i in range(2,dimen+2):
+        tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
+        acb_set_arb(acb_mat_entry(diag.value,i-2,0), tmp.value)
+    for i in range(dimen):
+        #acb_set(acb_mat_entry(diag.value,i,0), acb_mat_entry(V.value, i, i))
+        acb_approx_inv(acb_mat_entry(diag_inv.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
+    acb_mat_approx_right_mul_diag(V.value, V.value, diag_inv.value, bit_prec)
+    # V.str(10)
+    acb_mat_approx_inv(V_inv.value, V.value, low_prec)
     # epsilon = CBF(RBF(10.0)**(-150), RBF(10.0)**(-150))
     # _get_coefficient_guess(1, 12, x0, epsilon, bit_prec) #ONLY MODULAR GROUP HERE
     # for i in range(dimen):
     #     acb_approx_mul(acb_mat_entry(x0.value,i,0), acb_mat_entry(x0.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
     # for i in range(dimen//2, dimen): #Assume that we don't know the last dimen//2 entries
     #     acb_zero(acb_mat_entry(x0.value,i,0))
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, M=V_inv)
 
     # plu = PLU_Mat(V, low_prec)
     # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
     res = x_gmres_arb_wrap[0]
-    # for i in range(dimen):
-    #     acb_div(acb_mat_entry(res.value,i,0), acb_mat_entry(res.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
+    acb_mat_approx_left_mul_diag(res.value, diag_inv.value, res.value, bit_prec)
     print("test result for Gamma0(1): ")
     acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
     acb_printd(acb_mat_entry(res.value,0,0), digit_prec)
@@ -118,6 +128,9 @@ def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
     V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
+
+    V_scaled = V.construct_sc(bit_prec)
+    # V_scaled.str(10)
 
     # V_inv = Acb_Mat(dimen, dimen)
     # cdef Acb_Mat diag = Acb_Mat(dimen, 1)
