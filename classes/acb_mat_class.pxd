@@ -5,6 +5,8 @@ cdef class Acb_Mat():
 
     cpdef Acb_Mat_Win get_window(self, int r1, int c1, int r2, int c2)
 
+    cpdef Acb_Mat get_inv(self, int prec)
+
     cpdef nrows(self)
 
     cpdef ncols(self)

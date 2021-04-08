@@ -18,36 +18,6 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.plu_class cimport PLU_Mat
 from classes.block_factored_mat_class cimport Block_Factored_Mat
 
-def benchmark_mul(S,int digit_prec,Y=0,int M=0):
-    from psage.modform.maass.automorphic_forms_alg import get_M_for_holom   
-    from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_factored_b_arb_wrap
-    import time
-    bit_prec = digits_to_bits(digit_prec)
-    RBF = RealBallField(bit_prec)
-    CBF = ComplexBallField(bit_prec)
-    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
-    dimen = S.group().ncusps()*M
-    print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", dimen)
-    cdef Acb_Mat V, b, res
-    cdef PLU_Mat plu
-    res = Acb_Mat(dimen, 1)
-    V, b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
-    start_time = time.time()
-    mat_vec_mul(res, V, b, bit_prec)
-    print("Non-factored: ", time.time()-start_time)
-
-    cdef Block_Factored_Mat V_block
-    V_block, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
-    start_time = time.time()
-    mat_vec_mul(res, V_block, b, bit_prec)
-    print("Factored: ", time.time()-start_time)
-
 def test_gmres(S,int digit_prec,Y=0,int M=0):
     from psage.modform.maass.automorphic_forms_alg import get_M_for_holom   
     from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_arb_wrap
@@ -86,7 +56,7 @@ def test_gmres(S,int digit_prec,Y=0,int M=0):
         #acb_set(acb_mat_entry(diag.value,i,0), acb_mat_entry(V.value, i, i))
         acb_approx_inv(acb_mat_entry(diag_inv.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
     acb_mat_approx_right_mul_diag(V.value, V.value, diag_inv.value, bit_prec)
-    # V.str(10)
+
     acb_mat_approx_inv(V_inv.value, V.value, low_prec)
     # epsilon = CBF(RBF(10.0)**(-150), RBF(10.0)**(-150))
     # _get_coefficient_guess(1, 12, x0, epsilon, bit_prec) #ONLY MODULAR GROUP HERE
@@ -100,6 +70,7 @@ def test_gmres(S,int digit_prec,Y=0,int M=0):
     # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
     res = x_gmres_arb_wrap[0]
+    
     acb_mat_approx_left_mul_diag(res.value, diag_inv.value, res.value, bit_prec)
     print("test result for Gamma0(1): ")
     acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
@@ -129,8 +100,8 @@ def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
 
-    V_scaled = V.construct_sc(bit_prec)
-    # V_scaled.str(10)
+    V_scaled = V.construct(low_prec, True)
+    plu = PLU_Mat(V_scaled, low_prec)
 
     # V_inv = Acb_Mat(dimen, dimen)
     # cdef Acb_Mat diag = Acb_Mat(dimen, 1)
@@ -139,14 +110,14 @@ def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
     #     for i in range(dimen):
     #         acb_div(acb_mat_entry(V.value,i,j), acb_mat_entry(V.value,i,j), acb_mat_entry(diag.value,j,0), bit_prec)
     # acb_mat_approx_inv(V_inv.value, V.value, low_prec)
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
     # plu = PLU_Mat(V, low_prec)
     # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
     res = x_gmres_arb_wrap[0]
-    # for i in range(dimen):
-    #     acb_div(acb_mat_entry(res.value,i,0), acb_mat_entry(res.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
+
+    V.diag_inv_scale_vec(res, res, bit_prec)
     print("test result for Gamma0(1): ")
     acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
     acb_printd(acb_mat_entry(res.value,0,0), digit_prec)
@@ -207,7 +178,7 @@ cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     acb_clear(v2)
     acb_clear(t)
 
-cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec):
+cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec, is_scaled):
     """
     Computes A*x and stores result in b.
     A can be a 'Acb_Mat' or a 'Block_Factored_Mat'
@@ -219,11 +190,11 @@ cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec):
         acb_mat_approx_mul(b.value, acb_mat_cast.value, x.value, prec)
         sig_off()
     elif isinstance(A, Block_Factored_Mat):
-        A.act_on_vec(b, x, prec)
+        A.act_on_vec(b, x, prec, is_scaled)
     else:
         raise TypeError("A is of wrong type!")
 
-cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec):
+cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec, is_scaled):
     """
     Computes A*x and stores result in b.
     A can be a 'Acb_Mat' or a 'Block_Factored_Mat'
@@ -237,11 +208,11 @@ cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec):
         acb_mat_approx_mul(b.value, acb_mat_cast.value, x.value, prec)
         sig_off()
     elif isinstance(A, Block_Factored_Mat):
-        A.act_on_vec_win(b, x, prec)
+        A.act_on_vec_win(b, x, prec, is_scaled)
     else:
         raise TypeError("A is of wrong type!")
 
-cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=None, maxiter=None, M=None, PLU=None):
+cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=None, maxiter=None, M=None, PLU=None, is_scaled=True):
     """Generalized Minimum Residual Method (GMRES) based on MGS.
     GMRES iteratively refines the initial solution guess to the system
     Ax = b
@@ -269,6 +240,8 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
           and restrt is the max number of inner iterations
     M : matrix, inverted preconditioner, i.e. solve M A x = M b.
     PLU : matrix, approximate PLU-decomposition of matrix A. (as it gets computed by arb)
+    scaled : If True, we solve a scaled version of the linear system (make sure to adapt your preconditioner
+             to your choice of is_scaled)
     Returns
     -------
     (xNew, info)
@@ -343,7 +316,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
     # r = b - np.ravel(A*x)
     cdef Acb_Mat r = Acb_Mat(dimen,1)
     sig_on()
-    mat_vec_mul(r, A, x, prec)
+    mat_vec_mul(r, A, x, prec, is_scaled)
     sig_off()
     sig_on()
     acb_mat_approx_sub(r.value,b.value,r.value,prec)
@@ -412,7 +385,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
             v = vs[-1]
             acb_mat_win_cast = vs[-2]
             sig_on()
-            mat_vec_win_mul(v, A, acb_mat_win_cast, prec)
+            mat_vec_win_mul(v, A, acb_mat_win_cast, prec, is_scaled)
             sig_off()
             apply_preconditioner(v, M, PLU, prec)
 
@@ -525,7 +498,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
         sig_off()
         # r = b - np.ravel(A*x)
         sig_on()
-        mat_vec_mul(r, A, x, prec)
+        mat_vec_mul(r, A, x, prec, is_scaled)
         sig_off()
         sig_on()
         acb_mat_approx_sub(r.value, b.value, r.value, prec)

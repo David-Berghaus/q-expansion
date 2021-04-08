@@ -16,6 +16,8 @@ from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element
+from classes.plu_class cimport PLU_Mat
+from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)
@@ -284,6 +286,9 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
     return block_factored_mat, b
 
 cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
+    """
+    Computes expansion coefficients with direct methods (i.e. explicitly constructs V_tilde and performs a LU-decomposition)
+    """
     bit_prec = digits_to_bits(digit_prec)
     RR = RealBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
@@ -293,6 +298,7 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
     print("Y = ", Y)
     print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
     cdef Acb_Mat V,b
     V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
     sig_on()
@@ -300,25 +306,35 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     sig_off()
     return b.get_window(0,0,M,1)
 
-def test_act_on_vec(S):
-    M = 7
-    dimen = M*S.group().ncusps()
-    RBF = RealBallField(64)
-    tmp = get_V_tilde_matrix_b_arb_wrap(S,M,RBF(0.1),64)
-    tmp_f = get_V_tilde_matrix_factored_b_arb_wrap(S,M,RBF(0.1),64)
-    cdef Acb_Mat b = Acb_Mat(dimen,1)
-    cdef Acb_Mat V, x
+cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
+    """ 
+    Computes expansion coefficients with using GMRES, preconditioned with low_prec LU-decomposition
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = RBF(S.group().minimal_height()*0.8)
+    if M == 0:
+        weight = S.weight()
+        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+    print("Y = ", Y)
+    print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+    cdef PLU_Mat plu
 
-    tmp_f[0].act_on_vec_sc(b, tmp_f[1], 64)
-    b.str(10)
-    print('')
+    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    tol = RBF(10.0)**(-digit_prec)
+    low_prec = 64
 
-    V = tmp[0]
-    cdef Acb_Mat diag_cast
-    cdef Block_Factored_Mat block_cast
-    block_cast = tmp_f[0]
-    diag_cast = block_cast.diag_inv[0]
-    acb_mat_approx_right_mul_diag(V.value, V.value, diag_cast.value, 64)
-    x = tmp[1]
-    acb_mat_approx_mul(b.value, V.value, x.value, 64)
-    b.str(10)
+    V_scaled = V.construct(low_prec, True)
+    plu = PLU_Mat(V_scaled, low_prec)
+
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
+
+    res = x_gmres_arb_wrap[0]
+    V.diag_inv_scale_vec(res, res, bit_prec)
+
+    return res.get_window(0,0,M,1)

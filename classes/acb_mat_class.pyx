@@ -25,6 +25,15 @@ cdef class Acb_Mat():
     cpdef Acb_Mat_Win get_window(self, int r1, int c1, int r2, int c2):
         return Acb_Mat_Win(self, r1, c1, r2, c2)
 
+    cpdef Acb_Mat get_inv(self, int prec):
+        nrows = acb_mat_nrows(self.value)
+        ncols = acb_mat_ncols(self.value)
+        cdef Acb_Mat V_inv = Acb_Mat(nrows, ncols)
+        sig_on()
+        acb_mat_approx_inv(V_inv.value, self.value, prec)
+        sig_off()
+        return V_inv
+
     def str(self, int digits): #Prints entries of matrix with specified precision
         nrows = acb_mat_nrows(self.value)
         ncols = acb_mat_ncols(self.value)

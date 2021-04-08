@@ -29,7 +29,7 @@ cdef class Block_Factored_Mat():
         self.nc = nc
         self.max_len = 0
 
-    cpdef Acb_Mat construct(self, int prec):
+    cpdef Acb_Mat construct_non_sc(self, int prec):
         """
         Explicitly performs the block-matrix multiplications at precision prec and returns the result
         """
@@ -102,6 +102,15 @@ cdef class Block_Factored_Mat():
         
         return V_tilde
 
+    cpdef Acb_Mat construct(self, int prec, is_scaled):
+        """
+        Explicitly performs the scaled block-matrix multiplications at precision prec and returns the result
+        """
+        if is_scaled == True:
+            return self.construct_sc(prec)
+        elif is_scaled == False:
+            return self.construct_non_sc(prec)
+
     cpdef _get_max_len(self):
         """
         Returns the largest row-length of W (i.e. the highest amount of matching-points per cusp-pair)
@@ -125,7 +134,7 @@ cdef class Block_Factored_Mat():
         return self.max_len
 
 
-    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec):
+    cpdef act_on_vec_non_sc(self, Acb_Mat b, Acb_Mat x, int prec):
         """
         Computes Block_Factored_Mat*x = b
         """
@@ -244,7 +253,16 @@ cdef class Block_Factored_Mat():
                     acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
                     sig_off()
 
-    cpdef act_on_vec_win(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
+    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled):
+        """
+        Computes action of self on vector x and stores result in b
+        """
+        if is_scaled == True:
+            return self.act_on_vec_sc(b, x, prec)
+        elif is_scaled == False:
+            return self.act_on_vec_non_sc(b, x, prec)
+
+    cpdef act_on_vec_win_non_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
         """
         Computes Block_Factored_Mat*x = b
         """
@@ -332,7 +350,6 @@ cdef class Block_Factored_Mat():
 
         for cii in range(nc):
             b_cast = b_blocks[cii]
-            diag_cast = diag[cii]
             x_cast = x_blocks[cii]
             #b[cii] = -x[cii]
             sig_on()
@@ -351,9 +368,9 @@ cdef class Block_Factored_Mat():
                     #tmp2 = Diag_inv[cjj]*x[cjj]
                     acb_mat_approx_left_mul_diag(tmp2.value, diag_cast.value, x_cast.value, prec)
                     tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
-                    #tmp = W[cii][cjj]*x[cjj]
+                    #tmp = W[cii][cjj]*tmp2
                     sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, x_cast.value, prec)
+                    acb_mat_approx_mul(tmp_view.value, W.value, tmp2.value, prec)
                     sig_off()
                     #tmp2 = J[cii][cjj]*tmp
                     sig_on()
@@ -363,6 +380,15 @@ cdef class Block_Factored_Mat():
                     sig_on()
                     acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
                     sig_off()
+
+    cpdef act_on_vec_win(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec, is_scaled):
+        """
+        Computes action of self on vector-window x and stores result in b
+        """
+        if is_scaled == True:
+            return self.act_on_vec_win_sc(b, x, prec)
+        elif is_scaled == False:
+            return self.act_on_vec_win_non_sc(b, x, prec)
 
     cpdef nrows(self):
         """
@@ -407,7 +433,7 @@ cdef class Block_Factored_Mat():
         """
         cdef int nc, cii, M
         nc = self.nc
-        diag_inv = self.diag
+        diag_inv = self.diag_inv
         if diag_inv[0] == None:
             raise NameError("Matrix is not properly initialized yet!")
         M = diag_inv[0].nrows() #diag_inv[0] cannot be None if matrix is initialized
