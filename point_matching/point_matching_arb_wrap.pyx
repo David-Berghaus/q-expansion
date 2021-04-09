@@ -24,19 +24,22 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
-    cdef ComplexBall z_horo, czd, weight_fact, fact, tmp
+    cdef ComplexBall z_horo, czd, weight_fact, fact, tmp, exp_one
     cdef RealBall c,d
     cdef int j, n
     cdef RealBall one_over_2Q = RR(1)/(2*Q)
+
     for j in range(coord_len):
         (z_horo,_,_,c,d,_) = coordinates[j]
         x_horo = z_horo.real()
         czd = c*z_horo+d
         weight_fact = (czd.abs()/czd)**weight
         fact = weight_fact*one_over_2Q
-        for n in range(Ms,Mf+1):
-            tmp = fact*((-two_pi_i*n*x_horo).exp())
-            acb_set(acb_mat_entry(J, n-Ms, j), tmp.value)
+        exp_one = (-two_pi_i*x_horo).exp()
+        tmp = fact*((-two_pi_i*Ms*x_horo).exp()) #We could use exp_one here for performance
+        acb_set(acb_mat_entry(J, 0, j), tmp.value)
+        for n in range(Ms+1,Mf+1):
+            acb_approx_mul(acb_mat_entry(J, n-Ms, j), acb_mat_entry(J, n-Ms-1, j), exp_one.value, bit_prec)
 
 cpdef get_pi_ball(int bit_prec): #Since RR(pi) does not compile...
     RR = RealBallField(bit_prec)
@@ -58,15 +61,17 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
     cdef CC = ComplexBallField(bit_prec)
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
     cdef int j, l
-    cdef ComplexBall z_horo, z_fund, tmp
+    cdef ComplexBall z_horo, z_fund, tmp, exp_one
     cdef RealBall a, b, c, d, y_fund_fact
     for j in range(coord_len):
         (z_horo,a,b,c,d,_) = coordinates[j]
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
         y_fund_fact = (z_fund.imag())**weight_half
-        for l in range(Ms,Mf+1):
-            tmp = y_fund_fact*((two_pi_i*l*z_fund).exp())
-            acb_set(acb_mat_entry(W, j, l-Ms), tmp.value)
+        exp_one = (two_pi_i*z_fund).exp()
+        tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use exp_one here for performance
+        acb_set(acb_mat_entry(W, j, 0), tmp.value)
+        for l in range(Ms+1,Mf+1):
+            acb_approx_mul(acb_mat_entry(W, j, l-Ms), acb_mat_entry(W, j, l-Ms-1), exp_one.value, bit_prec)
 
 cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf,int weight,coordinates,int bit_prec): #computes a V-block-matrix and stores it in V
     coord_len = len(coordinates)
