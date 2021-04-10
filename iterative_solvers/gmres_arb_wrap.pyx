@@ -100,8 +100,8 @@ def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
 
-    V_scaled = V.construct(low_prec, True)
-    plu = PLU_Mat(V_scaled, low_prec)
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
 
     # V_inv = Acb_Mat(dimen, dimen)
     # cdef Acb_Mat diag = Acb_Mat(dimen, 1)
@@ -110,7 +110,9 @@ def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
     #     for i in range(dimen):
     #         acb_div(acb_mat_entry(V.value,i,j), acb_mat_entry(V.value,i,j), acb_mat_entry(diag.value,j,0), bit_prec)
     # acb_mat_approx_inv(V_inv.value, V.value, low_prec)
+    st = time.time()
     x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
+    print(time.time()-st)
 
     # plu = PLU_Mat(V, low_prec)
     # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
@@ -472,7 +474,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
                 # normr = np.abs(g[inner+1])
                 acb_approx_abs(normr, acb_mat_entry(g.value,inner+1,0), prec)
                 arb_printd(normr, 10)
-                print('')
+                print(' (' + str(inner) + '. iteration)')
                 # if normr < tol:
                 if arb_lt(normr, tol.value) == 1:
                     break

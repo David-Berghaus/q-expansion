@@ -21,6 +21,8 @@ cdef extern from "arb_wrap.h":
     void acb_mat_window_clear(acb_mat_t window)
 
     void arf_printd(const arf_t x, long d)
+    void arf_set_d(arf_t res, double x)
+    void acb_set_d_d(acb_t z, double x, double y)
 
 
     # Helper functions that we have implemented ourselves
@@ -48,3 +50,4 @@ cdef extern from "arb_wrap.h":
 
     void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, long prec)
     void lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, long prec)
+    double complex acb_to_dc(acb_t z)

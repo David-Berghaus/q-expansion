@@ -1,4 +1,6 @@
 from cysignals.signals cimport sig_on, sig_off
+import numpy as np
+cimport numpy as np
 
 from sage.libs.arb.acb_mat cimport *
 
@@ -99,6 +101,47 @@ cdef class Block_Factored_Mat():
                 if cii == cjj:
                     for i in range(M):
                         acb_sub_ui(acb_mat_entry(V_view.value,i,i),acb_mat_entry(V_view.value,i,i),1,prec)
+        
+        return V_tilde
+
+    cpdef construct_sc_np(self):
+        """
+        Explicitly performs the scaled block-matrix multiplications at double and returns the result as a np-matrix
+        The scaled matrix is given by the expression V_sc = V*Diag_inv
+        """
+        cdef int nc, cii, cjj, i, M
+        nc = self.nc
+        A = self.A
+        diag = self.diag
+        diag_inv = self.diag_inv
+        if diag[0] == None:
+            raise NameError("Matrix is not properly initialized yet!")
+        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
+        V_tilde = np.zeros(shape=(nc*M,nc*M), dtype=np.complex_)
+        cdef Acb_Mat J, W, diag_cast, acb_mat_tmp
+        cdef Block_Factored_Element block_factored_element
+        low_prec = 64 #Low precision in which we perform arb computations. Should have the same performance as 53 bit precision
+        
+        for cii in range(nc):
+            for cjj in range(nc):
+                V_view = V_tilde[cii*M:(cii+1)*M, cjj*M:(cjj+1)*M]
+                if A[cii][cjj] != None:
+                    block_factored_element = A[cii][cjj]
+                    J = block_factored_element.J
+                    W = block_factored_element.W
+                    diag_cast = diag_inv[cjj]
+                    acb_mat_tmp = Acb_Mat(W.nrows(), W.ncols())
+                    #We perform the multiplications "from right to left"
+                    sig_on()
+                    #We need to do this scaling at low-prec arb to have correct exponents
+                    acb_mat_approx_right_mul_diag(acb_mat_tmp.value, W.value, diag_cast.value, low_prec)
+                    sig_off()
+                    np_tmp = acb_mat_tmp.get_np_trunc(1e-17/(2*nc*M))
+                    np_J = J.get_np()
+                    np.matmul(np_J, np_tmp, out=V_view[:,:np_tmp.shape[1]])
+                if cii == cjj:
+                    for i in range(M):
+                        V_view[i,i] -= 1
         
         return V_tilde
 

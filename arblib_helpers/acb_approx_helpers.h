@@ -1,6 +1,7 @@
 //We declare this as a header file because we have *.c in gitignore...
 
 #include "acb.h"
+#include <complex.h>
 
 void
 acb_approx_mul(acb_t res, const acb_t x, const acb_t y, slong prec)
@@ -104,4 +105,10 @@ arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, slong prec)
 void acb_approx_abs(arb_t r, const acb_t z, slong prec)
 {
     arb_approx_hypot(r, acb_realref(z), acb_imagref(z), prec);
+}
+
+double complex acb_to_dc(acb_t z) //Converts z to double complex type
+{
+    double complex res = arf_get_d(arb_midref(acb_realref(z)), ARF_RND_DOWN) + arf_get_d(arb_midref(acb_imagref(z)), ARF_RND_DOWN)*I;
+    return res;
 }

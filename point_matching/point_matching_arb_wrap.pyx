@@ -332,10 +332,9 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec)
-    low_prec = 64
 
-    V_scaled = V.construct(low_prec, True)
-    plu = PLU_Mat(V_scaled, low_prec)
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
 
     x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 

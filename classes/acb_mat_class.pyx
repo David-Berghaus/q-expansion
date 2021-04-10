@@ -1,4 +1,12 @@
 from cysignals.signals cimport sig_on, sig_str, sig_off
+import numpy as np
+cimport numpy as np
+
+cdef extern from "complex.h":
+    cdef double cimag(double complex)
+    cdef double creal(double complex)
+    cdef double cabs(double complex)
+    cdef double complex cexp(double complex)
 
 from sage.libs.arb.arb cimport *
 from sage.libs.arb.acb cimport *
@@ -72,6 +80,49 @@ cdef class Acb_Mat():
 
     cpdef ncols(self):
         return acb_mat_ncols(self.value)
+
+    cpdef get_np(self):
+        """
+        Converts and returns np-matrix of self
+        """
+        nrows, ncols = self.nrows(), self.ncols()
+        res = np.zeros(shape=(nrows,ncols), dtype=np.complex_)
+        cdef int i, j
+        for i in range(nrows):
+            for j in range(ncols):
+                res[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+        
+        return res
+
+    cpdef get_np_trunc(self, double tol):
+        """
+        Converts and returns np-matrix of self.
+        All entries whose absolute value is less than tol are set to zero.
+        """
+        nrows, ncols = self.nrows(), self.ncols()
+        res = np.zeros(shape=(nrows,ncols), dtype=np.complex_, order='F')
+        cdef int i, j
+        trunc_col = ncols
+        for j in range(ncols):
+            above_tol = False #Set to True if value is larger than tol
+            for i in range(nrows):
+                res[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+                if abs(creal(res[i,j])) > tol or abs(cimag(res[i,j])) > tol:
+                    above_tol = True #Detected a large value so we are not finished yet
+            if above_tol == False:
+                trunc_col = j
+                break
+        return res[:, :trunc_col]
+
+    cpdef set_np(self, A):
+        """
+        Sets self from np-matrix A
+        """
+        nrows, ncols = self.nrows(), self.ncols()
+        cdef int i, j
+        for i in range(nrows):
+            for j in range(ncols):
+                acb_set_d_d(acb_mat_entry(self.value,i,j), creal(A[i,j]), cimag(A[i,j]))
 
 cdef class Acb_Mat_Win():
     """
