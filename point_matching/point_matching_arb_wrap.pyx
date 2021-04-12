@@ -99,13 +99,16 @@ cdef Acb_Mat get_diagonal_terms(int Ms,int Mf,int weight,Y,int bit_prec):
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef RealBall Y_pow_weight_half, two_pi, tmp
+    cdef ComplexBall exp_one
     weight_half = weight//2
     Y_pow_weight_half = Y**weight_half
     two_pi = 2*get_pi_ball(bit_prec)
     cdef Acb_Mat diag = Acb_Mat(M, 1) #We could use real entries here...
-    for i in range(Ms,Mf+1):
-        tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
-        acb_set_arb(acb_mat_entry(diag.value,i-Ms,0),tmp.value)
+    tmp = Y_pow_weight_half*((-two_pi*Ms*Y).exp())
+    acb_set_arb(acb_mat_entry(diag.value,0,0),tmp.value)
+    exp_one = CC((-two_pi*Y).exp(),0)
+    for i in range(Ms+1,Mf+1):
+        acb_approx_mul(acb_mat_entry(diag.value,i-Ms,0), acb_mat_entry(diag.value,i-Ms-1,0), exp_one.value, bit_prec)
 
     return diag
 
@@ -115,13 +118,16 @@ cdef Acb_Mat get_diagonal_inv_terms(int Ms,int Mf,int weight,Y,int bit_prec):
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef RealBall Y_pow_minus_weight_half, two_pi, tmp
+    cdef ComplexBall exp_one
     minus_weight_half = -weight//2
     Y_pow_minus_weight_half = Y**minus_weight_half
     two_pi = 2*get_pi_ball(bit_prec)
     cdef Acb_Mat diag_inv = Acb_Mat(M, 1) #We could use real entries here...
-    for i in range(Ms,Mf+1):
-        tmp = Y_pow_minus_weight_half*((two_pi*i*Y).exp())
-        acb_set_arb(acb_mat_entry(diag_inv.value,i-Ms,0),tmp.value)
+    tmp = Y_pow_minus_weight_half*((two_pi*Ms*Y).exp())
+    acb_set_arb(acb_mat_entry(diag_inv.value,0,0),tmp.value)
+    exp_one = CC((two_pi*Y).exp(),0)
+    for i in range(Ms+1,Mf+1):
+        acb_approx_mul(acb_mat_entry(diag_inv.value,i-Ms,0), acb_mat_entry(diag_inv.value,i-Ms-1,0), exp_one.value, bit_prec)
 
     return diag_inv
 
@@ -331,11 +337,10 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
     cdef PLU_Mat plu
 
     V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
-    tol = RBF(10.0)**(-digit_prec)
-    low_prec = 64
+    tol = RBF(10.0)**(-digit_prec+1)
 
-    V_scaled = V.construct(low_prec, True)
-    plu = PLU_Mat(V_scaled, low_prec)
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
 
     x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
