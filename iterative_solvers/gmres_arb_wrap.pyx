@@ -241,9 +241,9 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
         - if restrt is int, maxiter is the max number of outer iterations,
           and restrt is the max number of inner iterations
     M : matrix, inverted preconditioner, i.e. solve M A x = M b.
-    PLU : matrix, approximate PLU-decomposition of matrix A. (as it gets computed by arb)
+    PLU : matrix, approximate PLU-decomposition of matrix A.
     scaled : If True, we solve a scaled version of the linear system (make sure to adapt your preconditioner
-             to your choice of is_scaled)
+        to your choice of is_scaled)
     Returns
     -------
     (xNew, info)
@@ -317,11 +317,9 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
     # Prep for method
     # r = b - np.ravel(A*x)
     cdef Acb_Mat r = Acb_Mat(dimen,1)
-    sig_on()
     mat_vec_mul(r, A, x, prec, is_scaled)
-    sig_off()
     sig_on()
-    acb_mat_approx_sub(r.value,b.value,r.value,prec)
+    acb_mat_approx_sub(r.value, b.value, r.value, prec)
     sig_off()
 
     # Apply preconditioner
@@ -330,7 +328,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
 
     #normr = norm(r)
     sig_on()
-    acb_mat_approx_norm(normr,r.value,prec)
+    acb_mat_approx_norm(normr, r.value, prec)
     sig_off()
 
     # Scale tol by ||r_0||_2, we use the preconditioned residual
@@ -405,7 +403,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
 
             # normv = norm(v)
             sig_on()
-            acb_mat_approx_norm(normv,v.value,prec)
+            acb_mat_approx_norm(normv, v.value, prec)
             sig_off()
             # H[inner+1, inner] = normv
             acb_approx_set_arb(acb_mat_entry(H.value, inner+1, inner), normv)
