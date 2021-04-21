@@ -49,4 +49,4 @@ def test_get_coefficients_gmres_arb_wrap2():
     S = AutomorphicFormSpace(G,weight=4) #Search for a multiplicity two new-form
     C = get_coefficients_gmres_arb_wrap(S,35)._get_mcbd(53)
     assert abs(float(C[0][0].real())+float(C[0][0].imag())*1j-(1.1779944322516185-1.177994432251737j))/abs(float(C[0][0].real())+float(C[0][0].imag())*1j+(1.1779944322516185-1.177994432251737j)) < 1e-12
-    print("test_get_coefficients_arb_wrap for multiplicity two non-congruence ok")
+    print("test_get_coefficients_gmres_arb_wrap for multiplicity two non-congruence ok")

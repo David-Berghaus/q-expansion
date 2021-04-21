@@ -18,6 +18,7 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element
 from classes.plu_class cimport PLU_Mat
 from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
+from iterative_solvers.iterative_refinement_arb_wrap import iterative_refinement_arb_wrap
 
 cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
     cdef int coord_len = len(coordinates)
@@ -319,7 +320,7 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
 cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """ 
-    Computes expansion coefficients with using GMRES, preconditioned with low_prec LU-decomposition
+    Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
@@ -345,6 +346,37 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
     x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
     res = x_gmres_arb_wrap[0]
+    V.diag_inv_scale_vec(res, res, bit_prec)
+
+    return res.get_window(0,0,M,1)
+
+cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+    """ 
+    Computes expansion coefficients using classical iterative refinement
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = RBF(S.group().minimal_height()*0.8)
+    if M == 0:
+        weight = S.weight()
+        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+    print("Y = ", Y)
+    print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+    cdef PLU_Mat plu
+
+    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+
     V.diag_inv_scale_vec(res, res, bit_prec)
 
     return res.get_window(0,0,M,1)

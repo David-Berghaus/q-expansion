@@ -16,6 +16,7 @@ extensions = [
     Extension("point_matching.point_matching_arb_wrap", ["point_matching/point_matching_arb_wrap.pyx"]),
     Extension("iterative_solvers.gmres_dp", ["iterative_solvers/gmres_dp.pyx"]),
     Extension("iterative_solvers.gmres_arb_wrap", ["iterative_solvers/gmres_arb_wrap.pyx"]),
+    Extension("iterative_solvers.iterative_refinement_arb_wrap", ["iterative_solvers/iterative_refinement_arb_wrap.pyx"]),
 ]
 
 setup(
