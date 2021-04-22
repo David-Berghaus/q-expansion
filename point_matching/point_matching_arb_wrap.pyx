@@ -25,7 +25,8 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
-    cdef ComplexBall z_horo, czd, weight_fact, fact, tmp, exp_one
+    cdef ComplexBall z_horo, czd, fact, tmp, exp_one
+    cdef ComplexBall weight_fact = CC(1,0)
     cdef RealBall c,d
     cdef int j, n
     cdef RealBall one_over_2Q = RR(1)/(2*Q)
@@ -33,8 +34,9 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     for j in range(coord_len):
         (z_horo,_,_,c,d,_) = coordinates[j]
         x_horo = z_horo.real()
-        czd = c*z_horo+d
-        weight_fact = (czd.abs()/czd)**weight
+        if weight != 0:
+            czd = c*z_horo+d
+            weight_fact = (czd.abs()/czd)**weight
         fact = weight_fact*one_over_2Q
         exp_one = (-two_pi_i*x_horo).exp()
         tmp = fact*((-two_pi_i*Ms*x_horo).exp()) #We could use exp_one here for performance
@@ -63,11 +65,13 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
     cdef int j, l
     cdef ComplexBall z_horo, z_fund, tmp, exp_one
-    cdef RealBall a, b, c, d, y_fund_fact
+    cdef RealBall a, b, c, d
+    cdef RealBall y_fund_fact = RR(1)
     for j in range(coord_len):
         (z_horo,a,b,c,d,_) = coordinates[j]
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
-        y_fund_fact = (z_fund.imag())**weight_half
+        if weight != 0:
+            y_fund_fact = (z_fund.imag())**weight_half
         exp_one = (two_pi_i*z_fund).exp()
         tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use exp_one here for performance
         acb_set(acb_mat_entry(W, j, 0), tmp.value)
