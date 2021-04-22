@@ -29,6 +29,8 @@ iterative_solvers/gmres_arb_wrap.pyx
 iterative_solvers/gmres_dp.c
 iterative_solvers/gmres_dp.pyx
 iterative_solvers/iterative_refinement_arb_wrap.c
+iterative_solvers/iterative_refinement_arb_wrap.pxd
+iterative_solvers/iterative_refinement_arb_wrap.pyx
 point_matching/__init__.py
 point_matching/point_matching_arb_wrap.c
 point_matching/point_matching_arb_wrap.pxd
@@ -42,5 +44,6 @@ pullback/my_pullback.pxd
 pullback/my_pullback.pyx
 unit_tests/unit_tests.sage
 unit_tests/unit_tests_gmres_arb_wrap.sage
+unit_tests/unit_tests_ir_arb_wrap.sage
 unit_tests/unit_tests_point_matching_arb_wrap.sage
 unit_tests/unit_tests_point_matching_dp.sage
