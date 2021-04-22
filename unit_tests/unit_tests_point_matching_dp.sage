@@ -10,6 +10,7 @@ def run_unit_tests_point_matching_dp():
     test_get_coefficients_dp()
     test_get_V_tilde_matrix_b_dp()
     test_get_V_tilde_matrix_dp()
+    test_get_coefficients_haupt_dp
 
 def test_get_coefficients_dp():
     r='(1 2 5)(3)(4 7 9)(6 10 8)'
@@ -38,3 +39,9 @@ def test_get_V_tilde_matrix_dp():
     assert abs(C[0]-(-2))/abs(C[0]+(-2)) < 1e-12
     assert abs(C[1]-(-1))/abs(C[1]+(-1)) < 1e-12
     print("test_get_V_tilde_matrix_dp ok")
+
+def test_get_coefficients_haupt_dp():
+    S = AutomorphicFormSpace(Gamma0(4),weight=0)
+    C = get_coefficients_haupt_dp(S)
+    assert abs(C[0][0]-20)/abs(C[0][0]+20) < 1e-12
+    print("test_get_coefficients_haupt_dp ok")

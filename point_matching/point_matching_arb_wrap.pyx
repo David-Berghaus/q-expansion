@@ -25,7 +25,8 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     cdef RR = RealBallField(bit_prec)
     cdef CC = ComplexBallField(bit_prec)
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
-    cdef ComplexBall z_horo, czd, weight_fact, fact, tmp, exp_one
+    cdef ComplexBall z_horo, czd, fact, tmp, exp_one
+    cdef ComplexBall weight_fact = CC(1,0)
     cdef RealBall c,d
     cdef int j, n
     cdef RealBall one_over_2Q = RR(1)/(2*Q)
@@ -33,8 +34,9 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     for j in range(coord_len):
         (z_horo,_,_,c,d,_) = coordinates[j]
         x_horo = z_horo.real()
-        czd = c*z_horo+d
-        weight_fact = (czd.abs()/czd)**weight
+        if weight != 0:
+            czd = c*z_horo+d
+            weight_fact = (czd.abs()/czd)**weight
         fact = weight_fact*one_over_2Q
         exp_one = (-two_pi_i*x_horo).exp()
         tmp = fact*((-two_pi_i*Ms*x_horo).exp()) #We could use exp_one here for performance
@@ -63,11 +65,13 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
     cdef ComplexBall two_pi_i = CC(0,2*get_pi_ball(bit_prec))
     cdef int j, l
     cdef ComplexBall z_horo, z_fund, tmp, exp_one
-    cdef RealBall a, b, c, d, y_fund_fact
+    cdef RealBall a, b, c, d
+    cdef RealBall y_fund_fact = RR(1)
     for j in range(coord_len):
         (z_horo,a,b,c,d,_) = coordinates[j]
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
-        y_fund_fact = (z_fund.imag())**weight_half
+        if weight != 0:
+            y_fund_fact = (z_fund.imag())**weight_half
         exp_one = (two_pi_i*z_fund).exp()
         tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use exp_one here for performance
         acb_set(acb_mat_entry(W, j, 0), tmp.value)
@@ -84,7 +88,7 @@ cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf
     sig_off()
     acb_mat_clear(W) #It would be more efficient to re-use these allocations...
 
-cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,acb_mat_t J,int cii,int cjj,int l_normalized,int weight,Y,coordinates,int bit_prec): #Computes column of V corresponding to l_normalized
+cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,acb_mat_t J,int l_normalized,int weight,coordinates,int bit_prec): #Computes column of V corresponding to l_normalized
     coord_len = len(coordinates)
     cdef acb_mat_t W
     acb_mat_init(W, coord_len, 1)
@@ -239,7 +243,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
                     l_normalized = _get_l_normalized(cjj,normalization)
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
             if cii == cjj:
                 _subtract_diagonal_terms(V_view.value,Msjj,Mfjj,weight,Y,bit_prec)
     sig_on()
@@ -287,7 +291,66 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
                     l_normalized = _get_l_normalized(cjj,normalization)
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,cii,cjj,l_normalized,weight,Y,coordinates,bit_prec)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
+            if cii == cjj:
+                diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
+                diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
+
+    sig_on()
+    acb_mat_neg(b.value, b.value)
+    sig_off()
+    return block_factored_mat, b
+
+cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
+    """
+    Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
+    V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W.
+    This function is devoted to computing the hauptmodul for genus zero surfaces with normalization c_{-1} = 1, c_0 = 0 at the principal cusp
+    """
+    cdef int weight = S.weight()
+    if weight != 0:
+        raise NameError("This function only works for weight zero!")
+    G = S.group()
+    if G.genus() != 0:
+        raise NameError("This function only works for genus zero surfaces!")
+    cdef int Q = M+8
+    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
+    cdef int nc = G.ncusps()
+
+    cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    V_factored = block_factored_mat.A
+    diag_factored = block_factored_mat.diag
+    diag_inv_factored = block_factored_mat.diag_inv
+    cdef Acb_Mat b = Acb_Mat(nc*M,1)
+    cdef int cii, cjj
+    cdef Acb_Mat_Win b_view
+    cdef Acb_Mat J, W
+    cdef Block_Factored_Element block_factored_element
+
+    for cii in range(nc):
+        for cjj in range(nc):
+            coordinates = pb[cii][cjj]
+            coord_len = len(coordinates)
+            if cjj == 0: #principal cusp
+                Msjj = 1
+            else:
+                Msjj = 0
+            Mfjj = Msjj+M-1
+            if cii == 0: #principal cusp
+                Msii = 1
+            else:
+                Msii = 0
+            Mfii = Msii+M-1
+            if coord_len != 0:
+                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                block_factored_element = V_factored[cii][cjj]
+                J = block_factored_element.J
+                W = block_factored_element.W
+                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
+                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                if cjj == 0:
+                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,-1,weight,coordinates,bit_prec)
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
@@ -370,6 +433,36 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
     cdef PLU_Mat plu
 
     V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+
+    V.diag_inv_scale_vec(res, res, bit_prec)
+
+    return res.get_window(0,0,M,1)
+
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+    """ 
+    Computes expansion coefficients of hauptmodul using classical iterative refinement
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = RBF(S.group().minimal_height()*0.8)
+    if M == 0:
+        M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
+    print("Y = ", Y)
+    print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+    cdef PLU_Mat plu
+
+    V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
