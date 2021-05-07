@@ -20,6 +20,8 @@ classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
 classes/gamma_2_subgroup.c
+classes/gamma_2_subgroup.pyx
+classes/modform_class.c
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
@@ -40,7 +42,6 @@ point_matching/point_matching_dp.c
 point_matching/point_matching_dp.pxd
 point_matching/point_matching_dp.pyx
 pullback/__init__.py
-pullback/gamma_2.c
 pullback/my_pullback.c
 pullback/my_pullback.pxd
 pullback/my_pullback.pyx

@@ -13,6 +13,15 @@ from psage.modform.arithgroup.mysubgroup import MySubgroup
 from psage.modform.arithgroup.mysubgroups_alg import apply_sl2z_map_dp, pullback_general_group_dp, normalize_point_to_cusp_dp, SL2Z_elt
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
+from classes.gamma_2_subgroup import Gamma_2_Subgroup
+from classes.gamma_2_subgroup cimport pullback_general_gamma2_subgroup_dp
+
+cpdef my_pullback_general_group_dp(G,double x,double y,int ret_mat=0):
+    if isinstance(G, Gamma_2_Subgroup):
+        return pullback_general_gamma2_subgroup_dp(G,x,y,ret_mat)
+    else:
+        return pullback_general_group_dp(G,x,y,ret_mat)
+
 cpdef my_pullback_pts_dp(S,int Qs,int Qf,double Y): #Slow version
     G = S.group()
     if G.minimal_height() <= Y:
@@ -34,7 +43,7 @@ cpdef my_pullback_pts_dp(S,int Qs,int Qf,double Y): #Slow version
         for j in range(Qs,Qf+1):
             z_horo = Xm[j]+Y*1j
             x,y = normalize_point_to_cusp_dp(G,ci,Xm[j],Y)
-            x1,y1,T_a,T_b,T_c,T_d = pullback_general_group_dp(G,x,y,ret_mat=1)
+            x1,y1,T_a,T_b,T_c,T_d = my_pullback_general_group_dp(G,x,y,ret_mat=1)
             vjj = G.closest_vertex(x1,y1,as_integers=1)
             cjj = G._vertex_data[vjj]['cusp'] #closest cusp
             U_w = G._vertex_data[vjj]['cusp_map']
@@ -50,9 +59,6 @@ cpdef my_pullback_pts_dp(S,int Qs,int Qf,double Y): #Slow version
             a,b,c,d = tmp[0],tmp[1],tmp[2],tmp[3]
             Pb[cii][cjj].append((z_horo,a,b,c,d,z3))
     return Pb
-
-cdef apply_moebius_transformation_dp(z,a,b,c,d): #z is a double complex and a,b,c,d are doubles
-    return (a*z+b)/(c*z+d)
 
 cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
     RR = RealBallField(prec)
@@ -78,7 +84,7 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
         for j in range(Qs,Qf+1):
             z_horo = CC(Xm[j],Y)
             x,y = normalize_point_to_cusp_dp(G,ci,float(Xm[j]),float(Y)) #We don't need to perform this computation with arbs...
-            x1,y1,T_a,T_b,T_c,T_d = pullback_general_group_dp(G,x,y,ret_mat=1)
+            x1,y1,T_a,T_b,T_c,T_d = my_pullback_general_group_dp(G,x,y,ret_mat=1)
             vjj = G.closest_vertex(x1,y1,as_integers=1)
             cjj = G._vertex_data[vjj]['cusp'] #closest cusp
             U_w = G._vertex_data[vjj]['cusp_map']
@@ -113,37 +119,3 @@ cdef is_int(val):
             return True
         else:
             return False
-
-def compare_pb_to_psage(S,Qs,Qf,Y):
-    my_pb = my_pullback_pts_dp(S,Qs,Qf,Y)
-    from psage.modform.maass.pullback_algorithms import pullback_pts_dp
-    tmp = pullback_pts_dp(S,Qs,Qf,Y)
-    G = S.group()
-    eps = 1e-14
-
-    psage_pb = dict()
-    for ci in G._cusps:
-        cii = G._cusps.index(ci)
-        psage_pb[cii] = dict()
-        for cj in G._cusps:
-            cjj = G._cusps.index(cj)
-            psage_pb[cii][cjj] = []
-            ypb = tmp["ypb"][cii][cjj]
-            for i in range(len(ypb)):
-                if ypb[i] != 0:
-                    psage_pb[cii][cjj].append(ypb[i])
-    
-    nc = G.ncusps()
-    for cii in range(nc):
-        for cjj in range(nc):
-            if len(my_pb[cii][cjj]) != len(psage_pb[cii][cjj]):
-                print("Error: ", len(my_pb[cii][cjj]), ", ", len(psage_pb[cii][cjj]))
-            for i in range(len(my_pb[cii][cjj])):
-                if abs(my_pb[cii][cjj][i][5].imag-psage_pb[cii][cjj][i]) > eps:
-                    print(my_pb[cii][cjj][i][5].imag, ", ", psage_pb[cii][cjj][i])
-
-    return psage_pb
-
-
-
-#print(my_pullback_pts_dp(AutomorphicFormSpace(Gamma_class(2)),-3,3,0.1))
