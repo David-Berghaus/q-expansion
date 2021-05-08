@@ -54,7 +54,7 @@ cdef class PLU_Mat():
             self.P = <long*>sig_malloc(nrows*sizeof(long))
    
             L = lu_sp.L.A
-            for i in range(1, nrows): #L would benefit from column-major access here but row-major order of Arb seems to dominate
+            for i in range(1, nrows):
                 for j in range(i):
                     tmp_double = creal(L[i,j])
                     if abs(tmp_double) > 1e-17: #If result is less than rounding error, we can set it to zero for faster multiplication later
@@ -64,7 +64,7 @@ cdef class PLU_Mat():
                         arf_set_d(arb_midref(acb_imagref(acb_mat_entry(self.value,i,j))), tmp_double)
 
             U = lu_sp.U.A
-            for i in range(nrows): #U would benefit from column-major access here but row-major order of Arb seems to dominate
+            for i in range(nrows):
                 for j in range(i, ncols):
                     tmp_double = creal(U[i,j])
                     if abs(tmp_double) > 1e-17: #If result is less than rounding error, we can set it to zero for faster multiplication later
