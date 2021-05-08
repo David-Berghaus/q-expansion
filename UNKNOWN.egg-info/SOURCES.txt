@@ -20,8 +20,10 @@ classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
 classes/gamma_2_subgroup.c
+classes/gamma_2_subgroup.pxd
 classes/gamma_2_subgroup.pyx
 classes/modform_class.c
+classes/modform_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx

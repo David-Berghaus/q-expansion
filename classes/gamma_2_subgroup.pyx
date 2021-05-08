@@ -66,7 +66,41 @@ cpdef pullback_to_gamma2_mat(double x, double y):
             pb_map = T_0*pb_map
         else:
             break
-    return pb_map[0], pb_map[1], pb_map[2], pb_map[3]
+    return pb_map
+
+cpdef pullback_to_gamma2_mat_perm(double x, double y, MyPermutation perm_inf, MyPermutation perm_inf_inv, MyPermutation perm_0, MyPermutation perm_0_inv):
+    """
+    Returns matrix that maps point into fundamental domain of Gamma(2)
+    as well as the corresponding permutation.
+    """
+    cdef SL2Z_elt T = SL2Z_elt(1,2,0,1)
+    cdef SL2Z_elt T_inv = SL2Z_elt(1,-2,0,1)
+    cdef SL2Z_elt T_0 = SL2Z_elt(1,0,-2,1)
+    cdef SL2Z_elt T_0_inv = SL2Z_elt(1,0,2,1)
+    cdef SL2Z_elt pb_map = SL2Z_elt(1,0,0,1)
+    cdef MyPermutation pb_perm = MyPermutation(length=perm_inf.N()) #Identity
+    cdef double complex z_pb = x + y*1j
+    while True:
+        if abs(creal(z_pb)) > 1:
+            if creal(z_pb) < 0: #We need to move point to the right
+                z_pb += 2
+                pb_map = T*pb_map
+                pb_perm = perm_inf*pb_perm
+            else: #We need to move point to the left
+                z_pb -= 2
+                pb_map = T_inv*pb_map
+                pb_perm = perm_inf_inv*pb_perm
+        elif cabs(z_pb+0.5) < 0.5:
+            z_pb = z_pb/(2*z_pb+1)
+            pb_map = T_0_inv*pb_map
+            pb_perm = perm_0_inv*pb_perm
+        elif cabs(z_pb-0.5) < 0.5:
+            z_pb = z_pb/(-2*z_pb+1)
+            pb_map = T_0*pb_map
+            pb_perm = perm_0*pb_perm
+        else:
+            break
+    return pb_map, pb_perm
 
 cpdef pullback_general_gamma2_subgroup_dp(G,double x,double y,int ret_mat=0): 
         r"""
@@ -76,9 +110,8 @@ cpdef pullback_general_gamma2_subgroup_dp(G,double x,double y,int ret_mat=0):
         cdef int a,b,c,d,found_coset_rep,j
         cdef MyPermutation p,pj
         cdef SL2Z_elt B
-        a,b,c,d=pullback_to_gamma2_mat(x,y)
-        A=SL2Z_elt(a,b,c,d) #.matrix()
-        p = G.permutation_action(A) #.inverse()
+        A, p = pullback_to_gamma2_mat_perm(x,y,G.perm_inf,G.perm_inf_inv,G.perm_0,G.perm_0_inv)
+        # p = G.permutation_action(A) #.inverse()
         found_coset_rep=0
         for j in range(1,G._index+1):
             pj = G.coset_reps_perm[j]
@@ -99,8 +132,10 @@ class Gamma_2_Subgroup:
     def __init__(self,MyPermutation o_0,MyPermutation o_inf):
         self._verbose = False #This functionality is currently not supported
         self.perm_0 = o_0
+        self.perm_0_inv = o_0.inverse()
         self.perm_inf = o_inf
-        self.perm_1_inv = o_inf*o_0 #This is one of the gens of Gamma(2).farey_symbol() which is why we need it
+        self.perm_inf_inv = o_inf.inverse()
+        self.perm_1_inv = o_inf*o_0
         self.perm_1 = (self.perm_1_inv).inverse()
         self._index = self.perm_inf.N()
         self._gamma_2_farey = Gamma(2).farey_symbol()
@@ -202,6 +237,9 @@ class Gamma_2_Subgroup:
         return vertices, vertex_data, cusps, cusp_data
 
     def permutation_action(self, A):
+        """
+        Returns permutation corresponding to A.
+        """
         w = self._gamma_2_word_problem(A)
         p = MyPermutation(length=self._index) #identity
         for i in w:
@@ -216,6 +254,7 @@ class Gamma_2_Subgroup:
         Solves word problem of SL2Z_elt A in Gamma(2).
         We work with the implementation of the word problem of Gamma(2) in sage
         which uses T_inf and T_1_inv as first and second generators respectively.
+        This function is quite slow and should not be used extensively.
         """
         gamma2_w = self._gamma_2_farey.word_problem(A.SL2Z(), output='syllables')
         w = list()
@@ -251,23 +290,32 @@ class Gamma_2_Subgroup:
         Returns width of cusp c. 
         INPUT:
         - 'c' -- Integer or cusp
-        """       
-        g = self.cusp_normalizer(c)
-        g_inv = g.inverse()
-        for d in range(1,1+self._index):
-            t = g * SL2Z_elt(1,2*d,0,1) * g_inv #Note that T_inf is different to SL2Z here
-            if t in self:
-                return 2*d
-        raise ArithmeticError("Can't get here!")
+        """
+        cusp = Cusp(c)
+        if self._cusps != None and cusp in self._cusps:
+            j = self._cusps.index(cusp)
+            return self._cusp_data[j]['width']
+        else:
+            g = self.cusp_normalizer(c)
+            g_inv = g.inverse()
+            for d in range(1,1+self._index):
+                t = g * SL2Z_elt(1,2*d,0,1) * g_inv #Note that T_inf is different to SL2Z here
+                if t in self:
+                    return 2*d
+            raise ArithmeticError("Can't get here!")
     
     def cusp_normalizer(self,c):
         r"""
         Return the cusp normalizer of cusp c.
         """
         cusp = Cusp(c)
-        w = lift_to_sl2z(cusp.denominator(), cusp.numerator(), 0)
-        g = SL2Z_elt(w[3], w[1], w[2], w[0])
-        return g
+        if self._cusps != None and cusp in self._cusps:
+            j = self._cusps.index(cusp)
+            return self._cusp_data[j]['normalizer']
+        else:
+            w = lift_to_sl2z(cusp.denominator(), cusp.numerator(), 0)
+            g = SL2Z_elt(w[3], w[1], w[2], w[0])
+            return g
 
     def closest_vertex(self,x,y,as_integers=1):
         r"""
