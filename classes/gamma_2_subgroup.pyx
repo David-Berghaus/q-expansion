@@ -111,7 +111,6 @@ cpdef pullback_general_gamma2_subgroup_dp(G,double x,double y,int ret_mat=0):
         cdef MyPermutation p,pj
         cdef SL2Z_elt B
         A, p = pullback_to_gamma2_mat_perm(x,y,G.perm_inf,G.perm_inf_inv,G.perm_0,G.perm_0_inv)
-        # p = G.permutation_action(A) #.inverse()
         found_coset_rep=0
         for j in range(1,G._index+1):
             pj = G.coset_reps_perm[j]
@@ -127,6 +126,15 @@ cpdef pullback_general_gamma2_subgroup_dp(G,double x,double y,int ret_mat=0):
             return xpb,ypb,a,b,c,d
         else:
             return xpb,ypb
+
+cpdef apply_coset_vertex_map(v, SL2Z_elt coset):
+    """
+    Maps vertex v under coset-representative
+    """
+    if v == Cusp(1,0): #Vertex is at infinity
+        return Cusp(coset[0], coset[2]) #We cannot do a numerical möbius transformation with infinity so we return the result directly
+    vertex_pos = QQ(v.numerator())/QQ(v.denominator())
+    return Cusp(QQ(coset[0]*vertex_pos+coset[1])/QQ(coset[2]*vertex_pos+coset[3]))
 
 class Gamma_2_Subgroup:
     def __init__(self,MyPermutation o_0,MyPermutation o_inf):
@@ -155,21 +163,67 @@ class Gamma_2_Subgroup:
         return p(1) == 1
     
     def _get_coset_reps_from_perms(self):
-        p0 = self.perm_0; p1=self.perm_1; pI=self.perm_inf
+        p0=self.perm_0; p1=self.perm_1; pI=self.perm_inf
         T_inf = SL2Z_elt(1,2,0,1)
         T_0 = SL2Z_elt(1,0,-2,1)
         Id = SL2Z_elt(1,0,0,1)
         coset_reps = dict()
         coset_reps[1] = Id
         cycI = pI.cycle_tuples()
-        if len(cycI) > 1:
-            raise NotImplementedError("This functionality has not been added yet!")
-        else:
-            iterations = 0
-            for i in cycI[0]:
-                if i != 1:
-                    coset_reps[i] = T_inf**iterations
-                iterations += 1
+        next_cycle = cycI[0]
+        new_index = 0
+        got_cycles = []
+        old_map = Id
+        for cyi in range(len(cycI)):
+            cy = next_cycle
+            r = len(cy)
+            i=pI(cy[new_index])
+            # adding the rest of the cusp
+            if i != cy[new_index]:
+                for j in range(r):
+                    if j == new_index:
+                        continue
+                    k = (j - new_index)
+                    if k <= r/2.0:
+                        coset_reps[cy[j]]=old_map*T_inf**k
+                    else:
+                        coset_reps[cy[j]]=old_map*T_inf**(k-r)                    
+            got_cycles.append(cycI.index(cy))
+            # we have now added all translate inside the same cusp 
+            # and we should see if we can connect to anther cusp
+            # if there is any left
+            if cyi>= len(cycI)-1:
+                break
+            # otherwise we use the order two element to connect the next cycle to one of the previous ones
+            # since (S,T) are transitive this must be the case.
+            old_map = Id
+            try:
+                for cyii in range(len(cycI)):
+                    if cyii in got_cycles:
+                        ## If we already treated this cycle
+                        continue
+                    next_cycle = cycI[cyii]
+                    for cyj in range(len(cycI)):
+                        if cyj not in got_cycles:
+                            # We can only use cycles which are in the list
+                            continue
+                        cy=cycI[cyj]
+                        for i in cy:
+                            j = p0(i)
+                            if j in next_cycle:
+                                # we have connected the cycles
+                                old_map = coset_reps[i]*T_0 # this is the connecting map and we may as well add it
+                                coset_reps[j]=old_map
+                                new_index = next_cycle.index(j)
+                                raise StopIteration()
+            except StopIteration:
+                pass
+            if old_map == Id:
+                raise ValueError("Problem getting coset reps! Could not connect {0} using  {1}".format(cycI,p0))
+        # By construction none of the coset-reps are in self and h(V_j)=j so they are all independent
+        # But to make sure we got all we count the keys
+        if len(coset_reps.keys()) != self._index:
+            raise ValueError("Problem getting coset reps! Need {0} and got {1}".format(self._index,len(coset_reps)))
         return coset_reps
 
     def _init_coset_reps_perm(self):
@@ -201,6 +255,7 @@ class Gamma_2_Subgroup:
         vertices = list()
         vertex_data = dict()
         cusp_data = dict()
+        fund_vertices = (Cusp(1,0), Cusp(-1,1), Cusp(0,1), Cusp(1,1)) #These are the vertices of the fundamental domain of Gamma(2)
         #We begin with the vertex at infinity which we also choose to be a cusp representative
         vertex_data[0] = {'cusp':0,'cusp_map':Id,'coset':self.perm_inf.cycles_as_lists()[0]}
         vertices.append(Cusp(1,0))
@@ -208,32 +263,28 @@ class Gamma_2_Subgroup:
         cusps.append(Cusp(1,0))
         vi = 1
         for i in range(1,len(coset_reps)+1):
-            if coset_reps[i][2]==0:
-                center = 2*(i-1) #Center of coset_rep
-                for j in (-1,0,1): #These are the positions on the real line of the vertices of the standard fundamental domain
-                    v = Cusp(center+j,1)
-                    if v not in vertices: #Found a new vertex
-                        is_cusp = True
-                        for c in cusps:
-                            cusp_map = self.are_equivalent(v, c, trans=True)
-                            if cusp_map != False: #Found an equivalent cusp
-                                ci = cusps.index(c)
-                                vertex_data[vi] = {'cusp':ci,'cusp_map':cusp_map,'coset':[i]}
-                                vertices.append(v)
-                                is_cusp = False
-                                break
-                        if is_cusp: #Found a new cusp representative
-                            ci = len(cusps)
-                            vertex_data[vi] = {'cusp':ci,'cusp_map':Id,'coset':[i]}
+            for fund_v in fund_vertices:
+                v = apply_coset_vertex_map(fund_v, coset_reps[i])
+                if v not in vertices: #Found a new vertex
+                    is_cusp = True
+                    for c in cusps:
+                        cusp_map = self.are_equivalent(v, c, trans=True)
+                        if cusp_map != False: #Found an equivalent cusp
+                            ci = cusps.index(c)
+                            vertex_data[vi] = {'cusp':ci,'cusp_map':cusp_map,'coset':[i]}
                             vertices.append(v)
-                            cusp_data[ci] = {'width':self.cusp_width(v),'normalizer':self.cusp_normalizer(v)}
-                            cusps.append(v)
-                        vi += 1
-                    else:
-                        vj = vertices.index(v)
-                        vertex_data[vj]['coset'].append(i)
-            else:
-                raise NameError("This case has not been implemented yet")
+                            is_cusp = False
+                            break
+                    if is_cusp: #Found a new cusp representative
+                        ci = len(cusps)
+                        vertex_data[vi] = {'cusp':ci,'cusp_map':Id,'coset':[i]}
+                        vertices.append(v)
+                        cusp_data[ci] = {'width':self.cusp_width(v),'normalizer':self.cusp_normalizer(v)}
+                        cusps.append(v)
+                    vi += 1
+                else:
+                    vj = vertices.index(v)
+                    vertex_data[vj]['coset'].append(i)
         return vertices, vertex_data, cusps, cusp_data
 
     def permutation_action(self, A):

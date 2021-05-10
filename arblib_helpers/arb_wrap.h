@@ -13,6 +13,7 @@
 
 #include <acb.h>
 #include <acb_calc.h>
+#include <acb_dft.h>
 #include <acb_elliptic.h>
 #include <acb_hypgeom.h>
 #include <acb_mat.h>

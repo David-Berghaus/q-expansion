@@ -4,13 +4,16 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from point_matching.point_matching_dp import get_coefficients_dp, get_V_tilde_matrix_b_dp, get_V_tilde_matrix_dp
+from point_matching.point_matching_dp import get_coefficients_dp, get_V_tilde_matrix_b_dp, get_V_tilde_matrix_dp, get_coefficients_haupt_dp
+from classes.gamma_2_subgroup import Gamma_2_Subgroup
+from classes.modform_class import ModForm
 
 def run_unit_tests_point_matching_dp():
     test_get_coefficients_dp()
     test_get_V_tilde_matrix_b_dp()
     test_get_V_tilde_matrix_dp()
-    test_get_coefficients_haupt_dp
+    test_get_coefficients_haupt_dp()
+    test_get_coefficients_gamma_2_subgroup_dp()
 
 def test_get_coefficients_dp():
     r='(1 2 5)(3)(4 7 9)(6 10 8)'
@@ -45,3 +48,13 @@ def test_get_coefficients_haupt_dp():
     C = get_coefficients_haupt_dp(S)
     assert abs(C[0][0]-20)/abs(C[0][0]+20) < 1e-12
     print("test_get_coefficients_haupt_dp ok")
+
+def test_get_coefficients_gamma_2_subgroup_dp(): #We only test Gamma(2) subgroups for dp since it should be the same for arb wrap
+    o_0 = MyPermutation('(1 3 6 2 5 4)')
+    o_inf = MyPermutation('(1 2 3 4 5 6)')
+    G = Gamma_2_Subgroup(o_0,o_inf)
+    S = ModForm(G,2)
+    c1 = get_coefficients_dp(S,Y=0.07)
+    c2 = get_coefficients_dp(S,Y=0.06)
+    assert abs(c1[0][0]-c2[0][0])/abs(c1[0][0]+c2[0][0]) < 1e-10
+    print("test_get_coefficients_gamma_2_subgroup_dp ok")
