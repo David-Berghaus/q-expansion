@@ -26,10 +26,6 @@
 #include <bernoulli.h>
 #include <mag.h>
 
-
-//#include <acb_approx_helpers.h> -> we don't need this because it gets included in <acb_mat_approx_helpers.h>
-#include <acb_mat_approx_helpers.h>
-
 #undef ulong
 #undef slong
 #endif

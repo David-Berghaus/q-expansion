@@ -38,6 +38,7 @@ iterative_solvers/iterative_refinement_arb_wrap.pxd
 iterative_solvers/iterative_refinement_arb_wrap.pyx
 point_matching/__init__.py
 point_matching/fft_test.c
+point_matching/fft_test.pyx
 point_matching/point_matching_arb_wrap.c
 point_matching/point_matching_arb_wrap.pxd
 point_matching/point_matching_arb_wrap.pyx

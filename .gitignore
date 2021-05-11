@@ -17,3 +17,4 @@ MANIFEST
 *.toc
 *.so
 data/
+!/arblib_helpers/*.c
