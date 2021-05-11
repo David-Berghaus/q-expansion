@@ -19,6 +19,11 @@ classes/acb_mat_class.pyx
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
+classes/gamma_2_subgroup.c
+classes/gamma_2_subgroup.pxd
+classes/gamma_2_subgroup.pyx
+classes/modform_class.c
+classes/modform_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
@@ -32,6 +37,8 @@ iterative_solvers/iterative_refinement_arb_wrap.c
 iterative_solvers/iterative_refinement_arb_wrap.pxd
 iterative_solvers/iterative_refinement_arb_wrap.pyx
 point_matching/__init__.py
+point_matching/fft_test.c
+point_matching/fft_test.pyx
 point_matching/point_matching_arb_wrap.c
 point_matching/point_matching_arb_wrap.pxd
 point_matching/point_matching_arb_wrap.pyx

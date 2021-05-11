@@ -23,9 +23,11 @@ cdef class PLU_Mat():
     Computes and stores the LU decomposition of input matrix A at precision prec
     """
     def __cinit__(self, A, int prec):
-        cdef int i, j
+        cdef int i, j, nrows, ncols
         cdef double tmp_double
         cdef Acb_Mat acb_mat_cast
+        cdef double complex [::1, :] L, U #The result of scipy lu will be column major
+        cdef int [:] piv
 
         if isinstance(A, Acb_Mat):
             acb_mat_cast = A
@@ -50,7 +52,7 @@ cdef class PLU_Mat():
             acb_mat_init(self.value, nrows, ncols)
             sig_off()
             self.P = <long*>sig_malloc(nrows*sizeof(long))
-
+   
             L = lu_sp.L.A
             for i in range(1, nrows):
                 for j in range(i):

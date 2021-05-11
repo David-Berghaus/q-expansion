@@ -87,10 +87,11 @@ cdef class Acb_Mat():
         """
         nrows, ncols = self.nrows(), self.ncols()
         res = np.zeros(shape=(nrows,ncols), dtype=np.complex_)
+        cdef double complex [:, ::1] res_view = res
         cdef int i, j
         for i in range(nrows):
             for j in range(ncols):
-                res[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+                res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
         
         return res
 
@@ -101,13 +102,14 @@ cdef class Acb_Mat():
         """
         nrows, ncols = self.nrows(), self.ncols()
         res = np.zeros(shape=(nrows,ncols), dtype=np.complex_, order='F')
+        cdef double complex [::1, :] res_view = res
         cdef int i, j
         trunc_col = ncols
         for j in range(ncols):
             above_tol = False #Set to True if value is larger than tol
             for i in range(nrows):
-                res[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
-                if abs(creal(res[i,j])) > tol or abs(cimag(res[i,j])) > tol:
+                res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+                if abs(creal(res_view[i,j])) > tol or abs(cimag(res_view[i,j])) > tol:
                     above_tol = True #Detected a large value so we are not finished yet
             if above_tol == False:
                 trunc_col = j
