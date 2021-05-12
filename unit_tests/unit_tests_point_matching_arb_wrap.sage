@@ -4,13 +4,14 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from point_matching.point_matching_arb_wrap import get_coefficients_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_arb_wrap, get_coefficients_haupt_ir_arb_wrap
+from point_matching.point_matching_arb_wrap import get_coefficients_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_eisenstein_ir_arb_wrap
 
 def run_unit_tests_point_matching_arb_wrap():
     test_get_coefficients_arb_wrap()
     test_get_V_tilde_matrix_b_arb_wrap()
     test_get_V_tilde_matrix_arb_wrap()
     test_get_coefficients_haupt_ir_arb_wrap()
+    test_get_coefficients_eisenstein_ir_arb_wrap()
 
 def test_get_coefficients_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(2),weight=12) #Search for a multiplicity two old-form
@@ -46,3 +47,9 @@ def test_get_coefficients_haupt_ir_arb_wrap():
     C = get_coefficients_haupt_ir_arb_wrap(S,16)._get_mcbd(53)
     assert abs(C[0][0]-20)/abs(C[0][0]+20) < RBF(1e-10)
     print("test_get_coefficients_haupt_ir_arb_wrap ok")
+
+def test_get_coefficients_eisenstein_ir_arb_wrap():
+    S = AutomorphicFormSpace(Gamma0(4),weight=2)
+    C = get_coefficients_eisenstein_ir_arb_wrap(S,16)._get_mcbd(53)
+    assert abs(C[0][0]-24)/abs(C[0][0]+24) < RBF(1e-10)
+    print("test_get_coefficients_eisenstein_ir_arb_wrap ok")

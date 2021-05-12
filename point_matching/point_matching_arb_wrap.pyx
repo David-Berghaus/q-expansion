@@ -156,7 +156,7 @@ cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
-    cdef int Q = M+8
+    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     G = S.group()
     cdef int nc = G.ncusps()
@@ -187,7 +187,13 @@ cdef _get_l_normalized(cjj,normalization):
         raise NameError("Could not determine l_normalized...")
     return l_normalized
 
-cdef _get_normalization(S):
+cpdef dimension_eisenstein_series(G, int weight):
+    if weight == 0:
+        return 0
+    else:
+        return G.dimension_modular_forms(weight) - G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
+
+cdef _get_normalization_cuspforms(S):
     """
     Returns normalization for each cusp.
     A feature to be implemented in the future is to test if the normalization
@@ -198,13 +204,36 @@ cdef _get_normalization(S):
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of cuspforms is of dimension zero for this weight!")
-    if multiplicity == 1:
+    elif multiplicity == 1:
         normalization[0] = [1]
-    if multiplicity == 2:
+    elif multiplicity == 2:
         print("Careful, this normalization might not work for all groups!")
         print("")
         normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
-    if multiplicity > 2:
+    elif multiplicity > 2:
+        raise NameError("This case has not been implemented yet")
+    for i in range(1,G.ncusps()):
+        normalization[i] = []
+    return normalization
+
+cdef _get_normalization_eisenstein_series(S):
+    """
+    Returns normalization for each cusp.
+    A feature to be implemented in the future is to test if the normalization
+    works correctly (with a double-precision computation).
+    """
+    G = S.group()
+    cdef int multiplicity = dimension_eisenstein_series(G, S.weight())
+    normalization = dict()
+    if multiplicity == 0:
+        raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
+    elif multiplicity == 1:
+        normalization[0] = [1]
+    elif multiplicity == 2:
+        print("Careful, this normalization might not work for all groups!")
+        print("")
+        normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
+    elif multiplicity > 2:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
         normalization[i] = []
@@ -216,10 +245,10 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int Q = M+8
+    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization(S)
+    normalization = _get_normalization_cuspforms(S)
 
     cdef Acb_Mat V = Acb_Mat(nc*M,nc*M)
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
@@ -258,10 +287,10 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int Q = M+8
+    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization(S)
+    normalization = _get_normalization_cuspforms(S)
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
@@ -313,7 +342,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
     G = S.group()
     if G.genus() != 0:
         raise NameError("This function only works for genus zero surfaces!")
-    cdef int Q = M+8
+    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
 
@@ -359,6 +388,61 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
     acb_mat_neg(b.value, b.value)
     sig_off()
     return block_factored_mat, b
+
+cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
+    """
+    Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
+    V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
+    """
+    cdef int weight = S.weight()
+    G = S.group()
+    cdef int Q = get_Q(M)
+    pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
+    cdef int nc = G.ncusps()
+    normalization = _get_normalization_eisenstein_series(S)
+
+    cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    V_factored = block_factored_mat.A
+    diag_factored = block_factored_mat.diag
+    diag_inv_factored = block_factored_mat.diag_inv
+    cdef Acb_Mat b = Acb_Mat(nc*M,1)
+    cdef int cii, cjj
+    cdef Acb_Mat_Win b_view
+    cdef Acb_Mat J, W
+    cdef Block_Factored_Element block_factored_element
+
+    for cii in range(nc):
+        for cjj in range(nc):
+            coordinates = pb[cii][cjj]
+            coord_len = len(coordinates)
+            Msjj = len(normalization[cjj])
+            Mfjj = Msjj+M-1
+            Msii = len(normalization[cii])
+            Mfii = Msii+M-1
+            if coord_len != 0:
+                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                block_factored_element = V_factored[cii][cjj]
+                J = block_factored_element.J
+                W = block_factored_element.W
+                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
+                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                if cjj == 0:
+                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,0,weight,coordinates,bit_prec)
+            if cii == cjj:
+                diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
+                diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
+
+    sig_on()
+    acb_mat_neg(b.value, b.value)
+    sig_off()
+    return block_factored_mat, b
+
+cpdef get_Q(int M):
+    """
+    Returns (one half of) the amount of sampling points based on expansion order M.
+    """
+    return M+8
 
 cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """
@@ -463,6 +547,36 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
     cdef PLU_Mat plu
 
     V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M,Y,bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+
+    V.diag_inv_scale_vec(res, res, bit_prec)
+
+    return res.get_window(0,0,M,1)
+
+cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+    """ 
+    Computes Fourier-expansion coefficients of Eisenstein series using classical iterative refinement
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = RBF(S.group().minimal_height()*0.8)
+    if M == 0:
+        M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
+    print("Y = ", Y)
+    print("M = ", M)
+    print("dimen = ", S.group().ncusps()*M)
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+    cdef PLU_Mat plu
+
+    V, b = get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
