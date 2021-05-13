@@ -17,6 +17,7 @@ arblib_helpers/acb_dft_helpers.h
 arblib_helpers/acb_mat_approx_helpers.c
 arblib_helpers/acb_mat_approx_helpers.h
 arblib_helpers/arb_wrap.h
+belyi/newton_genus_zero.c
 classes/__init__.py
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd

@@ -46,6 +46,7 @@ cdef extern from "acb_mat_approx_helpers.c":
     void acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, int prec)
     void acb_mat_approx_scalar_addmul(acb_mat_t res, acb_mat_t B, const acb_mat_t A, const acb_t c, int prec)
     void acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, int prec)
+    void acb_mat_approx_dot(acb_t res, acb_mat_t x, acb_mat_t y, int prec)
     void acb_mat_change_prec(acb_mat_t res, acb_mat_t A, int prec)
     void acb_mat_approx_left_mul_diag(acb_mat_t res, const acb_mat_t D, const acb_mat_t A, int prec)
     void acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t D, int prec)
@@ -55,3 +56,6 @@ cdef extern from "acb_mat_approx_helpers.c":
 cdef extern from "acb_dft_helpers.c":
     void acb_compute_dft_matrix(acb_mat_t A, int N, int bit_prec)
     void acb_test_fft(int N, int bit_prec)
+
+cdef extern from "acb_poly_approx_helpers.c":
+    void acb_poly_approx_evaluate_horner(acb_t res, const acb_poly_t f, const acb_t a, int prec)

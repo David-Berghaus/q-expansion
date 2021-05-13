@@ -20,6 +20,7 @@ extensions = [
     Extension("iterative_solvers.gmres_dp", ["iterative_solvers/gmres_dp.pyx"]),
     Extension("iterative_solvers.gmres_arb_wrap", ["iterative_solvers/gmres_arb_wrap.pyx"]),
     Extension("iterative_solvers.iterative_refinement_arb_wrap", ["iterative_solvers/iterative_refinement_arb_wrap.pyx"]),
+    Extension("belyi.newton_genus_zero", ["belyi/newton_genus_zero.pyx"]),
 ]
 
 setup(
