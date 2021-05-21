@@ -528,7 +528,7 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     return res.get_window(0,0,M,1)
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_principal_expansion=True,return_M=False):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
@@ -556,7 +556,16 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M,1)
+    if only_principal_expansion == True:
+        if return_M == False:
+            return res.get_window(0,0,M,1)
+        else:
+            return res.get_window(0,0,M,1), M
+    else:
+        if return_M == False:
+            return res
+        else:
+            return res, M
 
 cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """ 

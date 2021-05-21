@@ -16,8 +16,12 @@ arblib_helpers/acb_dft_helpers.c
 arblib_helpers/acb_dft_helpers.h
 arblib_helpers/acb_mat_approx_helpers.c
 arblib_helpers/acb_mat_approx_helpers.h
+arblib_helpers/acb_poly_approx_helpers.c
+arblib_helpers/acb_poly_approx_helpers.h
 arblib_helpers/arb_wrap.h
+belyi/__init__.py
 belyi/newton_genus_zero.c
+belyi/newton_genus_zero.pyx
 classes/__init__.py
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
@@ -25,6 +29,7 @@ classes/acb_mat_class.pyx
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
+classes/factored_polynomial.c
 classes/gamma_2_subgroup.c
 classes/gamma_2_subgroup.pxd
 classes/gamma_2_subgroup.pyx
