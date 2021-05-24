@@ -16,6 +16,7 @@ cdef extern from "arb_wrap.h":
     void acb_mat_approx_mul(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
     void acb_mat_approx_mul_classical(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
     void acb_mat_neg(acb_mat_t dest, const acb_mat_t src)
+    void acb_mat_get_mid(acb_mat_t B, const acb_mat_t A)
 
     void acb_mat_window_init(acb_mat_t window, const acb_mat_t mat, long r1, long c1, long r2, long c2)
     void acb_mat_window_clear(acb_mat_t window)
@@ -23,6 +24,7 @@ cdef extern from "arb_wrap.h":
     void arf_printd(const arf_t x, long d)
     void arf_set_d(arf_t res, double x)
     void acb_set_d_d(acb_t z, double x, double y)
+    void acb_get_mid(acb_t m, const acb_t x)
 
 cdef extern from "acb_approx_helpers.c":
     # Helper functions that we have implemented ourselves
@@ -58,4 +60,6 @@ cdef extern from "acb_dft_helpers.c":
     void acb_test_fft(int N, int bit_prec)
 
 cdef extern from "acb_poly_approx_helpers.c":
-    void acb_poly_approx_evaluate_horner(acb_t res, const acb_poly_t f, const acb_t a, int prec)
+    void acb_poly_get_mid(acb_poly_t f, const acb_poly_t g)
+    void acb_mat_set_poly(acb_mat_t res, const acb_poly_t f)
+    void acb_poly_set_mat(acb_poly_t f, const acb_mat_t c)

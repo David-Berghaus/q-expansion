@@ -14,6 +14,12 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.factored_polynomial import Factored_Polynomial
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
+# Possible optimizations:
+#     -use lower-level functions
+#     -optimize construction of polynomials
+#     -set approximate zeros in J to zero for more sparsity
+#     -implement approximate polynomial functionality for potentially less precision loss
+
 cpdef locate_coset_in_permT(int coset_index, permT):
     """
     Locates position of cycle that contains coset_index in permT.
@@ -90,6 +96,7 @@ cdef eval_principal_hauptmodul(acb_mat_t principal_coeffs, ComplexBall q, int bi
         acb_approx_mul(acb_mat_entry(q_vec.value,i,0), acb_mat_entry(q_vec.value,i-1,0), q.value, bit_prec)
     acb_mat_approx_dot(res.value, principal_coeffs, q_vec.value, bit_prec) #We could have also used Horner's method here but there is currently no approx implementation available
     res += 1/q
+    acb_get_mid(res.value, res.value)
     return res
 
 cdef eval_hauptmodul(acb_mat_t haupt_coeffs, ComplexBall q, int bit_prec):
@@ -107,17 +114,8 @@ cdef eval_hauptmodul(acb_mat_t haupt_coeffs, ComplexBall q, int bit_prec):
     for i in range(2,M):
         acb_approx_mul(acb_mat_entry(q_vec.value,i,0), acb_mat_entry(q_vec.value,i-1,0), q.value, bit_prec)
     acb_mat_approx_dot(res.value, haupt_coeffs, q_vec.value, bit_prec) #We could have also used Horner's method here but there is currently no approx implementation available
+    acb_get_mid(res.value, res.value)
     return res
-
-cdef get_tuple_list_index(tuple_list, tuple_pos, value):
-    """
-    Given a list of tuples, return index of tuple whose entry at position 'tuple_pos' is equal to 'value'.
-    If no such tuple exists, return 'None'.
-    """
-    for i in range(len(tuple_list)):
-        if tuple_list[i][tuple_pos] == value:
-            return i
-    return None
 
 cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
     """
@@ -133,6 +131,7 @@ cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
         cusp_value = CBF(0,0)
         cb_cast = cusp_value
         acb_set(cb_cast.value, acb_mat_entry(coeffs,i*M,0)) #Set cusp value
+        acb_get_mid(cb_cast.value, cb_cast.value)
         width = G.cusp_width(cusps[i])
         pos = get_tuple_list_index(cusp_values, 1, width)
         if pos == None: #We havent considered a cusp with this width yet
@@ -140,6 +139,16 @@ cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
         else:
             cusp_values[pos][0].append(cusp_value)
     return cusp_values
+
+cdef get_tuple_list_index(tuple_list, tuple_pos, value):
+    """
+    Given a list of tuples, return index of tuple whose entry at position 'tuple_pos' is equal to 'value'.
+    If no such tuple exists, return 'None'.
+    """
+    for i in range(len(tuple_list)):
+        if tuple_list[i][tuple_pos] == value:
+            return i
+    return None
 
 cdef get_p3_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     """
@@ -197,53 +206,122 @@ cdef get_p2_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     p2 = Factored_Polynomial(x,haupt_values)
     return p2
 
-cdef get_pc_haupt(G, x, acb_mat_t coeffs, int M, int bit_prec):
+cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     """
     Returns polynomials corresponding to o2 in non-factored form as well as the exponents.
     The starting values are obtained by evaluating the hauptmodul at the cusps.
     """
-    haupt_values = get_non_inf_cusp_values(G, coeffs, M, bit_prec)
+    haupt_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec)
     pc = Factored_Polynomial(x,haupt_values)
     return pc
 
-cpdef get_jacobian(factored_polynomials, int N):
+cpdef get_f(factored_polynomials):
+    """
+    Compute f = p3-p2-1728*pc.
+    factored_polynomials is a tuple (p_3, p_2, p_c) where p_i are objects of type Factored_Polynomial.
+    """
+    f = 0
+    for poly_type in range(3): #Bad wording but poly_type refers to p_3, p_2 or p_c
+        factored_polynomial = factored_polynomials[poly_type]
+        p = factored_polynomial.construct()
+        if poly_type == 1: #We are considering p_2
+            p = -p
+        elif poly_type == 2: #We are considering p_c
+            p *= -1728
+        f += p
+    return f
+
+cpdef get_jacobian(factored_polynomials, G):
     """
     Return Jacobi-matrix.
     factored_polynomials is a tuple (p_3, p_2, p_c) where p_i are objects of type Factored_Polynomial.
     """
+    cdef int N = G.index()+1
     cdef Acb_Mat J = Acb_Mat(N,N)
     cdef Polynomial_complex_arb derivative
-    cdef int i, j, index = 0
+    cdef int i, j, index
+    i, j, index = 0, 0, 0
     for poly_type in range(3): #Bad wording but poly_type refers to p_3, p_2 or p_c
         factored_polynomial = factored_polynomials[poly_type]
         for poly_index in range(len(factored_polynomial.factors)):
-            p = factored_polynomial.factors[poly_index]
-            for coeff_index in range(len(p)-1): #Note that the last monomial is of the form 1*x^n
+            amount_of_unknowns = factored_polynomial.factors[poly_index][0].degree() #Note that the last monomial is of the form 1*x^n, so we got n unknowns
+            for coeff_index in range(amount_of_unknowns):
                 derivative = factored_polynomial.derivative(poly_index, coeff_index)
                 if poly_type == 1: #We are considering p_2
                     derivative = -derivative
                 elif poly_type == 2: #We are considering p_c
                     derivative *= -1728
-                for i in range(len(derivative)):
+                for i in range(derivative.degree()+1):
                     acb_swap(acb_mat_entry(J.value,i,j), acb_poly_get_coeff_ptr(derivative.__poly,i)) #We dont need to keep poly so we can just swap
+                if coeff_index == amount_of_unknowns-1: #Take care of boundary condition at infinity to fill last row
+                    multiplicity = factored_polynomial.factors[poly_index][1]
+                    if poly_type == 0: #We are considering p_3
+                        acb_set_si(acb_mat_entry(J.value,N-1,j),multiplicity)
+                    elif poly_type == 2: #We are considering p_c
+                        acb_set_si(acb_mat_entry(J.value,N-1,j),-multiplicity)
                 j += 1
+    return J
+
+cpdef get_unknown_coeff_column(factored_polynomials, int N):
+    """
+    Get a column vector containing the unknown coefficients.
+    """
+    cdef Polynomial_complex_arb poly_cast
+    cdef Acb_Mat coeffs = Acb_Mat(N,1)
+    cdef int i, j
+    i = 0
+    for factored_polynomial in factored_polynomials:
+        for (poly_fact, _) in factored_polynomial.factors:
+            poly_cast = poly_fact
+            j = 0
+            for j in range(acb_poly_degree(poly_cast.__poly)):
+                acb_set(acb_mat_entry(coeffs.value,i,0), acb_poly_get_coeff_ptr(poly_cast.__poly,j))
+                i += 1
+    return coeffs
+
+cdef newton_step(acb_mat_t res, factored_polynomials, G, int bit_prec):
+    cdef Polynomial_complex_arb f = get_f(factored_polynomials)
+    cdef Acb_Mat J = get_jacobian(factored_polynomials, G)
+    N = acb_mat_nrows(J.value)
+    cdef Acb_Mat x = get_unknown_coeff_column(factored_polynomials, N)
+    cdef Acb_Mat f_x = Acb_Mat(N, 1)
+    acb_mat_set_poly(f_x.value, f.__poly)
+
+    #We are now in a position to take the boundary condition at infinity into account
+    #to determine the last entry of f_x
+    CBF = ComplexBallField(bit_prec)
+    cdef ComplexBall condition_at_infinity = CBF(0,0)
+    p3 = factored_polynomials[0]
+    for (factor, order) in p3.factors:
+        condition_at_infinity += order*factor.coefficients()[-2]
+    pc = factored_polynomials[2]
+    for (factor, order) in pc.factors:
+        condition_at_infinity -= order*factor.coefficients()[-2]
+    condition_at_infinity -= 744
+    acb_set(acb_mat_entry(f_x.value,N-1,0),condition_at_infinity.value)
+
+    cdef Acb_Mat update = Acb_Mat(N, 1)
+    acb_mat_approx_solve(update.value, J.value, f_x.value, bit_prec)
+    acb_mat_approx_sub(x.value, x.value, update.value, bit_prec)
+    return x
             
 cpdef test_jacobian(S, digit_prec):
     G = S.group()
     cdef Acb_Mat c
     c, M = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=False,return_M=True)
-    cdef Acb_Mat_Win c_principal = c.get_window(0,0,M,1)
-    bit_prec = digits_to_bits(digit_prec)
+    bit_prec = digits_to_bits(2*digit_prec)
     CBF = ComplexBallField(bit_prec)
     cdef Polynomial_complex_arb x = Polynomial_complex_arb(CBF['x'], is_gen=True)
     # cdef Polynomial_complex_arb p1 = Polynomial_complex_arb(CBF['x'], [CBF(1,1), 0, 1])
 
-    p2 = get_p2_haupt(G, x, c_principal.value, M, bit_prec)
-    p3 = get_p3_haupt(G, x, c_principal.value, M, bit_prec)
-    pc = get_pc_haupt(G, x, c.value, M, bit_prec)
+    p2 = get_p2_haupt(G, x, c, M, bit_prec)
+    p3 = get_p3_haupt(G, x, c, M, bit_prec)
+    pc = get_pc_haupt(G, x, c, M, bit_prec)
     factored_polynomials = (p3, p2, pc)
 
-    J = get_jacobian(factored_polynomials, G.index())
+    cdef Acb_Mat res = Acb_Mat(G.index()+1,1)
+    newton_step(res.value, factored_polynomials, G, bit_prec)
+    #J = get_jacobian(factored_polynomials, G)
 
 cpdef test(S, digit_prec):
     G = S.group()

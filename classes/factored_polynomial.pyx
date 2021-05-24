@@ -1,4 +1,4 @@
-from copy import copy
+import copy
 
 cpdef construct_poly_from_root_tuple(x, root_tuple): #We might want to use native arb here later
     p = 1
@@ -6,20 +6,6 @@ cpdef construct_poly_from_root_tuple(x, root_tuple): #We might want to use nativ
     for root in roots:
         p *= (x-root)
     return [p,order]
-
-cpdef construct_poly_from_sorted_factors(factors):
-    reduced_factors = [] #By reduced factors we mean that all factors of the same order get multiplied
-    reduced_factors.append(factors[0])
-    for i in range(1,len(factors)):
-        (poly_fact, order) = factors[i]
-        if reduced_factors[-1][1] == order:
-            reduced_factors[-1][0] *= poly_fact
-        else:
-            reduced_factors.append(factors[i])
-    res = 1
-    for (poly_fact, order) in reduced_factors:
-        res *= poly_fact**order
-    return res
 
 class Factored_Polynomial():
     """
@@ -36,16 +22,30 @@ class Factored_Polynomial():
         for root_tuple in root_tuples:
             factors.append(construct_poly_from_root_tuple(polygen,root_tuple))
         self.factors = factors
-    
+
+    def construct(self):
+        """
+        Explicitly constructs self as a polynomial.
+        """
+        factors = self.factors
+        res = 1
+        for (factor, order) in factors:
+            res *= factor**order
+        return res
+
     def derivative(self, poly_index, coeff_index):
         """
         Returns a polynomial that corresponds to the derivative with respect to the 'coeff_index'th coefficient of polynomial at 'poly_index'.
         """
-        outer_derivative = copy(self.factors)
-        outer_derivative[poly_index][1] -= 1
-        outer_derivative.sort(key=lambda tup: tup[1])
-        outer_derivative = construct_poly_from_sorted_factors(outer_derivative)
-        inner_derivative = (self.factors[poly_index][1])*(self.polygen)**coeff_index
+        factors = self.factors
+        outer_derivative = 1
+        for i in range(len(factors)):
+            p, order = factors[i]
+            if i == poly_index:
+                order -= 1
+            outer_derivative *= p**order
+        inner_derivative = (factors[poly_index][1])*(self.polygen)**coeff_index
         derivative = inner_derivative*outer_derivative #this multiplication by a monomial can certainly be optimized
+        return derivative
 
 
