@@ -29,6 +29,14 @@ cpdef locate_coset_in_permT(int coset_index, permT):
         if coset_index in cycle:
             return i
 
+cpdef get_CBF_list(CBF, int N):
+    """
+    Returns a list of length N consisting of CBF(0,0).
+    """
+    cdef int i
+    cbf_list = [CBF(0,0) for i in range(N)]
+    return cbf_list
+
 cpdef get_ell_2_points(G, bit_prec):
     """
     Computes approximations of all elliptic points of permutation of order two of MySubgroup G to bit_prec precision as a ComplexBallField.
@@ -175,7 +183,7 @@ cdef get_p3_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
             else:
                 haupt_values_order.append(eval_hauptmodul(acb_mat_win_cast.value, q, bit_prec))
         haupt_values.append( (haupt_values_order, order) )
-    p3 = Factored_Polynomial(x,haupt_values)
+    p3 = Factored_Polynomial(x,root_tuples=haupt_values)
     return p3
 
 cdef get_p2_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
@@ -203,7 +211,7 @@ cdef get_p2_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
             else:
                 haupt_values_order.append(eval_hauptmodul(acb_mat_win_cast.value, q, bit_prec))
         haupt_values.append( (haupt_values_order, order) )
-    p2 = Factored_Polynomial(x,haupt_values)
+    p2 = Factored_Polynomial(x,root_tuples=haupt_values)
     return p2
 
 cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
@@ -212,7 +220,7 @@ cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     The starting values are obtained by evaluating the hauptmodul at the cusps.
     """
     haupt_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec)
-    pc = Factored_Polynomial(x,haupt_values)
+    pc = Factored_Polynomial(x,root_tuples=haupt_values)
     return pc
 
 cpdef get_f(factored_polynomials):
@@ -279,7 +287,42 @@ cpdef get_unknown_coeff_column(factored_polynomials, int N):
                 i += 1
     return coeffs
 
-cdef newton_step(acb_mat_t res, factored_polynomials, G, int bit_prec):
+cdef get_coeff_tuples_from_coeff_column(acb_mat_t x, factored_polynomials, int bit_prec, swap=False):
+    """
+    Convert column-vector x, containing all unknown coefficients, into coeff_tuples for each polynomial.
+    """
+    CBF = ComplexBallField(bit_prec)
+    cdef ComplexBall cb_cast
+    cdef int i, j
+    i = 0
+    res = []
+    for factored_polynomial in factored_polynomials:
+        coeff_tuples = []
+        for (poly_fact, order) in factored_polynomial.factors:
+            amount_of_unknowns = poly_fact.degree() #Note that the last monomial is of the form 1*x^n, so we got n unknowns
+            poly_fact_coeff_list = get_CBF_list(CBF,amount_of_unknowns+1)
+            for j in range(amount_of_unknowns):
+                cb_cast = poly_fact_coeff_list[j]
+                #It is important that we use approximate functions here because otherwise
+                #the error-bounds would prevent us from casting to higher precision
+                if swap == False:
+                    acb_approx_set(cb_cast.value, acb_mat_entry(x,i,0))
+                else:
+                    acb_approx_swap(cb_cast.value, acb_mat_entry(x,i,0))
+                i += 1
+            #Now we set the remaining coeff which is 1 (i.e., the leading order term)
+            cb_cast = poly_fact_coeff_list[amount_of_unknowns]
+            acb_set_ui(cb_cast.value, 1)
+            coeff_tuples.append( (poly_fact_coeff_list, order) )
+        res.append(coeff_tuples)
+    return res
+
+cdef newton_step(factored_polynomials, G, int bit_prec):
+    """
+    Perform one step of the newton iteration.
+    factored_polynomials is used to create a Jacobi matrix and to refine the precision of the coefficients.
+    Returns a a tuple consisting of the (refined) coeff_tuples of p_3, p_2, p_c. 
+    """
     cdef Polynomial_complex_arb f = get_f(factored_polynomials)
     cdef Acb_Mat J = get_jacobian(factored_polynomials, G)
     N = acb_mat_nrows(J.value)
@@ -303,33 +346,68 @@ cdef newton_step(acb_mat_t res, factored_polynomials, G, int bit_prec):
     cdef Acb_Mat update = Acb_Mat(N, 1)
     acb_mat_approx_solve(update.value, J.value, f_x.value, bit_prec)
     acb_mat_approx_sub(x.value, x.value, update.value, bit_prec)
-    return x
-            
-cpdef test_jacobian(S, digit_prec):
+    coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
+    return coeff_tuples
+
+cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
+    while curr_bit_prec < target_bit_prec:
+        coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
+        if 2*curr_bit_prec < target_bit_prec:
+            curr_bit_prec *= 2
+            CBF = ComplexBallField(curr_bit_prec)
+            x = Polynomial_complex_arb(CBF['x'], is_gen=True)
+            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[0])
+            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[1])
+            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
+            factored_polynomials = (p3, p2, pc)
+        else: #If we are at our last iteration we don't need to increase the precision again before constructing p
+            CBF = ComplexBallField(curr_bit_prec)
+            x = Polynomial_complex_arb(CBF['x'], is_gen=True)
+            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[0])
+            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[1])
+            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
+            factored_polynomials = (p3, p2, pc)
+            curr_bit_prec *= 2
+    return factored_polynomials
+
+cpdef get_factored_polynomial_starting_values(S, digit_prec):
+    """
+    Get first approximation of factored polynomial by computing the hauptmodul to digit_prec digits precision.
+    """
     G = S.group()
     cdef Acb_Mat c
     c, M = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=False,return_M=True)
     bit_prec = digits_to_bits(2*digit_prec)
     CBF = ComplexBallField(bit_prec)
     cdef Polynomial_complex_arb x = Polynomial_complex_arb(CBF['x'], is_gen=True)
-    # cdef Polynomial_complex_arb p1 = Polynomial_complex_arb(CBF['x'], [CBF(1,1), 0, 1])
 
     p2 = get_p2_haupt(G, x, c, M, bit_prec)
     p3 = get_p3_haupt(G, x, c, M, bit_prec)
     pc = get_pc_haupt(G, x, c, M, bit_prec)
     factored_polynomials = (p3, p2, pc)
 
-    cdef Acb_Mat res = Acb_Mat(G.index()+1,1)
-    newton_step(res.value, factored_polynomials, G, bit_prec)
-    #J = get_jacobian(factored_polynomials, G)
+    return factored_polynomials
 
-cpdef test(S, digit_prec):
+cpdef get_coeff_min_precision(factored_polynomials, int N):
+    cdef Polynomial_complex_arb f = get_f(factored_polynomials) #This gets also computed in newton_step so for optimization we should re-use it
+    cdef Acb_Mat f_x = Acb_Mat(N, 1)
+    acb_mat_set_poly(f_x.value, f.__poly)
+    cdef int i
+    cdef int smallest_digit_prec = 2147483647
+    # for i in range(N):
+
+
+cpdef run_newton(S, starting_digit_prec, target_digit_prec):
     G = S.group()
-    cdef Acb_Mat c
-    c, M = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=False,return_M=True)
-    bit_prec = digits_to_bits(digit_prec)
-    CBF = ComplexBallField(bit_prec)
-    cdef Polynomial_complex_arb x = Polynomial_complex_arb(CBF['x'], is_gen=True)
+    factored_polynomials = get_factored_polynomial_starting_values(S, starting_digit_prec)
+    curr_bit_prec = digits_to_bits(2*starting_digit_prec)
+    target_bit_prec = digits_to_bits(target_digit_prec)
 
-    return get_p3_haupt(G, x, c, M, bit_prec)
+    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec)
+    return factored_polynomials
 
+cpdef test():
+    RBF = RealBallField(1024)
+    cdef RealBall tmp = get_pi_ball(1024)**(-50)
+    print(tmp)
+    print(arb_get_exponent(tmp.value))

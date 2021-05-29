@@ -1,4 +1,4 @@
-import copy
+from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 
 cpdef construct_poly_from_root_tuple(x, root_tuple): #We might want to use native arb here later
     p = 1
@@ -7,20 +7,32 @@ cpdef construct_poly_from_root_tuple(x, root_tuple): #We might want to use nativ
         p *= (x-root)
     return [p,order]
 
+cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
+    (coeffs, order) = coeff_tuple
+    p = Polynomial_complex_arb(x.parent(), coeffs)
+    return [p,order]
+
 class Factored_Polynomial():
     """
     Class for working with polynomials that are factored like:
     p = p_1^(n_1)*...*p_N^(n_N)
     """
-    def __init__(self, polygen, root_tuples):
+    def __init__(self, polygen, root_tuples=None, coeff_tuples=None):
         """
         root_tuples contains a list of tuples. 
         Each tuple is given by a list of ComplexBalls reflecting the roots as well as the order of each of the roots.
+        Alternatively we can construct the polynomials directly from their coefficients.
         """
         self.polygen = polygen
         factors = []
-        for root_tuple in root_tuples:
-            factors.append(construct_poly_from_root_tuple(polygen,root_tuple))
+        if (root_tuples == None and coeff_tuples == None) or (root_tuples != None and coeff_tuples != None):
+            raise ArithmeticError("Invalid construction. Construct either through root_tuples or coeff_tuples!")
+        if root_tuples != None: #Construct polynomial from root tuples. This usually happens during the first iteration where the haupt-values are passed
+            for root_tuple in root_tuples:
+                factors.append(construct_poly_from_root_tuple(polygen,root_tuple))
+        if coeff_tuples != None:
+            for coeff_tuple in coeff_tuples:
+                factors.append(construct_poly_from_coeff_tuple(polygen,coeff_tuple))
         self.factors = factors
 
     def construct(self):

@@ -22,6 +22,7 @@ arblib_helpers/arb_wrap.h
 belyi/__init__.py
 belyi/newton_genus_zero.c
 belyi/newton_genus_zero.pyx
+belyi/number_fields.c
 classes/__init__.py
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
