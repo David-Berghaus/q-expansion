@@ -418,9 +418,3 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec):
 
     factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec)
     return factored_polynomials
-
-cpdef test():
-    RBF = RealBallField(1024)
-    cdef RealBall tmp = get_pi_ball(1024)**(-50)
-    print(tmp)
-    print(arb_get_exponent(tmp.value))
