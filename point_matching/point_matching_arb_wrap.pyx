@@ -187,12 +187,6 @@ cdef _get_l_normalized(cjj,normalization):
         raise NameError("Could not determine l_normalized...")
     return l_normalized
 
-cpdef dimension_eisenstein_series(G, int weight):
-    if weight == 0:
-        return 0
-    else:
-        return G.dimension_modular_forms(weight) - G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
-
 cdef _get_normalization_cuspforms(S):
     """
     Returns normalization for each cusp.
@@ -223,7 +217,7 @@ cdef _get_normalization_eisenstein_series(S):
     works correctly (with a double-precision computation).
     """
     G = S.group()
-    cdef int multiplicity = dimension_eisenstein_series(G, S.weight())
+    cdef int multiplicity = G.dimension_eis(S.weight())
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
@@ -232,7 +226,7 @@ cdef _get_normalization_eisenstein_series(S):
     elif multiplicity == 2:
         print("Careful, this normalization might not work for all groups!")
         print("")
-        normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
+        normalization[0] = [1,0] #this corresponds to c0=1, c1=0 for the first cusp
     elif multiplicity > 2:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
@@ -528,7 +522,7 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     return res.get_window(0,0,M,1)
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_principal_expansion=True,return_M=False):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
@@ -556,7 +550,16 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M,1)
+    if only_principal_expansion == True:
+        if return_M == False:
+            return res.get_window(0,0,M,1)
+        else:
+            return res.get_window(0,0,M,1), M
+    else:
+        if return_M == False:
+            return res
+        else:
+            return res, M
 
 cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """ 
@@ -577,7 +580,7 @@ cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
     cdef PLU_Mat plu
 
     V, b = get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,M,Y,bit_prec)
-    tol = RBF(10.0)**(-digit_prec+1)
+    tol = RBF(10.0)**(-digit_prec+5) #Change this
 
     V_dp = V.construct_sc_np()
     plu = PLU_Mat(V_dp,prec=53)

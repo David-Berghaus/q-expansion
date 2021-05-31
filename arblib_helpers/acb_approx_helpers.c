@@ -38,6 +38,13 @@ acb_approx_set_arb(acb_t res, const arb_t x)
 }
 
 void
+acb_approx_swap(acb_t res, acb_t x)
+{
+    arf_swap(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)));
+    arf_swap(arb_midref(acb_imagref(res)), arb_midref(acb_imagref(x)));
+}
+
+void
 acb_approx_div_arb(acb_t res, const acb_t x, const arb_t y, int prec)
 {
     arf_div(arb_midref(acb_realref(res)), arb_midref(acb_realref(x)), arb_midref(y), prec, ARF_RND_DOWN);
@@ -109,4 +116,21 @@ double complex acb_to_dc(acb_t z) //Converts z to double complex type
 {
     double complex res = arf_get_d(arb_midref(acb_realref(z)), ARF_RND_DOWN) + arf_get_d(arb_midref(acb_imagref(z)), ARF_RND_DOWN)*I;
     return res;
+}
+
+int arb_get_exponent(arb_t x)
+{
+    fmpz_t man, exp;
+
+    fmpz_init(man);
+    fmpz_init(exp);
+
+    arf_get_fmpz_2exp(man, exp, arb_midref(x));
+
+    int exp_int = fmpz_get_si(exp);
+
+    fmpz_clear(man);
+    fmpz_clear(exp);
+
+    return exp_int;
 }

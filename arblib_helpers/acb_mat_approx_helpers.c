@@ -117,6 +117,30 @@ acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, int prec)
     for (i = 0; i < len; i++)
         tmp2[i] = *acb_realref(acb_mat_entry(y, i, 0));
     arb_approx_dot(acb_imagref(res), acb_imagref(res), 1, tmp1, 1, tmp2, 1, len, prec);
+
+    TMP_END;
+}
+
+void //Computes x dot y where x&y are len*1 matrices.
+acb_mat_approx_dot(acb_t res, acb_mat_t x, acb_mat_t y, int prec)
+{
+    int len = acb_mat_nrows(x);
+    acb_ptr tmp1, tmp2;
+    TMP_INIT;
+
+    TMP_START;
+    tmp1 = TMP_ALLOC(sizeof(acb_struct) * len);
+    tmp2 = TMP_ALLOC(sizeof(acb_struct) * len);
+
+    int i;
+    for (i = 0; i < len; i++)
+    {
+        tmp1[i] = *acb_mat_entry(x, i, 0);
+        tmp2[i] = *acb_mat_entry(y, i, 0);
+    }
+    acb_approx_dot(res, NULL, 0, tmp1, 1, tmp2, 1, len, prec);
+
+    TMP_END;
 }
 
 void acb_mat_approx_norm(arb_t res, acb_mat_t x, int prec){ //returns sqrt(real(dotc(x, x)))

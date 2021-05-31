@@ -16,6 +16,9 @@ acb_mat_approx_scalar_mul_arb(acb_mat_t res, const acb_mat_t A, const arb_t c, i
 void //Computes conjugate(x) dot y where x&y are len*1 matrices.
 acb_mat_approx_dotc(acb_t res, acb_mat_t x, acb_mat_t y, int prec);
 
+void //Computes x dot y where x&y are len*1 matrices.
+acb_mat_approx_dot(acb_t res, acb_mat_t x, acb_mat_t y, int prec)
+
 void acb_mat_approx_norm(arb_t res, acb_mat_t x, int prec);
 
 void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, int prec);

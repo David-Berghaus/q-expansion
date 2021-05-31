@@ -20,6 +20,9 @@ void
 acb_approx_set_arb(acb_t res, const arb_t x);
 
 void
+acb_approx_swap(acb_t res, acb_t x);
+
+void
 acb_approx_div_arb(acb_t res, const acb_t x, const arb_t y, int prec);
 
 void

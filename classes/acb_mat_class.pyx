@@ -21,6 +21,21 @@ cdef class Acb_Mat():
     """
     This is a simple wrapper of acb_mat_t matrices into a python object which allows for more dynamical usage
     (for example to create instances inside a loop) as well as automatic deallocation.
+
+    Why didn't we just use 'Matrix_complex_ball_dense' which is the builtin acb_mat_t wrapper of sage?
+    'Matrix_complex_ball_dense' is constructed through a (python-declared) MatrixSpace. This means that the target precision is
+    expected to be known during initialization. This does not reflect how acb_mat_t works internally and is inconvenient in our
+    context because we often increase the precision of a matrix after initialization.
+    Constructing a 'Matrix_complex_ball_dense' without specifying the precision during initialization does not seem to be possible.
+    Consider the following example:
+    cdef class Acb_Mat(Matrix_complex_ball_dense):
+        def __cinit__(self,int nrows,int ncols):
+            CBF = ComplexBallField(53) #53 bits serves as a placeholder here and does not restrict our arb precision
+            parent = MatrixSpace(CBF,nrows,ncols)
+            super().__init__(parent)
+    This does not work with 'cdef-classes'...
+    Therefore, during each initialization of a matrix we would need to construct a Matrix-Space with 'fake precision'
+    (i.e., a precision that does not correspond to the actual internal precision) which is tedious and confusing.
     """
     def __cinit__(self, int nrows, int ncols):
         sig_str("Arb exception")
