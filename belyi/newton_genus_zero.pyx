@@ -11,6 +11,7 @@ from sage.rings.real_arb import RealBallField
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from belyi.number_fields import get_decimal_digit_prec
 from classes.factored_polynomial import Factored_Polynomial
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
@@ -368,6 +369,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
             pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
             factored_polynomials = (p3, p2, pc)
             curr_bit_prec *= 2
+        print("Estimated digit prec: ", get_coeff_min_precision(factored_polynomials,G.index()+1))
     return factored_polynomials
 
 cpdef get_factored_polynomial_starting_values(S, digit_prec):
@@ -389,13 +391,24 @@ cpdef get_factored_polynomial_starting_values(S, digit_prec):
     return factored_polynomials
 
 cpdef get_coeff_min_precision(factored_polynomials, int N):
+    """
+    Returns an estimate of the current coefficient precision (in digits) of factored_polynomials.
+    """
     cdef Polynomial_complex_arb f = get_f(factored_polynomials) #This gets also computed in newton_step so for optimization we should re-use it
     cdef Acb_Mat f_x = Acb_Mat(N, 1)
     acb_mat_set_poly(f_x.value, f.__poly)
-    cdef int i
+    cdef int i, digit_prec, real_prec, imag_prec
     cdef int smallest_digit_prec = 2147483647
-    # for i in range(N):
-
+    RBF = RealBallField(53) #The precision doesn't matter here
+    cdef RealBall RB = RBF(0)
+    f_x_mcbd = f_x._get_mcbd(53) #It is more convenient to use Sage's class here
+    for i in range(N):
+        real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real()), get_decimal_digit_prec(f_x_mcbd[i][0].imag())
+        if real_prec < smallest_digit_prec:
+            smallest_digit_prec = real_prec
+        if imag_prec < smallest_digit_prec:
+            smallest_digit_prec = imag_prec
+    return smallest_digit_prec
 
 cpdef run_newton(S, starting_digit_prec, target_digit_prec):
     G = S.group()

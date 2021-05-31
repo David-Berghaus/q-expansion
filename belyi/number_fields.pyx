@@ -10,9 +10,12 @@ cpdef get_decimal_digit_prec(epsilon):
     """
     Given a real number epsilon, return the decimal digit precision.
     """
-    RF = RealField(53)
-    eps_approx = RF(epsilon) #There is no reason to perform this computation at full precision
-    return -int(epsilon.log10())
+    if epsilon == 0:
+        return 2147483647
+    else:
+        RF = RealField(53)
+        eps_approx = RF(epsilon).abs() #There is no reason to perform this computation at full precision
+        return -int(eps_approx.log10())
 
 cpdef algebraic_dependency(x, int correct_digits, int max_order):
     bit_prec = digits_to_bits(correct_digits)
