@@ -177,19 +177,30 @@ cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
                 _subtract_diagonal_terms(V_view.value,Ms,Mf,weight,Y,bit_prec)
     return V
 
-cdef _get_l_normalized(cjj,normalization):
+cdef _get_l_normalized(cjj,normalization,starting_index):
+    """
+    Return indices i of c_i where c_i=1 (i.e. return index of normalized coefficients).
+    'starting_index' refers to the first index of the expansion which is
+    1 for cuspforms and 0 for Eisenstein series.
+    For cuspforms we currently only support a normalization basis in reduced echelon-form (as this always seems to work)
+    while for Eisensteinseries we also support normalizations like [1,1,0].
+    """
     cdef int i
-    cdef int l_normalized = 0
+    l_normalized = []
     for i in range(len(normalization[cjj])):
-        if normalization[cjj][i] != 0:
-            l_normalized = i+1 #we set c_l_normalized = 1
-    if l_normalized == 0:
-        raise NameError("Could not determine l_normalized...")
+        tmp = normalization[cjj][i]
+        if tmp == 0 or tmp == 1:
+            if tmp == 1:
+                l_normalized.append(i+starting_index)
+        else:
+            raise ArithmeticError("Normalization list currently only supports entries zero or one.")
+    if l_normalized == []:
+        raise ArithmeticError("Could not determine l_normalized...")
     return l_normalized
 
 cdef _get_normalization_cuspforms(S):
     """
-    Returns normalization for each cusp.
+    Returns normalization for each cusp. For cuspforms the first expansion coefficient is c_1.
     A feature to be implemented in the future is to test if the normalization
     works correctly (with a double-precision computation).
     """
@@ -212,12 +223,12 @@ cdef _get_normalization_cuspforms(S):
 
 cdef _get_normalization_eisenstein_series(S):
     """
-    Returns normalization for each cusp.
+    Returns normalization for each cusp. For Eisenstein series the first expansion coefficient is c_0.
     A feature to be implemented in the future is to test if the normalization
     works correctly (with a double-precision computation).
     """
     G = S.group()
-    cdef int multiplicity = G.dimension_eis(S.weight())
+    cdef int multiplicity = G.dimension_modular_forms(S.weight()) #! Note that we use the dimension of modular forms here instead of Eisenstein
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
@@ -226,8 +237,12 @@ cdef _get_normalization_eisenstein_series(S):
     elif multiplicity == 2:
         print("Careful, this normalization might not work for all groups!")
         print("")
-        normalization[0] = [1,0] #this corresponds to c0=1, c1=0 for the first cusp
-    elif multiplicity > 2:
+        normalization[0] = [1,0]
+    elif multiplicity == 3:
+        print("Careful, this normalization might not work for all groups and might not even be valid for Eisenstein series!")
+        print("")
+        normalization[0] = [1,0,0]
+    else:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
         normalization[i] = []
@@ -265,7 +280,10 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
                 _compute_V_block_matrix_arb_wrap(V_view.value,J.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    l_normalized = _get_l_normalized(cjj,normalization)
+                    l_normalized = _get_l_normalized(cjj,normalization,1)
+                    if len(l_normalized) != 1:
+                        raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
+                    l_normalized = l_normalized[0]
                     _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
             if cii == cjj:
                 _subtract_diagonal_terms(V_view.value,Msjj,Mfjj,weight,Y,bit_prec)
@@ -313,7 +331,10 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
                 _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    l_normalized = _get_l_normalized(cjj,normalization)
+                    l_normalized = _get_l_normalized(cjj,normalization,1)
+                    if len(l_normalized) != 1:
+                        raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
+                    l_normalized = l_normalized[0]
                     _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
@@ -404,6 +425,7 @@ cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
     cdef Acb_Mat_Win b_view
     cdef Acb_Mat J, W
     cdef Block_Factored_Element block_factored_element
+    cdef Acb_Mat tmp
 
     for cii in range(nc):
         for cjj in range(nc):
@@ -422,7 +444,12 @@ cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
                 _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,0,weight,coordinates,bit_prec)
+                    acb_mat_zero(b_view.value)
+                    l_normalized = _get_l_normalized(cjj,normalization,0)
+                    tmp = Acb_Mat(M,1)
+                    for i in range(len(l_normalized)):
+                        _compute_V_block_matrix_normalized_column_arb_wrap(tmp.value,J.value,l_normalized[i],weight,coordinates,bit_prec)
+                        acb_mat_approx_add(b_view.value, b_view.value, tmp.value, bit_prec)
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
@@ -589,4 +616,5 @@ cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M,1)
+    # return res.get_window(0,0,M,1)
+    return res

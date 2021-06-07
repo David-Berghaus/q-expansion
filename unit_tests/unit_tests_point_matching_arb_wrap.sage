@@ -12,6 +12,7 @@ def run_unit_tests_point_matching_arb_wrap():
     test_get_V_tilde_matrix_arb_wrap()
     test_get_coefficients_haupt_ir_arb_wrap()
     test_get_coefficients_eisenstein_ir_arb_wrap()
+    test_get_coefficients_eisenstein_ir_arb_wrap_higher_multiplicity()
 
 def test_get_coefficients_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(2),weight=12) #Search for a multiplicity two old-form
@@ -53,3 +54,9 @@ def test_get_coefficients_eisenstein_ir_arb_wrap():
     C = get_coefficients_eisenstein_ir_arb_wrap(S,16)._get_mcbd(53)
     assert abs(C[0][0]-24)/abs(C[0][0]+24) < RBF(1e-10)
     print("test_get_coefficients_eisenstein_ir_arb_wrap ok")
+
+def test_get_coefficients_eisenstein_ir_arb_wrap_higher_multiplicity():
+    S = AutomorphicFormSpace(Gamma0(5),weight=2)
+    C = get_coefficients_eisenstein_ir_arb_wrap(S,16)._get_mcbd(53)
+    assert abs(C[0][0]-6)/abs(C[0][0]+6) < RBF(1e-10)
+    print("test_get_coefficients_eisenstein_ir_arb_wrap_higher_multiplicity ok")
