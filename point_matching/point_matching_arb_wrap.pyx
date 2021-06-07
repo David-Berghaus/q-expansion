@@ -228,7 +228,7 @@ cdef _get_normalization_eisenstein_series(S):
     works correctly (with a double-precision computation).
     """
     G = S.group()
-    cdef int multiplicity = G.dimension_eis(S.weight())
+    cdef int multiplicity = G.dimension_modular_forms(S.weight()) #! Note that we use the dimension of modular forms here instead of Eisenstein
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
@@ -237,8 +237,12 @@ cdef _get_normalization_eisenstein_series(S):
     elif multiplicity == 2:
         print("Careful, this normalization might not work for all groups!")
         print("")
-        normalization[0] = [0,0,1]
-    elif multiplicity > 2:
+        normalization[0] = [1,0]
+    elif multiplicity == 3:
+        print("Careful, this normalization might not work for all groups and might not even be valid for Eisenstein series!")
+        print("")
+        normalization[0] = [1,0,0]
+    else:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
         normalization[i] = []

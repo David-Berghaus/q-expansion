@@ -1,5 +1,8 @@
 .gitignore
 README.md
+eisenstein.sage
+f_1.sobj
+f_2.sobj
 run.sage
 setup.py
 UNKNOWN.egg-info/PKG-INFO
