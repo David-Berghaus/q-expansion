@@ -49,7 +49,7 @@ def test_get_coefficients_haupt_ir_arb_wrap():
     print("test_get_coefficients_haupt_ir_arb_wrap ok")
 
 def test_get_coefficients_eisenstein_ir_arb_wrap():
-    S = AutomorphicFormSpace(Gamma0(4),weight=2)
+    S = AutomorphicFormSpace(Gamma0(5),weight=2)
     C = get_coefficients_eisenstein_ir_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-24)/abs(C[0][0]+24) < RBF(1e-10)
+    assert abs(C[0][0]-6)/abs(C[0][0]+6) < RBF(1e-10)
     print("test_get_coefficients_eisenstein_ir_arb_wrap ok")
