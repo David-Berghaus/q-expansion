@@ -14,6 +14,10 @@ from point_matching.fft_test import test_fft
 
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
+from classes.approx_modform import ApproxModForm
+
+
+
 def polynomial_from_list(coeffs, CF, starting_order, normalization):
     R.<q> = PowerSeriesRing(CF)
     normalization_len = len(normalization)

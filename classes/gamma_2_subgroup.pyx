@@ -152,6 +152,7 @@ class Gamma_2_Subgroup:
         self._vertices, self._vertex_data, self._cusps, self._cusp_data = None, None, None, None
         self._nvertices, self._ncusps = None, None
         self._vertex_widths = list()
+        self._cusp_widths = list()
         self._vertex_maps, self._cusp_maps= list(), list()
         self._get_data_from_group()
         self._genus = None
@@ -247,6 +248,9 @@ class Gamma_2_Subgroup:
             self._cusp_maps.append(U) #[U[0,0],U[0,1],U[1,0],U[1,1]])
             N = N.inverse()*U
             self._vertex_maps.append(N) #[N[0,0],N[0,1],N[1,0],N[1,1]])
+        for i in range(len(self._cusp_data)):
+            wi = self._cusp_data[i]['width']
+            self._cusp_widths.append(wi)
 
     def _get_all_cusp_data(self):
         coset_reps = self.coset_reps
@@ -354,6 +358,12 @@ class Gamma_2_Subgroup:
                 if t in self:
                     return 2*d
             raise ArithmeticError("Can't get here!")
+    
+    def cusp_widths(self):
+        return self._cusp_widths
+
+    def cusps(self):
+        return self._cusps
     
     def cusp_normalizer(self,c):
         r"""

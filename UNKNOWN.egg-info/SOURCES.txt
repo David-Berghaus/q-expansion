@@ -1,8 +1,6 @@
 .gitignore
 README.md
 eisenstein.sage
-f_1.sobj
-f_2.sobj
 run.sage
 setup.py
 UNKNOWN.egg-info/PKG-INFO
@@ -31,6 +29,7 @@ classes/__init__.py
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
+classes/approx_modform.c
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
