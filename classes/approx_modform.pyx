@@ -33,11 +33,9 @@ class ApproxModForm():
             raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'EisensteinSeries'")
         c_vec_mcbd = c_vec._get_mcbd(bit_prec)
 
-        cusp_widths = G.cusp_widths()
-        cusps = G.cusps()
-        for cii in range(G.ncusps()):
-            ci = cusps[cii]
-            cusp_width = cusp_widths[cii]
+        for ci in G._cusps:
+            cii = G._cusps.index(ci)
+            cusp_width = G.cusp_width(ci)
             var_string = 'q_' + str(cusp_width)
             R = PowerSeriesRing(CF, var_string)
             q = R.gen()
@@ -48,7 +46,7 @@ class ApproxModForm():
                     f += normalization[cii][i]*q**(starting_order+i)
             for i in range(M):
                 f += CF(c_vec_mcbd[i+cii*M][0])*q**(i+starting_order+normalization_len)
-            cusp_expansions[ci] = f
+            cusp_expansions[Cusp(ci)] = f
 
 
         #Now to some group variables that we store
@@ -57,7 +55,6 @@ class ApproxModForm():
         self.digit_prec = digit_prec
         self.modform_type = modform_type
         self.cusp_expansions = cusp_expansions
-        self.cusp_widths = cusp_widths
         self.pi = RF(get_pi_ball(bit_prec))
         self.CF = CF
         self.bit_prec = bit_prec
@@ -98,7 +95,8 @@ class ApproxModForm():
         through native sage, i.e., without custom code available.
         """
         cusp_expansions = dict()
-        for c in self.S.group().cusps():
+        G = self.S.group()
+        for c in G.cusps():
             cusp_expansions[c] = self.get_cusp_expansion(c,trunc_order=trunc_order,digit_prec=digit_prec)
         tmp = cusp_expansions.values()[0] #This is the power series at the first cusp
         trunc_order = tmp.prec()
@@ -111,9 +109,10 @@ class ApproxModForm():
         cusp_expansions_dict['trunc_order'] = trunc_order
         cusp_expansions_dict['bit_prec'] = bit_prec
         cusp_expansions_dict['weight'] = weight
+        cusp_expansions_dict['index'] = G.index()
         return cusp_expansions_dict
     
-    def evaluate1(self, z):
+    def evaluate(self, z):
         """
         Evaluate Modform at complex point 'z'. In order to achieve ideal convergence, we pullback the point into the fundamental domain
         and afterwards choose the best cusp expansion for evaluation.

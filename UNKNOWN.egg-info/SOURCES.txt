@@ -1,8 +1,13 @@
 .gitignore
+F_0.sobj
+F_0_ss.sobj
+F_1_ss.sobj
 README.md
 eisenstein.sage
+petersson_product.sage
 run.sage
 setup.py
+ss.sage
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt
@@ -30,6 +35,7 @@ classes/acb_mat_class.c
 classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
 classes/approx_modform.c
+classes/approx_modform.pyx
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
