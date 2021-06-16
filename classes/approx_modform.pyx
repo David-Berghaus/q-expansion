@@ -1,3 +1,5 @@
+from copy import copy, deepcopy
+
 from sage.rings.real_mpfr import RealField
 from sage.rings.complex_field import ComplexField
 from sage.rings.power_series_ring import PowerSeriesRing
@@ -140,6 +142,38 @@ class ApproxModForm():
 
         automorphy_fact = (c*z+d)**(-self.S.weight())
         return automorphy_fact*f(q_fund)
+    
+    def _scal_mul(self, a):
+        """
+        Return a*Modform where 'a' is a constant factor.
+        """
+        res = deepcopy(self)
+        cusp_expansions = res.cusp_expansions
+        for c in cusp_expansions.keys():
+            cusp_expansions[c] *= a
+        return res
+    
+    def __add__(self, g):
+        """
+        Return self+g.
+        """
+        res = deepcopy(self)
+        cusp_expansions = res.cusp_expansions
+        cusp_expansions_g = g.cusp_expansions
+        for c in cusp_expansions.keys():
+            cusp_expansions[c] += cusp_expansions_g[c]
+        return res
+    
+    def __sub__(self, g):
+        """
+        Return self-g.
+        """
+        res = deepcopy(self)
+        cusp_expansions = res.cusp_expansions
+        cusp_expansions_g = g.cusp_expansions
+        for c in cusp_expansions.keys():
+            cusp_expansions[c] -= cusp_expansions_g[c]
+        return res
 
 class CuspExpansions():
     """
