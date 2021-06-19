@@ -101,7 +101,7 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
             Pb[cii][cjj].append((z_horo,a,b,c,d,z3)) #These are all arb (acb) types despite z3
     return Pb
 
-cdef apply_moebius_transformation_arb_wrap(z,a,b,c,d): #z is a ComplexBall and a,b,c,d are RealBalls
+cpdef apply_moebius_transformation_arb_wrap(z,a,b,c,d): #z is a ComplexBall and a,b,c,d are RealBalls
     return (a*z+b)/(c*z+d)
 
 cpdef simple_two_by_two_matmul(A1,A2): #Currently slow because of arbitrary types and python-arrays

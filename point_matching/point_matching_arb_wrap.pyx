@@ -198,7 +198,7 @@ cdef _get_l_normalized(cjj,normalization,starting_index):
         raise ArithmeticError("Could not determine l_normalized...")
     return l_normalized
 
-cdef _get_normalization_cuspforms(S):
+def _get_normalization_cuspforms(S):
     """
     Returns normalization for each cusp. For cuspforms the first expansion coefficient is c_1.
     A feature to be implemented in the future is to test if the normalization
@@ -221,7 +221,7 @@ cdef _get_normalization_cuspforms(S):
         normalization[i] = []
     return normalization
 
-cdef _get_normalization_eisenstein_series(S):
+def _get_normalization_eisenstein_series(S):
     """
     Returns normalization for each cusp. For Eisenstein series the first expansion coefficient is c_0.
     A feature to be implemented in the future is to test if the normalization
@@ -518,9 +518,9 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     return res.get_window(0,0,M,1)
 
-cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     """ 
-    Computes expansion coefficients using classical iterative refinement
+    Computes expansion coefficients of cuspform using classical iterative refinement
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
@@ -547,7 +547,10 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M,1)
+    if return_M == False:
+        return res
+    else:
+        return res, M
 
 cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_principal_expansion=True,return_M=False):
     """ 
@@ -588,7 +591,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_princ
         else:
             return res, M
 
-cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     """ 
     Computes Fourier-expansion coefficients of Eisenstein series using classical iterative refinement
     """
@@ -616,5 +619,7 @@ cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    # return res.get_window(0,0,M,1)
-    return res
+    if return_M == False:
+        return res
+    else:
+        return res, M

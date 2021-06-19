@@ -14,6 +14,7 @@ extensions = [
     Extension("classes.modform_class", ["classes/modform_class.pyx"]),
     Extension("classes.gamma_2_subgroup", ["classes/gamma_2_subgroup.pyx"]),
     Extension("classes.factored_polynomial", ["classes/factored_polynomial.pyx"]),
+    Extension("classes.approx_modform", ["classes/approx_modform.pyx"]),
     Extension("pullback.my_pullback", ["pullback/my_pullback.pyx"]),
     Extension("point_matching.point_matching_dp", ["point_matching/point_matching_dp.pyx"]),
     Extension("point_matching.point_matching_arb_wrap", ["point_matching/point_matching_arb_wrap.pyx"]),
