@@ -1,7 +1,4 @@
 .gitignore
-F_0.sobj
-F_0_ss.sobj
-F_1_ss.sobj
 README.md
 eisenstein.sage
 petersson_product.sage

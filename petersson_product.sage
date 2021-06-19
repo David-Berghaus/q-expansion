@@ -1,16 +1,17 @@
 def gp_petersson():
+    gp('default(realprecision, 120)')
     #Gamma0(1) weight 12 cusp form
-    # gp('D=mfDelta(); mf=mfinit(D); DS=mfsymbol(mf,D)')
-    # print(gp('mfpetersson(DS)'))
+    gp('D=mfDelta(); mf=mfinit(D); DS=mfsymbol(mf,D)')
+    print(gp('mfpetersson(DS)'))
     # # gp('mf=mfinit([1,12],3); L=mfbasis(mf); E=L[1]; ES=mfsymbol(mf,E)') #Flag '3' indicates that we are considering the Eisenstein space
     # gp('mf=mfinit([1,12],4); L=mfbasis(mf); E=L[1]; ES=mfsymbol(mf,E)')
     # print(gp('mfcoefs(E,8)'))
     # print(gp('mfpetersson(DS,ES)'))
 
-    #Gamma0(2) weight 8 cusp form
-    gp('mf=mfinit([2,8],1); L=mfbasis(mf); S=mfsymbol(mf,L[1])') #Flag '1' indicates that we are considering the complete cuspform space
-    print(gp('mfcoefs(S,8)'))
-    print(gp('mfpetersson(S)'))
+    # #Gamma0(2) weight 8 cusp form
+    # gp('mf=mfinit([2,8],1); L=mfbasis(mf); S=mfsymbol(mf,L[1])') #Flag '1' indicates that we are considering the complete cuspform space
+    # print(gp('mfcoefs(S,8)'))
+    # print(gp('mfpetersson(S)'))
 
     # #Gamma0(3) weight 6 cusp form
     # gp('mf=mfinit([3,6],0); L=mfbasis(mf); f=L[1]; fS=mfsymbol(mf,f)') #Flag '0' indicates that we are considering the new cuspform space
@@ -39,7 +40,7 @@ def petersson_product_nelson_collins(F, G):
         cusp_res = 0
         f, g = F['cusp_expansions'][c], G['cusp_expansions'][c]
         cusp_width = get_cusp_width_from_var_name(f.variable())
-        for n in range(1,f.prec()): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
+        for n in range(1,min(f.prec(),g.prec())): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
             x = 4*PI*sqrt(RF(n)/cusp_width)
             cusp_res += f[n] * conjugate(g[n]) * W(weight, x, epsilon) / n**(weight-1)
         res += cusp_res #note that the width is already inside the normalizer
@@ -91,6 +92,11 @@ def compute_eisenstein_series(cuspform,modforms):
         orthoforms.append(new_orthoform)
         orthonorms.append(petersson_product_nelson_collins(new_orthoform._get_cusp_expansions_dict(),new_orthoform._get_cusp_expansions_dict()))
     return orthoforms[1:]
+
+def compute_eisenstein_series_index_7(cuspform,modforms):
+    a = 1
+    b = -petersson_product_nelson_collins(modforms[0]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())/petersson_product_nelson_collins(modforms[1]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
+    return modforms[0]._scal_mul(a) + modforms[1]._scal_mul(b), b
 
 #Now to the bruteforce approach
 

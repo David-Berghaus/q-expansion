@@ -53,7 +53,8 @@ class ApproxModForm():
 
         #Now to some group variables that we store
         self.M = M
-        self.S = S
+        self.G = G
+        self.weight = S.weight()
         self.digit_prec = digit_prec
         self.modform_type = modform_type
         self.cusp_expansions = cusp_expansions
@@ -86,7 +87,7 @@ class ApproxModForm():
 
     def get_cusp_expansions(self, trunc_order=None, digit_prec=None):
         cusp_expansions = dict()
-        for c in self.S.group().cusps():
+        for c in self.G.cusps():
             cusp_expansions[c] = self.get_cusp_expansion(c,trunc_order=trunc_order,digit_prec=digit_prec)
         return cusp_expansions
     
@@ -97,13 +98,12 @@ class ApproxModForm():
         through native sage, i.e., without custom code available.
         """
         cusp_expansions = dict()
-        G = self.S.group()
-        for c in G.cusps():
+        for c in self.G.cusps():
             cusp_expansions[c] = self.get_cusp_expansion(c,trunc_order=trunc_order,digit_prec=digit_prec)
         tmp = cusp_expansions.values()[0] #This is the power series at the first cusp
         trunc_order = tmp.prec()
         bit_prec = tmp[0].prec()
-        weight = self.S.weight()
+        weight = self.weight
 
         #Now prepare object that we return
         cusp_expansions_dict = dict()
@@ -111,7 +111,7 @@ class ApproxModForm():
         cusp_expansions_dict['trunc_order'] = trunc_order
         cusp_expansions_dict['bit_prec'] = bit_prec
         cusp_expansions_dict['weight'] = weight
-        cusp_expansions_dict['index'] = G.index()
+        cusp_expansions_dict['index'] = self.G.index()
         return cusp_expansions_dict
     
     def evaluate(self, z):
@@ -120,7 +120,8 @@ class ApproxModForm():
         and afterwards choose the best cusp expansion for evaluation.
         (This function is not working correctly yet)
         """
-        G = self.S.group()
+        print("This function is not working correctly yet!")
+        G = self.G
         x,y = float(z.real()),float(z.imag()) #We don't need to perform this computation with arbs...
         x1,y1,T_a,T_b,T_c,T_d = my_pullback_general_group_dp(G,x,y,ret_mat=1)
         vjj = G.closest_vertex(x1,y1,as_integers=1)
@@ -140,7 +141,7 @@ class ApproxModForm():
         print(cj)
         print(f_tmp(q_tmp))
 
-        automorphy_fact = (c*z+d)**(-self.S.weight())
+        automorphy_fact = (c*z+d)**(-self.weight)
         return automorphy_fact*f(q_fund)
     
     def _scal_mul(self, a):
