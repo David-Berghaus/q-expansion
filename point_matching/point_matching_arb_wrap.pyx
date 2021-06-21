@@ -152,7 +152,7 @@ cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bi
         tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
         acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
 
-cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_cuspform_arb_wrap(S,int M,Y,int bit_prec):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
@@ -212,13 +212,14 @@ def _get_normalization_cuspforms(S):
     elif multiplicity == 1:
         normalization[0] = [1]
     elif multiplicity == 2:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
         normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
     elif multiplicity > 2:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
         normalization[i] = []
+    if multiplicity > 1:
+        print("Careful, this normalization might not work for all groups!")
+        print("")
     return normalization
 
 def _get_normalization_modforms(S):
@@ -235,20 +236,19 @@ def _get_normalization_modforms(S):
     elif multiplicity == 1:
         normalization[0] = [1]
     elif multiplicity == 2:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
         normalization[0] = [1,0]
     elif multiplicity == 3:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
         normalization[0] = [1,0,0]
     else:
         raise NameError("This case has not been implemented yet")
     for i in range(1,G.ncusps()):
         normalization[i] = []
+    if multiplicity > 1:
+        print("Careful, this normalization might not work for all groups!")
+        print("")
     return normalization
 
-cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
     """
@@ -292,7 +292,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
     sig_off()
     return V, b
 
-cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -465,7 +465,7 @@ cpdef get_Q(int M):
     """
     return M+8
 
-cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """
     Computes expansion coefficients with direct methods (i.e. explicitly constructs V_tilde and performs a LU-decomposition)
     """
@@ -480,13 +480,13 @@ cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
     print("M = ", M)
     print("dimen = ", S.group().ncusps()*M)
     cdef Acb_Mat V,b
-    V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
+    V,b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M,Y,bit_prec)
     sig_on()
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
     return b.get_window(0,0,M,1)
 
-cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
@@ -505,7 +505,7 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    V, b = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -518,7 +518,7 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
 
     return res.get_window(0,0,M,1)
 
-cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -537,7 +537,7 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    V, b = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
