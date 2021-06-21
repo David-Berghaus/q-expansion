@@ -11,6 +11,7 @@ cdef extern from "complex.h":
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from pullback.my_pullback cimport my_pullback_pts_dp
+from point_matching.point_matching_arb_wrap import _get_l_normalized, _get_normalization_cuspforms
 
 cdef _get_J_block_matrix_dp(int Ms,int Mf,int weight,int Q,coordinates):
     cdef int coord_len = len(coordinates)
@@ -67,7 +68,7 @@ cdef _subtract_diagonal_terms(V_view,int Ms,int Mf,int weight,double Y): #transf
     for i in range(Ms,Mf+1):
         V_view[i-Ms,i-Ms] -= Y_pow_weight_half*cexp(-two_pi*i*Y)
 
-cpdef get_V_tilde_matrix_dp(S,int M,double Y):
+cpdef get_V_tilde_matrix_cuspform_dp(S,int M,double Y):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
@@ -88,17 +89,7 @@ cpdef get_V_tilde_matrix_dp(S,int M,double Y):
                 _subtract_diagonal_terms(V_view,Ms,Mf,weight,Y)
     return V
 
-cdef _get_l_normalized(cjj,normalization):
-    cdef int i
-    cdef int l_normalized = 0
-    for i in range(len(normalization[cjj])):
-        if normalization[cjj][i] != 0:
-            l_normalized = i+1 #we set c_l_normalized = 1
-    if l_normalized == 0:
-        raise NameError("Could not determine l_normalized...")
-    return l_normalized
-
-cpdef get_V_tilde_matrix_b_dp(S,int M,double Y):
+cpdef get_V_tilde_matrix_b_cuspform_dp(S,int M,double Y):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     """
@@ -108,19 +99,7 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y):
     cdef int Q = M+8
     pb = my_pullback_pts_dp(S,1-Q,Q,Y)
     cdef int nc = G.ncusps()
-    normalization = dict()
-    if multiplicity == 0:
-        raise NameError("The space of cuspforms is of dimension zero for this weight!")
-    if multiplicity == 1:
-        normalization[0] = [1]
-    if multiplicity == 2:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
-        normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
-    if multiplicity > 2:
-        raise NameError("This case has not been implemented yet")
-    for i in range(1,nc):
-        normalization[i] = []
+    normalization = _get_normalization_cuspforms(S)
     V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
     b = np.zeros(shape=(nc*M,1),dtype=np.complex_)
     cdef int cii,cjj
@@ -137,7 +116,10 @@ cpdef get_V_tilde_matrix_b_dp(S,int M,double Y):
                 _compute_V_block_matrix_dp(V_view,J,Msjj,Mfjj,weight,coordinates)
                 if cjj == 0:
                     b_view = b[cii*M:(cii+1)*M] #Weird python would create a (nc*M,) shape out of b_view[cii*M:(cii+1)*M,0]...
-                    l_normalized = _get_l_normalized(cjj,normalization)
+                    l_normalized = _get_l_normalized(cjj,normalization,1)
+                    if len(l_normalized) != 1:
+                        raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
+                    l_normalized = l_normalized[0]
                     _compute_V_block_matrix_normalized_column_dp(b_view,J,cii,cjj,l_normalized,weight,Y,coordinates)
             if cii == cjj:
                 _subtract_diagonal_terms(V_view,Msjj,Mfjj,weight,Y)
@@ -205,7 +187,7 @@ cpdef get_V_matrix_dp(S,int M,double Y):
                 _compute_V_block_matrix_dp(V_view,J,Ms,Mf,weight,coordinates)
     return V
 
-cpdef get_coefficients_dp(S,double Y=0,int M=0,prec=14):
+cpdef get_coefficients_cuspform_dp(S,double Y=0,int M=0,prec=14):
     if Y == 0:
         Y = S.group().minimal_height()*0.9
     if M == 0:
@@ -213,7 +195,7 @@ cpdef get_coefficients_dp(S,double Y=0,int M=0,prec=14):
         M = math.ceil(get_M_for_holom(Y,weight,prec))
     print("Y = ", Y)
     print("M = ", M)
-    V,b = get_V_tilde_matrix_b_dp(S,M,Y)
+    V,b = get_V_tilde_matrix_b_cuspform_dp(S,M,Y)
     c = np.linalg.solve(V,b)
     return c[:M] #Expansion coefficients at first cusp
 

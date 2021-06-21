@@ -177,7 +177,7 @@ cpdef get_V_tilde_matrix_cuspform_arb_wrap(S,int M,Y,int bit_prec):
                 _subtract_diagonal_terms(V_view.value,Ms,Mf,weight,Y,bit_prec)
     return V
 
-cdef _get_l_normalized(cjj,normalization,starting_index):
+cpdef _get_l_normalized(cjj,normalization,starting_index):
     """
     Return indices i of c_i where c_i=1 (i.e. return index of normalized coefficients).
     'starting_index' refers to the first index of the expansion which is
