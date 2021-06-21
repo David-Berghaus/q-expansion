@@ -95,7 +95,11 @@ def compute_eisenstein_series(cuspform,modforms):
 
 def compute_eisenstein_series_index_7(cuspform,modforms):
     a = 1
-    b = -petersson_product_nelson_collins(modforms[0]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())/petersson_product_nelson_collins(modforms[1]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
+    num = petersson_product_nelson_collins(modforms[0]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
+    print(num)
+    den = petersson_product_nelson_collins(modforms[1]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
+    print(den)
+    b = -num/den
     return modforms[0]._scal_mul(a) + modforms[1]._scal_mul(b), b
 
 #Now to the bruteforce approach

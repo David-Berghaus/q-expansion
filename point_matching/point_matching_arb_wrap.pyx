@@ -181,9 +181,9 @@ cdef _get_l_normalized(cjj,normalization,starting_index):
     """
     Return indices i of c_i where c_i=1 (i.e. return index of normalized coefficients).
     'starting_index' refers to the first index of the expansion which is
-    1 for cuspforms and 0 for Eisenstein series.
+    1 for cuspforms and 0 for modforms series.
     For cuspforms we currently only support a normalization basis in reduced echelon-form (as this always seems to work)
-    while for Eisensteinseries we also support normalizations like [1,1,0].
+    while for modforms we also support normalizations like [1,1,0].
     """
     cdef int i
     l_normalized = []
@@ -221,17 +221,17 @@ def _get_normalization_cuspforms(S):
         normalization[i] = []
     return normalization
 
-def _get_normalization_eisenstein_series(S):
+def _get_normalization_modforms(S):
     """
-    Returns normalization for each cusp. For Eisenstein series the first expansion coefficient is c_0.
+    Returns normalization for each cusp. For modforms the first expansion coefficient is c_0.
     A feature to be implemented in the future is to test if the normalization
     works correctly (with a double-precision computation).
     """
     G = S.group()
-    cdef int multiplicity = G.dimension_modular_forms(S.weight()) #! Note that we use the dimension of modular forms here instead of Eisenstein
+    cdef int multiplicity = G.dimension_modular_forms(S.weight())
     normalization = dict()
     if multiplicity == 0:
-        raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
+        raise NameError("The space of modular forms is of dimension zero for this weight!")
     elif multiplicity == 1:
         normalization[0] = [1]
     elif multiplicity == 2:
@@ -239,7 +239,7 @@ def _get_normalization_eisenstein_series(S):
         print("")
         normalization[0] = [1,0]
     elif multiplicity == 3:
-        print("Careful, this normalization might not work for all groups and might not even be valid for Eisenstein series!")
+        print("Careful, this normalization might not work for all groups!")
         print("")
         normalization[0] = [1,0,0]
     else:
@@ -404,7 +404,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
     sig_off()
     return block_factored_mat, b
 
-cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -414,7 +414,7 @@ cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
     cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization_eisenstein_series(S)
+    normalization = _get_normalization_modforms(S)
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
@@ -591,9 +591,9 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_princ
         else:
             return res, M
 
-cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     """ 
-    Computes Fourier-expansion coefficients of Eisenstein series using classical iterative refinement
+    Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
@@ -609,7 +609,7 @@ cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,retur
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,M,Y,bit_prec)
+    V, b = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+5) #Change this
 
     V_dp = V.construct_sc_np()
