@@ -13,6 +13,9 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 from pullback.my_pullback cimport my_pullback_pts_dp
 from point_matching.point_matching_arb_wrap import _get_l_normalized, _get_normalization_cuspforms
 
+cpdef get_horo_height_dp(S):
+    return S.group().minimal_height()*0.8
+
 cdef _get_J_block_matrix_dp(int Ms,int Mf,int weight,int Q,coordinates):
     cdef int coord_len = len(coordinates)
     J = np.empty(shape=(Mf-Ms+1,coord_len),dtype=np.complex_,order="F") #Fortran order allows more efficient access here
@@ -189,7 +192,7 @@ cpdef get_V_matrix_dp(S,int M,double Y):
 
 cpdef get_coefficients_cuspform_dp(S,double Y=0,int M=0,prec=14):
     if Y == 0:
-        Y = S.group().minimal_height()*0.9
+        Y = get_horo_height_dp(S)
     if M == 0:
         weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,prec))
@@ -201,7 +204,7 @@ cpdef get_coefficients_cuspform_dp(S,double Y=0,int M=0,prec=14):
 
 cpdef get_coefficients_haupt_dp(S,double Y=0,int M=0,prec=14):
     if Y == 0:
-        Y = S.group().minimal_height()*0.9
+        Y = get_horo_height_dp(S)
     if M == 0:
         M = math.ceil(get_M_for_holom(Y,12,prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
     print("Y = ", Y)

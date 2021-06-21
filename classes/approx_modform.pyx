@@ -9,7 +9,7 @@ from sage.modular.cusps import Cusp
 from psage.modform.arithgroup.mysubgroups_alg import SL2Z_elt
 
 from classes.acb_mat_class import Acb_Mat
-from point_matching.point_matching_arb_wrap import get_coefficients_ir_arb_wrap, get_coefficients_eisenstein_ir_arb_wrap, digits_to_bits, _get_normalization_cuspforms, _get_normalization_eisenstein_series, get_pi_ball
+from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, _get_normalization_cuspforms, _get_normalization_modforms, get_pi_ball
 from pullback.my_pullback import my_pullback_general_group_dp, simple_two_by_two_matmul, apply_moebius_transformation_arb_wrap
 
 class ApproxModForm():
@@ -24,15 +24,15 @@ class ApproxModForm():
         cusp_expansions = dict()
 
         if modform_type == "CuspForm":
-            c_vec, M = get_coefficients_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
+            c_vec, M = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
             starting_order = 1
             normalization = _get_normalization_cuspforms(S)
-        elif modform_type == "EisensteinSeries":
-            c_vec, M = get_coefficients_eisenstein_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
+        elif modform_type == "ModForm":
+            c_vec, M = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
             starting_order = 0
-            normalization = _get_normalization_eisenstein_series(S)
+            normalization = _get_normalization_modforms(S)
         else:
-            raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'EisensteinSeries'")
+            raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'ModForm'")
         c_vec_mcbd = c_vec._get_mcbd(bit_prec)
 
         for ci in G._cusps:
@@ -58,7 +58,7 @@ class ApproxModForm():
         self.digit_prec = digit_prec
         self.modform_type = modform_type
         self.cusp_expansions = cusp_expansions
-        self.pi = RF(get_pi_ball(bit_prec))
+        self._pi = RF(get_pi_ball(bit_prec))
         self.CF = CF
         self.bit_prec = bit_prec
     
@@ -134,10 +134,10 @@ class ApproxModForm():
         z_fund = apply_moebius_transformation_arb_wrap(z,a,b,c,d)
         f = self.cusp_expansions[cj].polynomial()
         width = G.cusp_width(cj)
-        q_fund = (self.CF(0,2*self.pi)*z_fund/width).exp()
+        q_fund = (self.CF(0,2*self._pi)*z_fund/width).exp()
 
         f_tmp = self.cusp_expansions[Cusp(1,0)].polynomial()
-        q_tmp = (self.CF(0,2*self.pi)*z/G.cusp_width(Cusp(1,0))).exp()
+        q_tmp = (self.CF(0,2*self._pi)*z/G.cusp_width(Cusp(1,0))).exp()
         print(cj)
         print(f_tmp(q_tmp))
 

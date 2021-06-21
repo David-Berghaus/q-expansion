@@ -465,14 +465,17 @@ cpdef get_Q(int M):
     """
     return M+8
 
+cpdef get_horo_height_arb_wrap(S, RBF):
+    return RBF(S.group().minimal_height()*0.8)
+
 cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M=0):
     """
     Computes expansion coefficients with direct methods (i.e. explicitly constructs V_tilde and performs a LU-decomposition)
     """
     bit_prec = digits_to_bits(digit_prec)
-    RR = RealBallField(bit_prec)
+    RBF = RealBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RR(S.group().minimal_height()*0.8)
+        Y = get_horo_height_arb_wrap(S, RBF)
     if M == 0:
         weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
@@ -494,7 +497,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M=0):
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
+        Y = get_horo_height_arb_wrap(S, RBF)
     if M == 0:
         weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
@@ -526,7 +529,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
+        Y = get_horo_height_arb_wrap(S, RBF)
     if M == 0:
         weight = S.weight()
         M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
@@ -560,7 +563,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_princ
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
+        Y = get_horo_height_arb_wrap(S, RBF)
     if M == 0:
         M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
     print("Y = ", Y)
@@ -599,7 +602,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
+        Y = get_horo_height_arb_wrap(S, RBF)
     if M == 0:
         M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
     print("Y = ", Y)
@@ -610,7 +613,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M
     cdef PLU_Mat plu
 
     V, b = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M,Y,bit_prec)
-    tol = RBF(10.0)**(-digit_prec+5) #Change this
+    tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
     plu = PLU_Mat(V_dp,prec=53)
