@@ -642,7 +642,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M
     else:
         return res, M
 
-cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,labels=None):
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M_and_labels=False,labels=None):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -672,9 +672,15 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,labels=None):
         V.diag_inv_scale_vec(res, res, bit_prec)
         res_vec.append(res)
     
-    return res_vec
+    if return_M_and_labels == False:
+        return res_vec
+    else:
+        if labels == None:
+            multiplicity = S.group().dimension_cusp_forms(S.weight())
+            labels = range(multiplicity)
+        return res_vec, M, labels
 
-cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,labels=None):
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M_and_labels=False,labels=None):
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -703,4 +709,10 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,labels=None):
         V.diag_inv_scale_vec(res, res, bit_prec)
         res_vec.append(res)
 
-    return res_vec
+    if return_M_and_labels == False:
+        return res_vec
+    else:
+        if labels == None:
+            multiplicity = S.group().dimension_modular_forms(S.weight())
+            labels = range(multiplicity)
+        return res_vec, M, labels
