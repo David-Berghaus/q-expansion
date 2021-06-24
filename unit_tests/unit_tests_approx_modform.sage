@@ -6,6 +6,7 @@ from classes.approx_modform import ApproxModForm, get_approxmodform_basis
 
 def run_unit_tests_approx_modform():
     test_approx_modform_cuspform()
+    test_approx_modform_cuspform_prec_loss()
     test_approx_modform_modform()
     test_approx_modform_basis_cuspform()
     test_approx_modform_basis_modform()
@@ -15,6 +16,12 @@ def test_approx_modform_cuspform():
     MF = ApproxModForm(S,50,modform_type="CuspForm",label=1)
     assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-45
     print("test_approx_modform_cuspform ok")
+
+def test_approx_modform_cuspform_prec_loss(): #Test that prec_loss is working as intended
+    S = AutomorphicFormSpace(Gamma0(1),weight=12)
+    MF = ApproxModForm(S,100,modform_type="CuspForm",label=0,prec_loss=30)
+    assert abs(MF.get_cusp_expansion(Cusp(1,0))[45]-(-548895690)) < 1e-70 #this wouldn't work without setting prec_loss
+    print("test_approx_modform_cuspform_prec_loss ok")
 
 def test_approx_modform_modform():
     S = AutomorphicFormSpace(Gamma0(3),weight=4)
