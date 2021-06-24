@@ -25,7 +25,7 @@ def test_get_V_tilde_matrix_b_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(8),4) #This example contains some empty coordinate lists
     prec = 64
     RBF = RealBallField(prec)
-    tmp = get_V_tilde_matrix_b_cuspform_arb_wrap(S,66,RBF(0.09742785792574934),prec)
+    tmp = get_V_tilde_matrix_b_cuspform_arb_wrap(S,66,100,RBF(0.09742785792574934),prec)
     V,b = tmp[0]._get_mcbd(prec), tmp[1]._get_mcbd(prec)
     C = V\b
     assert abs(C[0][0]) < RBF(1e-12)
@@ -35,7 +35,7 @@ def test_get_V_tilde_matrix_b_cuspform_arb_wrap():
 def test_get_V_tilde_matrix_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(11),2)
     RBF = RealBallField(128)
-    T = get_V_tilde_matrix_cuspform_arb_wrap(S,82,RBF(0.07085662394599952),128)._get_mcbd(128)
+    T = get_V_tilde_matrix_cuspform_arb_wrap(S,82,120,RBF(0.07085662394599952),128)._get_mcbd(128)
     V = T[1:,1:]
     b = -T[1:,0]
     C = V\b

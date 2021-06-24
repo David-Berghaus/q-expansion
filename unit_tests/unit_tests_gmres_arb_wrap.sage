@@ -21,7 +21,8 @@ def test_gmres_non_factored():
     RBF = RealBallField(bit_prec)
     Y = RBF(S.group().minimal_height()*0.8)
     M = 30
-    V, b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M,Y,bit_prec)
+    Q = 50
+    V, b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec)
 
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
