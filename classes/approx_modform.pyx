@@ -9,30 +9,39 @@ from sage.modular.cusps import Cusp
 from psage.modform.arithgroup.mysubgroups_alg import SL2Z_elt
 
 from classes.acb_mat_class import Acb_Mat
-from point_matching.point_matching_arb_wrap import get_coefficients_ir_arb_wrap, get_coefficients_eisenstein_ir_arb_wrap, digits_to_bits, _get_normalization_cuspforms, _get_normalization_eisenstein_series, get_pi_ball
+from point_matching.point_matching_arb_wrap import (
+    get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, _get_normalization_cuspforms, 
+    _get_normalization_modforms, get_pi_ball, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
+)
 from pullback.my_pullback import my_pullback_general_group_dp, simple_two_by_two_matmul, apply_moebius_transformation_arb_wrap
 
 class ApproxModForm():
     """
     This class contains an approximation of a modular form with coefficients given by approximately 'digit_prec' digits precision.
     """
-    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M=0):
+    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,label=0,c_vec=None,prec_loss=None):
+        if modform_type == "CuspForm":
+            starting_order = 1
+            normalization = _get_normalization_cuspforms(S,label=label)
+        elif modform_type == "ModForm":
+            starting_order = 0
+            normalization = _get_normalization_modforms(S,label=label)
+        else:
+            raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'ModForm'")
         G = S.group()
         bit_prec = digits_to_bits(digit_prec)
         RF = RealField(bit_prec)
         CF = ComplexField(bit_prec)
         cusp_expansions = dict()
+        if c_vec == None: #We compute c_vec from scratch
+            if modform_type == "CuspForm":
+                c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,label=label,prec_loss=prec_loss)
+            elif modform_type == "ModForm":
+                c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,label=label,prec_loss=prec_loss)
+        else: #We construct ApproxModForm from previously computed solution
+            if M_0 == 0:
+                raise ArithmeticError("Cannot construct ApproxModForm from c_vec without specifying M_0!")
 
-        if modform_type == "CuspForm":
-            c_vec, M = get_coefficients_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
-            starting_order = 1
-            normalization = _get_normalization_cuspforms(S)
-        elif modform_type == "EisensteinSeries":
-            c_vec, M = get_coefficients_eisenstein_ir_arb_wrap(S,digit_prec,Y=Y,M=M,return_M=True)
-            starting_order = 0
-            normalization = _get_normalization_eisenstein_series(S)
-        else:
-            raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'EisensteinSeries'")
         c_vec_mcbd = c_vec._get_mcbd(bit_prec)
 
         for ci in G._cusps:
@@ -41,24 +50,24 @@ class ApproxModForm():
             var_string = 'q_' + str(cusp_width)
             R = PowerSeriesRing(CF, var_string)
             q = R.gen()
-            f = PowerSeries_poly(R,prec=M) #This corresponds to O(q**M) in sage syntax
+            f = PowerSeries_poly(R,prec=M_0) #This corresponds to O(q**M_0) in sage syntax
             normalization_len = len(normalization[cii])
             for i in range(normalization_len): #Set normalized coefficients if there are any
                 if normalization[cii][i] != 0:
                     f += normalization[cii][i]*q**(starting_order+i)
-            for i in range(M):
-                f += CF(c_vec_mcbd[i+cii*M][0])*q**(i+starting_order+normalization_len)
+            for i in range(M_0):
+                f += CF(c_vec_mcbd[i+cii*M_0][0])*q**(i+starting_order+normalization_len)
             cusp_expansions[Cusp(ci)] = f
 
 
         #Now to some group variables that we store
-        self.M = M
+        self.M_0 = M_0
         self.G = G
         self.weight = S.weight()
         self.digit_prec = digit_prec
         self.modform_type = modform_type
         self.cusp_expansions = cusp_expansions
-        self.pi = RF(get_pi_ball(bit_prec))
+        self._pi = RF(get_pi_ball(bit_prec))
         self.CF = CF
         self.bit_prec = bit_prec
     
@@ -67,10 +76,10 @@ class ApproxModForm():
         Returns expansion of modform at cusp representative 'c' truncated to 'trunc_order' terms and with 'digit_prec' digits precision.
         """
         if trunc_order != None:
-            if trunc_order > self.M:
+            if trunc_order > self.M_0:
                 raise ArithmeticError("Truncation order is beyond the amount of computed coefficients!")
         else:
-            trunc_order = self.M
+            trunc_order = self.M_0
         if digit_prec != None:
             bit_prec = digits_to_bits(digit_prec)
             CF = ComplexField(bit_prec)
@@ -134,10 +143,10 @@ class ApproxModForm():
         z_fund = apply_moebius_transformation_arb_wrap(z,a,b,c,d)
         f = self.cusp_expansions[cj].polynomial()
         width = G.cusp_width(cj)
-        q_fund = (self.CF(0,2*self.pi)*z_fund/width).exp()
+        q_fund = (self.CF(0,2*self._pi)*z_fund/width).exp()
 
         f_tmp = self.cusp_expansions[Cusp(1,0)].polynomial()
-        q_tmp = (self.CF(0,2*self.pi)*z/G.cusp_width(Cusp(1,0))).exp()
+        q_tmp = (self.CF(0,2*self._pi)*z/G.cusp_width(Cusp(1,0))).exp()
         print(cj)
         print(f_tmp(q_tmp))
 
@@ -192,3 +201,16 @@ class CuspExpansions():
         Returns expansion of modform at cusp representative 'c'.
         """
         return self.cusp_expansions[c]
+
+def get_approxmodform_basis(S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,labels=None):
+    if modform_type == "CuspForm":
+        c_vecs, M_0, labels = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels)
+    elif modform_type == "ModForm":
+        c_vecs, M_0, labels = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels)
+    else:
+        raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'ModForm'")
+    basis = []
+    for i in range(len(c_vecs)):
+        basis.append(ApproxModForm(S,digit_prec,modform_type=modform_type,Y=Y,M_0=M_0,label=labels[i],c_vec=c_vecs[i]))
+    
+    return basis

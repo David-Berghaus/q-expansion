@@ -55,7 +55,10 @@ cpdef get_pi_ball(int bit_prec): #Since RR(pi) does not compile...
     return pi_ball
 
 cpdef digits_to_bits(int digits): #Approximates how many bits are required to achieve this amount of digits
-    return math.ceil(digits*math.log(10)/math.log(2)-4)
+    return math.ceil(digits*math.log(10,2)) #log(x,2) is log_2
+
+cpdef bits_to_digits(int bit_prec):
+    return math.ceil(bit_prec*math.log10(2))
 
 cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinates,int bit_prec):
     cdef int weight_half = weight//2
@@ -152,11 +155,10 @@ cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bi
         tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
         acb_sub_arb(acb_mat_entry(V_view,i-Ms,i-Ms),acb_mat_entry(V_view,i-Ms,i-Ms),tmp.value,bit_prec)
 
-cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M
-    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     G = S.group()
     cdef int nc = G.ncusps()
@@ -177,13 +179,13 @@ cpdef get_V_tilde_matrix_arb_wrap(S,int M,Y,int bit_prec):
                 _subtract_diagonal_terms(V_view.value,Ms,Mf,weight,Y,bit_prec)
     return V
 
-cdef _get_l_normalized(cjj,normalization,starting_index):
+cpdef _get_l_normalized(cjj,normalization,starting_index):
     """
     Return indices i of c_i where c_i=1 (i.e. return index of normalized coefficients).
     'starting_index' refers to the first index of the expansion which is
-    1 for cuspforms and 0 for Eisenstein series.
+    1 for cuspforms and 0 for modforms series.
     For cuspforms we currently only support a normalization basis in reduced echelon-form (as this always seems to work)
-    while for Eisensteinseries we also support normalizations like [1,1,0].
+    while for modforms we also support normalizations like [1,1,0].
     """
     cdef int i
     l_normalized = []
@@ -198,9 +200,23 @@ cdef _get_l_normalized(cjj,normalization,starting_index):
         raise ArithmeticError("Could not determine l_normalized...")
     return l_normalized
 
-def _get_normalization_cuspforms(S):
+def _get_echelon_normalization_from_label(label, multiplicity):
+    """
+    Get echelon normalization for the principal cusp, based on label and multiplicity.
+    Examples:
+    label==0, multiplicity==3 -> [1,0,0]
+    label==1, multiplicity==3 -> [0,1,0]
+    """
+    if label < 0 or label+1 > multiplicity:
+        raise ArithmeticError("Invalid label!")
+    res = [0]*multiplicity
+    res[label] = 1
+    return res
+
+def _get_normalization_cuspforms(S,label=0):
     """
     Returns normalization for each cusp. For cuspforms the first expansion coefficient is c_1.
+    'label' refers to the label of the echelon-basis.
     A feature to be implemented in the future is to test if the normalization
     works correctly (with a double-precision computation).
     """
@@ -209,52 +225,41 @@ def _get_normalization_cuspforms(S):
     normalization = dict()
     if multiplicity == 0:
         raise NameError("The space of cuspforms is of dimension zero for this weight!")
-    elif multiplicity == 1:
-        normalization[0] = [1]
-    elif multiplicity == 2:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
-        normalization[0] = [1,0] #this corresponds to c1=1, c2=0 for the first cusp
-    elif multiplicity > 2:
-        raise NameError("This case has not been implemented yet")
+    else:
+        normalization[0] = _get_echelon_normalization_from_label(label, multiplicity)
     for i in range(1,G.ncusps()):
         normalization[i] = []
+    if multiplicity > 1:
+        print("Careful, this normalization might not work for all groups!")
+        print("")
     return normalization
 
-def _get_normalization_eisenstein_series(S):
+def _get_normalization_modforms(S,label=0):
     """
-    Returns normalization for each cusp. For Eisenstein series the first expansion coefficient is c_0.
+    Returns normalization for each cusp. For modforms the first expansion coefficient is c_0.
     A feature to be implemented in the future is to test if the normalization
     works correctly (with a double-precision computation).
     """
     G = S.group()
-    cdef int multiplicity = G.dimension_modular_forms(S.weight()) #! Note that we use the dimension of modular forms here instead of Eisenstein
+    cdef int multiplicity = G.dimension_modular_forms(S.weight())
     normalization = dict()
     if multiplicity == 0:
-        raise NameError("The space of Eisenstein series is of dimension zero for this weight!")
-    elif multiplicity == 1:
-        normalization[0] = [1]
-    elif multiplicity == 2:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
-        normalization[0] = [1,0]
-    elif multiplicity == 3:
-        print("Careful, this normalization might not work for all groups and might not even be valid for Eisenstein series!")
-        print("")
-        normalization[0] = [1,0,0]
+        raise NameError("The space of modular forms is of dimension zero for this weight!")
     else:
-        raise NameError("This case has not been implemented yet")
+        normalization[0] = _get_echelon_normalization_from_label(label, multiplicity)
     for i in range(1,G.ncusps()):
         normalization[i] = []
+    if multiplicity > 1:
+        print("Careful, this normalization might not work for all groups!")
+        print("")
     return normalization
 
-cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
     normalization = _get_normalization_cuspforms(S)
@@ -292,23 +297,25 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,Y,int bit_prec):
     sig_off()
     return V, b
 
-cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,labels=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization_cuspforms(S)
+    if labels == None:
+        multiplicity = G.dimension_cusp_forms(S.weight())
+        labels = range(multiplicity)
+    normalizations = [_get_normalization_cuspforms(S,label=i) for i in labels]
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
-    cdef Acb_Mat b = Acb_Mat(nc*M,1)
+    b_vecs = [Acb_Mat(nc*M,1) for _ in range(len(labels))]
     cdef int cii, cjj
     cdef Acb_Mat_Win b_view
     cdef Acb_Mat J, W
@@ -318,9 +325,9 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             coord_len = len(coordinates)
-            Msjj = len(normalization[cjj])+1
+            Msjj = len(normalizations[0][cjj])+1
             Mfjj = Msjj+M-1
-            Msii = len(normalization[cii])+1
+            Msii = len(normalizations[0][cii])+1
             Mfii = Msii+M-1
             if coord_len != 0:
                 V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
@@ -330,22 +337,23 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,Y,int bit_prec):
                 _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
                 _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
-                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    l_normalized = _get_l_normalized(cjj,normalization,1)
-                    if len(l_normalized) != 1:
-                        raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
-                    l_normalized = l_normalized[0]
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
+                    for ni in range(len(normalizations)):
+                        normalization = normalizations[ni]
+                        b_view = b_vecs[ni].get_window(cii*M,0,(cii+1)*M,1)
+                        l_normalized = _get_l_normalized(cjj,normalization,1)
+                        if len(l_normalized) != 1: #This would be a normalization like [1,1,0]
+                            raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
+                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized[0],weight,coordinates,bit_prec)
+                        sig_on()
+                        acb_mat_neg(b_view.value, b_view.value)
+                        sig_off()
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
 
-    sig_on()
-    acb_mat_neg(b.value, b.value)
-    sig_off()
-    return block_factored_mat, b
+    return block_factored_mat, b_vecs
 
-cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W.
@@ -357,7 +365,6 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
     G = S.group()
     if G.genus() != 0:
         raise NameError("This function only works for genus zero surfaces!")
-    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
 
@@ -404,23 +411,25 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,Y,int bit_prec):
     sig_off()
     return block_factored_mat, b
 
-cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_prec,labels=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int Q = get_Q(M)
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization_eisenstein_series(S)
+    if labels == None:
+        multiplicity = G.dimension_modular_forms(S.weight())
+        labels = range(multiplicity)
+    normalizations = [_get_normalization_modforms(S,label=i) for i in labels]
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
-    cdef Acb_Mat b = Acb_Mat(nc*M,1)
+    b_vecs = [Acb_Mat(nc*M,1) for _ in range(len(labels))]
     cdef int cii, cjj
     cdef Acb_Mat_Win b_view
     cdef Acb_Mat J, W
@@ -431,9 +440,9 @@ cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
         for cjj in range(nc):
             coordinates = pb[cii][cjj]
             coord_len = len(coordinates)
-            Msjj = len(normalization[cjj])
+            Msjj = len(normalizations[0][cjj])
             Mfjj = Msjj+M-1
-            Msii = len(normalization[cii])
+            Msii = len(normalizations[0][cii])
             Mfii = Msii+M-1
             if coord_len != 0:
                 V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
@@ -443,69 +452,101 @@ cpdef get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,int M,Y,int bit_prec):
                 _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
                 _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
-                    b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    acb_mat_zero(b_view.value)
-                    l_normalized = _get_l_normalized(cjj,normalization,0)
-                    tmp = Acb_Mat(M,1)
-                    for i in range(len(l_normalized)):
-                        _compute_V_block_matrix_normalized_column_arb_wrap(tmp.value,J.value,l_normalized[i],weight,coordinates,bit_prec)
-                        acb_mat_approx_add(b_view.value, b_view.value, tmp.value, bit_prec)
+                    tmp = Acb_Mat(M,1) #We need this to support normalizations like [1,1,0] -> maybe remove this later
+                    for ni in range(len(normalizations)):
+                        normalization = normalizations[ni]
+                        b_view = b_vecs[ni].get_window(cii*M,0,(cii+1)*M,1)
+                        l_normalized = _get_l_normalized(cjj,normalization,0)
+                        if len(l_normalized) != 1: #This would be a normalization like [1,1,0]
+                            raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
+                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized[0],weight,coordinates,bit_prec)
+                        sig_on()
+                        acb_mat_neg(b_view.value, b_view.value)
+                        sig_off()
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
 
-    sig_on()
-    acb_mat_neg(b.value, b.value)
-    sig_off()
-    return block_factored_mat, b
+    return block_factored_mat, b_vecs
 
-cpdef get_Q(int M):
+def get_M_0(S, digit_prec, is_cuspform=True):
     """
-    Returns (one half of) the amount of sampling points based on expansion order M.
+    Get truncation order of modular form. M_0 = M(Y_0) where Y_0 is the the point in the fundamental region with the smallest height.
     """
-    return M+8
+    Y_0 = S.group().minimal_height()
+    if is_cuspform == True:
+        weight = S.weight()
+    else:
+        weight = 12 #To do: ADD PROPER ASYMPTOTIC FORMULAS
+    M_0 = math.ceil(get_M_for_holom(Y_0,weight,digit_prec))
+    return M_0
 
-cpdef get_coefficients_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_horo_height_arb_wrap(S, RBF, M_0, prec_loss=None, is_cuspform=True):
+    """
+    Get a choice of the horocycle height. 'prec_loss' denotes the expected loss of precision of the last (M_0th) coefficient.
+    """
+    if prec_loss == None: #We only want the first few coefficients to have full precision, so we just choose some Y < Y_0
+        return RBF(S.group().minimal_height()*0.8)
+    else:
+        Y_1 = S.group().minimal_height()*0.8
+        Y_2 = prec_loss*math.log(10)/(2*math.pi*M_0)
+        Y = min(Y_1,Y_2)
+        return RBF(Y)
+
+cpdef get_Q(Y, weight, digit_prec, is_cuspform=True):
+    """
+    Get amount of sampling points 'Q', based on choice of horocycle height 'Y'.
+    """
+    if is_cuspform == False:
+        weight = 12 #To do: ADD PROPER ASYMPTOTIC FORMULAS
+    return math.ceil(get_M_for_holom(Y,weight,digit_prec))+8
+
+cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,prec_loss=None):
     """
     Computes expansion coefficients with direct methods (i.e. explicitly constructs V_tilde and performs a LU-decomposition)
     """
     bit_prec = digits_to_bits(digit_prec)
-    RR = RealBallField(bit_prec)
+    RBF = RealBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RR(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
     print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
     cdef Acb_Mat V,b
-    V,b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
+    V,b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec)
     sig_on()
     acb_mat_approx_solve(b.value,V.value,b.value,bit_prec)
     sig_off()
-    return b.get_window(0,0,M,1)
+    return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
     print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
     cdef Block_Factored_Mat V
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -516,28 +557,31 @@ cpdef get_coefficients_gmres_arb_wrap(S,int digit_prec,Y=0,int M=0):
     res = x_gmres_arb_wrap[0]
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M,1)
+    return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
     print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
     cdef Block_Factored_Mat V
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -550,27 +594,30 @@ cpdef get_coefficients_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
     if return_M == False:
         return res
     else:
-        return res, M
+        return res, M_0
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_principal_expansion=True,return_M=False):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec,is_cuspform=False)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=False,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=False)
     print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
     cdef Block_Factored_Mat V
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M,Y,bit_prec)
+    V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M_0,Q,Y,bit_prec)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -582,35 +629,39 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,only_princ
 
     if only_principal_expansion == True:
         if return_M == False:
-            return res.get_window(0,0,M,1)
+            return res.get_window(0,0,M_0,1)
         else:
-            return res.get_window(0,0,M,1), M
+            return res.get_window(0,0,M_0,1), M_0
     else:
         if return_M == False:
             return res
         else:
-            return res, M
+            return res, M_0
 
-cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,return_M=False):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None):
     """ 
-    Computes Fourier-expansion coefficients of Eisenstein series using classical iterative refinement
+    Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec,is_cuspform=False)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        M = math.ceil(get_M_for_holom(Y,12,digit_prec)) #To do: ADD PROPER ASYMPTOTIC FORMULAS
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=False,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=False)
     print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
     cdef Block_Factored_Mat V
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_eisenstein_arb_wrap(S,M,Y,bit_prec)
-    tol = RBF(10.0)**(-digit_prec+5) #Change this
+    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    b = b_vecs[0]
+    tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
     plu = PLU_Mat(V_dp,prec=53)
@@ -622,4 +673,84 @@ cpdef get_coefficients_eisenstein_ir_arb_wrap(S,int digit_prec,Y=0,int M=0,retur
     if return_M == False:
         return res
     else:
-        return res, M
+        return res, M_0
+
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None):
+    """
+    Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
+    print("Y = ", Y)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
+    cdef Block_Factored_Mat V
+    cdef PLU_Mat plu
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=labels)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res_vec = []
+    for i in range(len(b_vecs)):
+        res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu)
+        V.diag_inv_scale_vec(res, res, bit_prec)
+        res_vec.append(res)
+    
+    if return_M_and_labels == False:
+        return res_vec
+    else:
+        if labels == None:
+            multiplicity = S.group().dimension_cusp_forms(S.weight())
+            labels = range(multiplicity)
+        return res_vec, M_0, labels
+
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None):
+    """
+    Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec,is_cuspform=False)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=False,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=False)
+    print("Y = ", Y)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
+    cdef Block_Factored_Mat V
+    cdef PLU_Mat plu
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=labels)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res_vec = []
+    for i in range(len(b_vecs)):
+        res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu)
+        V.diag_inv_scale_vec(res, res, bit_prec)
+        res_vec.append(res)
+
+    if return_M_and_labels == False:
+        return res_vec
+    else:
+        if labels == None:
+            multiplicity = S.group().dimension_modular_forms(S.weight())
+            labels = range(multiplicity)
+        return res_vec, M_0, labels
