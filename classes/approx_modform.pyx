@@ -202,11 +202,11 @@ class CuspExpansions():
         """
         return self.cusp_expansions[c]
 
-def get_approxmodform_basis(S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,labels=None):
+def get_approxmodform_basis(S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,labels=None,prec_loss=None):
     if modform_type == "CuspForm":
-        c_vecs, M_0, labels = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels)
+        c_vecs, M_0, labels = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
     elif modform_type == "ModForm":
-        c_vecs, M_0, labels = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels)
+        c_vecs, M_0, labels = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
     else:
         raise ArithmeticError("Specified modform_type is not supported yet. Please choose between 'CuspForm' & 'ModForm'")
     basis = []
