@@ -49,28 +49,28 @@ void acb_test_fft(int N, int bit_prec){
     clock_t start, end;
     double elapsed_time;
 
-    start = clock();
-    acb_compute_dft_matrix(F, N, bit_prec);
-    end = clock();
-    elapsed_time = (end - start)/(double)CLOCKS_PER_SEC;
-    printf("DFT Matrix computation took: %f.\n", elapsed_time);
-    start = clock();
-    acb_mat_approx_mul(dft_res, F, x, bit_prec);
-    end = clock();
-    elapsed_time = (end - start)/(double)CLOCKS_PER_SEC;
-    printf("Classic DFT took: %f.\n", elapsed_time);
+    // start = clock();
+    // acb_compute_dft_matrix(F, N, bit_prec);
+    // end = clock();
+    // elapsed_time = (double)(end - start)/(double)CLOCKS_PER_SEC;
+    // printf("DFT Matrix computation took: %f.\n", elapsed_time);
+    // start = clock();
+    // acb_mat_approx_mul(dft_res, F, x, bit_prec);
+    // end = clock();
+    // elapsed_time = (double)(end - start)/(double)CLOCKS_PER_SEC;
+    // printf("Classic DFT took: %f.\n", elapsed_time);
     // acb_mat_printd(dft_res, 10);
     // printf("\n");
 
     start = clock();
     acb_dft_precomp_init(pre_comp, N, bit_prec);
     end = clock();
-    elapsed_time = (end - start)/(double)CLOCKS_PER_SEC;
+    elapsed_time = (double)(end - start)/(double)CLOCKS_PER_SEC;
     printf("FFT pre-computation took: %f.\n", elapsed_time);
     start = clock();
     acb_dft_precomp(fft_res_vec, x_vec, pre_comp, bit_prec);
     end = clock();
-    elapsed_time = (end - start)/(double)CLOCKS_PER_SEC;
+    elapsed_time = (double)(end - start)/(double)CLOCKS_PER_SEC;
     printf("FFT took: %f.\n", elapsed_time);
     acb_printd(&fft_res_vec[0], 10);
     // for (i = 0; i < N; i++){
