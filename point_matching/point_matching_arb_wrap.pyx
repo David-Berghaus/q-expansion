@@ -32,7 +32,7 @@ cdef _get_J_block_matrix_arb_wrap(acb_mat_t J,int Ms,int Mf,int weight,int Q,coo
     cdef RealBall one_over_2Q = RR(1)/(2*Q)
 
     for j in range(coord_len):
-        (z_horo,_,_,c,d,_) = coordinates[j]
+        (z_horo,_,_,c,d) = coordinates[j]
         x_horo = z_horo.real()
         if weight != 0:
             czd = c*z_horo+d
@@ -71,7 +71,7 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
     cdef RealBall a, b, c, d
     cdef RealBall y_fund_fact = RR(1)
     for j in range(coord_len):
-        (z_horo,a,b,c,d,_) = coordinates[j]
+        (z_horo,a,b,c,d) = coordinates[j]
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
         if weight != 0:
             y_fund_fact = (z_fund.imag())**weight_half
@@ -168,7 +168,7 @@ cpdef get_V_tilde_matrix_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     cdef Acb_Mat J
     for cii in range(nc):
         for cjj in range(nc):
-            coordinates = pb[cii][cjj]
+            coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
             V_view = V.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
             if coord_len != 0:
@@ -272,7 +272,7 @@ cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
 
     for cii in range(nc):
         for cjj in range(nc):
-            coordinates = pb[cii][cjj]
+            coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
             V_view = V.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
             Msjj = len(normalization[cjj])+1
@@ -323,7 +323,7 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
 
     for cii in range(nc):
         for cjj in range(nc):
-            coordinates = pb[cii][cjj]
+            coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
             Msjj = len(normalizations[0][cjj])+1
             Mfjj = Msjj+M-1
@@ -380,7 +380,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
 
     for cii in range(nc):
         for cjj in range(nc):
-            coordinates = pb[cii][cjj]
+            coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
             if cjj == 0: #principal cusp
                 Msjj = 1
@@ -438,7 +438,7 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
 
     for cii in range(nc):
         for cjj in range(nc):
-            coordinates = pb[cii][cjj]
+            coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
             Msjj = len(normalizations[0][cjj])
             Mfjj = Msjj+M-1

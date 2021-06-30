@@ -74,7 +74,9 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
         Pb[cii] = dict()
         for cj in G._cusps:
             cjj = G._cusps.index(cj)
-            Pb[cii][cjj] = []
+            Pb[cii][cjj] = dict()
+            Pb[cii][cjj]['coordinates'] = []
+            Pb[cii][cjj]['j_values'] = []
     for m in range(Qs,Qf+1):
         Xm[m] = RR(2.0*m-1)/twoQl
     for ci in G._cusps:
@@ -98,7 +100,14 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
             tmp = simple_two_by_two_matmul(tmp,[swi, 0, 0, 1/swi])
             tmp = simple_two_by_two_matmul([1/swj, 0, 0, swj],tmp)
             a,b,c,d = tmp[0],tmp[1],tmp[2],tmp[3]
-            Pb[cii][cjj].append((z_horo,a,b,c,d,z3)) #These are all arb (acb) types despite z3
+            Pb[cii][cjj]['coordinates'].append((z_horo,a,b,c,d)) #These are all arb (acb) types
+            Pb[cii][cjj]['j_values'].append(j-Qs) #We want to start with zero here
+    #We have to access j_values quite a lot during FFT so it seems beneficial to get rid of the lists
+    for ci in G._cusps:
+        cii = G._cusps.index(ci)
+        for cj in G._cusps:
+            cjj = G._cusps.index(cj)
+            Pb[cii][cjj]['j_values'] = np.array(Pb[cii][cjj]['j_values'])
     return Pb
 
 cpdef apply_moebius_transformation_arb_wrap(z,a,b,c,d): #z is a ComplexBall and a,b,c,d are RealBalls
