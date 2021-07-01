@@ -61,6 +61,7 @@ cpdef my_pullback_pts_dp(S,int Qs,int Qf,double Y): #Slow version
     return Pb
 
 cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
+    Y_dp = float(Y)
     RR = RealBallField(prec)
     CC = ComplexBallField(prec)
     G = S.group()
@@ -76,6 +77,7 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
             cjj = G._cusps.index(cj)
             Pb[cii][cjj] = dict()
             Pb[cii][cjj]['coordinates'] = []
+            Pb[cii][cjj]['coordinates_dp'] = [] #We need these for preconditioner later
             Pb[cii][cjj]['j_values'] = []
     for m in range(Qs,Qf+1):
         Xm[m] = RR(2.0*m-1)/twoQl
@@ -85,7 +87,8 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
             raise NameError('Cannot convert cusp width to Arb without sacrifizing precision!')
         for j in range(Qs,Qf+1):
             z_horo = CC(Xm[j],Y)
-            x,y = normalize_point_to_cusp_dp(G,ci,float(Xm[j]),float(Y)) #We don't need to perform this computation with arbs...
+            z_horo_dp = float(Xm[j])+Y_dp*1j
+            x,y = normalize_point_to_cusp_dp(G,ci,z_horo_dp.real,Y_dp) #We don't need to perform this computation with arbs...
             x1,y1,T_a,T_b,T_c,T_d = my_pullback_general_group_dp(G,x,y,ret_mat=1)
             vjj = G.closest_vertex(x1,y1,as_integers=1)
             cjj = G._vertex_data[vjj]['cusp'] #closest cusp
@@ -101,6 +104,7 @@ cpdef my_pullback_pts_arb_wrap(S,int Qs,int Qf,Y,prec): #Slow version
             tmp = simple_two_by_two_matmul([1/swj, 0, 0, swj],tmp)
             a,b,c,d = tmp[0],tmp[1],tmp[2],tmp[3]
             Pb[cii][cjj]['coordinates'].append((z_horo,a,b,c,d)) #These are all arb (acb) types
+            Pb[cii][cjj]['coordinates_dp'].append((z_horo_dp,float(c),float(d),z3))
             Pb[cii][cjj]['j_values'].append(j-Qs) #We want to start with zero here
     #We have to access j_values quite a lot during FFT so it seems beneficial to get rid of the lists
     for ci in G._cusps:

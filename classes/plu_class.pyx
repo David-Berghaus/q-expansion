@@ -1,6 +1,7 @@
 from cysignals.signals cimport sig_on, sig_str, sig_off
 from cysignals.memory cimport sig_free,sig_malloc
 import numpy as np
+import math
 cimport numpy as np
 from scipy.sparse import csc_matrix, linalg as sla
 
