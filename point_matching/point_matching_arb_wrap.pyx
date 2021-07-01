@@ -311,6 +311,10 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
         labels = range(multiplicity)
     normalizations = [_get_normalization_cuspforms(S,label=i) for i in labels]
 
+    print("Testing get_V_tilde_matrix_sc_cuspform_np")
+    from classes.plu_class import get_V_tilde_matrix_sc_cuspform_np
+    get_V_tilde_matrix_sc_cuspform_np(S,M,Q,Y,normalizations[0],pb)
+
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag

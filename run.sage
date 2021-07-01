@@ -13,13 +13,4 @@ S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
 from classes.approx_modform import ApproxModForm, get_approxmodform_basis
 
-def polynomial_from_list(coeffs, CF, starting_order, normalization):
-    R.<q> = PowerSeriesRing(CF)
-    normalization_len = len(normalization)
-    p = O(q**(len(coeffs)+starting_order+normalization_len))
-    for i in range(normalization_len):
-        if normalization[i] != 0:
-            p += normalization[i]*q**(starting_order+i)
-    for i in range(len(coeffs)):
-        p += CF(coeffs[i])*q**(i+starting_order+normalization_len)
-    return p
+from point_matching.point_matching_arb_wrap import get_V_tilde_matrix_factored_b_cuspform_arb_wrap
