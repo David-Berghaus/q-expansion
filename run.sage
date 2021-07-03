@@ -12,5 +12,3 @@ from point_matching.fft_test import test_fft
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
 from classes.approx_modform import ApproxModForm, get_approxmodform_basis
-
-from point_matching.point_matching_arb_wrap import get_V_tilde_matrix_factored_b_cuspform_arb_wrap
