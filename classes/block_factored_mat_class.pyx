@@ -259,65 +259,7 @@ cdef class Block_Factored_Mat():
         if is_scaled == True:
             return self.act_on_vec_sc(b, x, prec)
         elif is_scaled == False:
-            return self.act_on_vec_non_sc(b, x, prec)
-
-    cpdef act_on_vec_win_non_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
-        """
-        Computes Block_Factored_Mat*x = b
-        """
-        cdef int nc, cii, cjj, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        if x.value == b.value:
-            raise NameError("Aliasing not allowed here!")
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat tmp = Acb_Mat(self._get_max_len(), 1)
-        cdef Acb_Mat_Win tmp_view
-        cdef Acb_Mat tmp2 = Acb_Mat(M, 1)
-        cdef Acb_Mat J, W, diag_cast
-        cdef Acb_Mat_Win b_cast, x_cast
-        cdef Block_Factored_Element block_factored_element
-
-        #Slice vectors x & b into blocks
-        x_blocks = []
-        b_blocks = []
-        for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
-            b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
-
-        for cii in range(nc):
-            b_cast = b_blocks[cii]
-            diag_cast = diag[cii]
-            x_cast = x_blocks[cii]
-            #b[cii] = -Diag[cii]*x[cii]
-            sig_on()
-            acb_mat_approx_left_mul_diag(b_cast.value, diag_cast.value, x_cast.value, prec)
-            sig_off()
-            sig_on()
-            acb_mat_neg(b_cast.value, b_cast.value)
-            sig_off()
-            for cjj in range(nc):
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    x_cast = x_blocks[cjj]
-                    tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
-                    #tmp = W[cii][cjj]*x[cjj]
-                    sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, x_cast.value, prec)
-                    sig_off()
-                    #tmp2 = J[cii][cjj]*tmp
-                    sig_on()
-                    acb_mat_approx_mul(tmp2.value, J.value, tmp_view.value, prec)
-                    sig_off()
-                    #b[cii] += tmp2
-                    sig_on()
-                    acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
-                    sig_off()
+            raise ArithmeticError("This functionality is not supported!")
 
     cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
         """
