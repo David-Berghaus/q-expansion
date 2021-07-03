@@ -61,39 +61,6 @@ cdef class Block_Factored_Mat():
         self.is_cuspform = is_cuspform
         self.parameters_for_dp_initialized = True
 
-    cpdef Acb_Mat construct_non_sc(self, int prec):
-        """
-        Explicitly performs the block-matrix multiplications at precision prec and returns the result
-        """
-        cdef int nc, cii, cjj, i, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat V_tilde = Acb_Mat(nc*M, nc*M)
-        cdef Acb_Mat_Win V_view
-        cdef Acb_Mat J, W, diag_cast
-        cdef Block_Factored_Element block_factored_element
-        
-        for cii in range(nc):
-            for cjj in range(nc):
-                V_view = V_tilde.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    sig_on()
-                    acb_mat_approx_mul(V_view.value, J.value, W.value, prec)
-                    sig_off()
-                if cii == cjj:
-                    diag_cast = diag[cii]
-                    for i in range(M):
-                        acb_approx_sub(acb_mat_entry(V_view.value,i,i),acb_mat_entry(V_view.value,i,i),acb_mat_entry(diag_cast.value,i,0),prec)   
-        
-        return V_tilde
-
     cpdef construct_sc_np(self):
         """
         Construct V_tilde_sc by using FFTs and truncate at 2e-16.
@@ -201,15 +168,6 @@ cdef class Block_Factored_Mat():
             V[i,i] -= 1
 
         return V
-
-    cpdef Acb_Mat construct(self, int prec, is_scaled):
-        """
-        Explicitly performs the scaled block-matrix multiplications at precision prec and returns the result
-        """
-        if is_scaled == True:
-            return self.construct_sc(prec)
-        elif is_scaled == False:
-            return self.construct_non_sc(prec)
 
     cpdef _get_max_len(self):
         """

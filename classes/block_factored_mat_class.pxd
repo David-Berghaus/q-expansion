@@ -19,12 +19,6 @@ cdef class Block_Factored_Mat():
     cdef object is_cuspform
     cdef bint parameters_for_dp_initialized
 
-    cpdef Acb_Mat construct_non_sc(self, int prec)
-
-    cpdef Acb_Mat construct_sc(self, int prec)
-
-    cpdef Acb_Mat construct(self, int prec, is_scaled)
-
     cpdef _get_max_len(self)
 
     cpdef act_on_vec_non_sc(self, Acb_Mat b, Acb_Mat x, int prec)
