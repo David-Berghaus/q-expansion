@@ -94,46 +94,6 @@ cdef class Block_Factored_Mat():
         
         return V_tilde
 
-    cpdef Acb_Mat construct_sc(self, int prec):
-        """
-        Explicitly performs the scaled block-matrix multiplications at precision prec and returns the result
-        The scaled matrix is given by the expression V_sc = V*Diag_inv
-        """
-        cdef int nc, cii, cjj, i, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        diag_inv = self.diag_inv
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat V_tilde = Acb_Mat(nc*M, nc*M)
-        cdef Acb_Mat_Win V_view
-        cdef Acb_Mat J, W, diag_cast, acb_mat_tmp
-        cdef Block_Factored_Element block_factored_element
-        
-        for cii in range(nc):
-            for cjj in range(nc):
-                V_view = V_tilde.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    diag_cast = diag_inv[cjj]
-                    acb_mat_tmp = Acb_Mat(W.nrows(), W.ncols())
-                    #We perform the multiplications "from right to left"
-                    sig_on()
-                    acb_mat_approx_right_mul_diag(acb_mat_tmp.value, W.value, diag_cast.value, prec)
-                    sig_off()
-                    sig_on()
-                    acb_mat_approx_mul(V_view.value, J.value, acb_mat_tmp.value, prec)
-                    sig_off()
-                if cii == cjj:
-                    for i in range(M):
-                        acb_sub_ui(acb_mat_entry(V_view.value,i,i),acb_mat_entry(V_view.value,i,i),1,prec)
-        
-        return V_tilde
-
     cpdef construct_sc_np(self):
         """
         Construct V_tilde_sc by using FFTs and truncate at 2e-16.
