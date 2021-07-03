@@ -254,6 +254,18 @@ def _get_normalization_modforms(S,label=0):
         print("")
     return normalization
 
+def _get_normalization_hauptmodul(S):
+    """
+    Returns normalization for each cusp. For modforms the first expansion coefficient is c_0.
+    We treat the 1/q term separately when computing the 'b-vector'.
+    """
+    G = S.group()
+    normalization = dict()
+    normalization[0] = [0] #This is our principal cusp
+    for i in range(1,G.ncusps()):
+        normalization[i] = []
+    return normalization
+
 cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized
@@ -351,6 +363,8 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
 
+    block_factored_mat._init_parameters_for_dp_construction(S,M,Q,Y,normalizations[0],pb,True)
+
     return block_factored_mat, b_vecs
 
 cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec):
@@ -366,6 +380,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
     if G.genus() != 0:
         raise NameError("This function only works for genus zero surfaces!")
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
+    normalization = _get_normalization_hauptmodul(S)
     cdef int nc = G.ncusps()
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
@@ -382,15 +397,9 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
         for cjj in range(nc):
             coordinates = pb[cii][cjj]['coordinates']
             coord_len = len(coordinates)
-            if cjj == 0: #principal cusp
-                Msjj = 1
-            else:
-                Msjj = 0
+            Msjj = len(normalization[cjj])
+            Msii = len(normalization[cii])
             Mfjj = Msjj+M-1
-            if cii == 0: #principal cusp
-                Msii = 1
-            else:
-                Msii = 0
             Mfii = Msii+M-1
             if coord_len != 0:
                 V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
@@ -409,6 +418,9 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
     sig_on()
     acb_mat_neg(b.value, b.value)
     sig_off()
+
+    block_factored_mat._init_parameters_for_dp_construction(S,M,Q,Y,normalization,pb,False)
+
     return block_factored_mat, b
 
 cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_prec,labels=None):
@@ -466,6 +478,8 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
+
+    block_factored_mat._init_parameters_for_dp_construction(S,M,Q,Y,normalizations[0],pb,False)
 
     return block_factored_mat, b_vecs
 

@@ -1,6 +1,13 @@
 from cysignals.signals cimport sig_on, sig_off
 import numpy as np
+import math
 cimport numpy as np
+
+cdef extern from "complex.h":
+    cdef double cimag(double complex)
+    cdef double creal(double complex)
+    cdef double cabs(double complex)
+    cdef double complex cexp(double complex)
 
 from sage.libs.arb.acb_mat cimport *
 
@@ -17,7 +24,7 @@ cdef class Block_Factored_Mat():
     This class stores a block-factored version of matrix V_tilde that can be used to compute
     the action of V_tilde on a vector without computing V_tilde explicitly.
     The class contains two variables:
-    A : A two-dimensional list of size ncusps which later gets filled with MxM matrices (J,W)
+    A : A two-dimensional list of size ncusps which later gets filled with matrices (J,W)
     diag : A list of size ncusps which later gets filled with Mx1 matrices that are diagonal elements
     diag_inv : A list of size ncusps which contains the inverses of diag
     """
@@ -30,6 +37,29 @@ cdef class Block_Factored_Mat():
         self.diag_inv = diag_inv
         self.nc = nc
         self.max_len = 0
+
+        #Now to some parameters that we need to construct V_sc_dp
+        self.S = None
+        self.M = None
+        self.Q = None
+        self.Y = None
+        self.normalization = None #We only need one representative of a 'normalization' but V can also be used for other types of normalizations
+        self.pb = None
+        self.is_cuspform = None
+        self.parameters_for_dp_initialized = False
+    
+    def _init_parameters_for_dp_construction(self,S,int M,int Q,Y,normalization,pb,is_cuspform):
+        """
+        We construct V_sc_dp more or less from scratch so we need these parameters.
+        """
+        self.S = S
+        self.M = M
+        self.Q = Q
+        self.Y = Y
+        self.normalization = normalization #We only need one representative of a 'normalization' but V can also be used for other types of normalizations
+        self.pb = pb
+        self.is_cuspform = is_cuspform
+        self.parameters_for_dp_initialized = True
 
     cpdef Acb_Mat construct_non_sc(self, int prec):
         """
@@ -106,44 +136,111 @@ cdef class Block_Factored_Mat():
 
     cpdef construct_sc_np(self):
         """
-        Explicitly performs the scaled block-matrix multiplications at double and returns the result as a np-matrix
-        The scaled matrix is given by the expression V_sc = V*Diag_inv
+        Construct V_tilde_sc by using FFTs and truncate at 2e-16.
+        We use this matrix to compute a preconditioner.
+        We could in principle re-use some computations performed with arb by converting them to doubles but it seems faster
+        to recompute everything from scratch using only doubles.
         """
-        cdef int nc, cii, cjj, i, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        diag_inv = self.diag_inv
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        V_tilde = np.zeros(shape=(nc*M,nc*M), dtype=np.complex_)
-        cdef Acb_Mat J, W, diag_cast, acb_mat_tmp
-        cdef Block_Factored_Element block_factored_element
-        low_prec = 64 #Low precision in which we perform arb computations. Should have the same performance as 53 bit precision
-        
+        if self.parameters_for_dp_initialized == False:
+            raise ArithmeticError("Class has not been properly initialized for this operation yet!")
+        S = self.S
+        cdef int M = self.M
+        cdef int Q = self.Q
+        cdef double Y_dp = float(self.Y)
+        normalization = self.normalization
+        pb = self.pb
+        is_cuspform = self.is_cuspform
+        cdef double pi = math.pi
+        cdef double two_pi = 2*pi
+        cdef double one_over_2Q = 1.0/(2*Q)
+        cdef int weight = S.weight()
+        cdef int weight_half = weight/2
+        cdef double Y_pow_weight = Y_dp**weight_half
+        G = S.group()
+        cdef int nc = G.ncusps()
+        V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
+        fft_input = np.zeros(2*Q,dtype=np.complex_)
+        fft_output = np.zeros(2*Q,dtype=np.complex_)
+        cdef int cii,cjj,i,j
+        cdef double c, d
+        cdef double complex z_horo, z_fund, czd, tmp
+        if is_cuspform == True:
+            coeff_shift = 1 #Cuspforms have c_0 = 1
+        else:
+            coeff_shift = 0
+
         for cii in range(nc):
             for cjj in range(nc):
-                V_view = V_tilde[cii*M:(cii+1)*M, cjj*M:(cjj+1)*M]
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    diag_cast = diag_inv[cjj]
-                    acb_mat_tmp = Acb_Mat(W.nrows(), W.ncols())
-                    #We perform the multiplications "from right to left"
-                    sig_on()
-                    #We need to do this scaling at low-prec arb to have correct exponents
-                    acb_mat_approx_right_mul_diag(acb_mat_tmp.value, W.value, diag_cast.value, low_prec)
-                    sig_off()
-                    np_tmp = acb_mat_tmp.get_np_trunc(1e-17/(2*nc*M))
-                    np_J = J.get_np()
-                    np.matmul(np_J, np_tmp, out=V_view[:,:np_tmp.shape[1]])
-                if cii == cjj:
-                    for i in range(M):
-                        V_view[i,i] -= 1
-        
-        return V_tilde
+                coordinates = pb[cii][cjj]['coordinates_dp']
+                coord_len = len(coordinates)
+                if coord_len != 0:
+                    j_values = pb[cii][cjj]['j_values']
+                    q_values = np.zeros(2*Q,dtype=np.complex_) #We use zero-padded values
+                    D_R = np.zeros(shape=(2*Q,1),dtype=np.complex_)
+                    y_facts = np.zeros(2*Q,dtype=np.double) #We use zero-padded values
+
+                    Msjj = len(normalization[cjj])+coeff_shift
+                    Mfjj = Msjj+M-1
+                    Msii = len(normalization[cii])+coeff_shift
+                    Mfii = Msii+M-1
+
+                    for i in range(coord_len):
+                        j_pos = j_values[i] #position in zero-padded vector
+                        (z_horo,c,d,z_fund) = coordinates[i]
+                        czd = c*z_horo+d
+                        D_R_fact = one_over_2Q*(cabs(czd)/czd)**weight
+                        if Msii != 0:
+                            D_R_fact *= cexp(-one_over_2Q*pi*Msii*(2*j_pos+2*Q+1)*1j)
+                        D_R[j_pos,0] = D_R_fact
+                        q_values[j_pos] = cexp(two_pi*(z_fund*1j+Y_dp)) #We already divide by exp(-2*pi*Y) here
+                        y_facts[j_pos] = (cimag(z_fund)/Y_dp)**weight_half #We already divide by Y^(k/2) here
+                    max_abs_pos = np.abs(q_values).argmax() #Return position of entry with largest absolute value
+                    M_trunc = min(int(math.ceil(math.log(2e-16/y_facts[max_abs_pos])/math.log(cabs(q_values[max_abs_pos])))), M)
+
+                    W = np.zeros(shape=(2*Q,M_trunc),dtype=np.complex_,order='F')
+                    #Now compute first column of W
+                    if Msjj == 0: #q^0 = 1
+                        W[:,0] = y_facts[:]
+                    elif Msjj == 1:
+                        W[:,0] = y_facts[:]*q_values[:]
+                    else:
+                        W[:,0] = y_facts[:]*(q_values[:]**Msjj)
+                    #Compute remaining columns recursively
+                    for i in range(1,M_trunc):
+                        W[:,i] = W[:,i-1]*q_values[:]
+
+                    #Left multiply diagonal matrix
+                    W *= D_R
+
+                    #Perform FFT over all columns
+                    fft_res = np.fft.fft(W,axis=0)
+
+                    #Only consider first M rows
+                    res = fft_res[:M,:]
+
+                    #Compute D_L
+                    D_L = np.empty(shape=(M,1),dtype=np.complex_)
+                    D_L[0,0] = 1
+                    tmp = cexp(-pi*1j*(0.5-Q)/Q)
+                    D_L[1,0] = tmp
+                    for i in range(2,M):
+                        D_L[i,0] = D_L[i-1,0]*tmp
+                    
+                    #Left multiply diagonal matrix
+                    res *= D_L
+
+                    #Filter out all elements < 2e-16 to make matrix more sparse
+                    res.real[abs(res.real) < 2e-16] = 0.0
+                    res.imag[abs(res.imag) < 2e-16] = 0.0
+
+                    #Store result in V
+                    V[cii*M:(cii+1)*M,cjj*M:cjj*M+M_trunc] = res
+
+        #Subtract unit diagonal
+        for i in range(nc*M):
+            V[i,i] -= 1
+
+        return V
 
     cpdef Acb_Mat construct(self, int prec, is_scaled):
         """

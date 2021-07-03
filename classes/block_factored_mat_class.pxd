@@ -10,6 +10,14 @@ cdef class Block_Factored_Mat():
     cdef list diag_inv
     cdef int nc
     cdef int max_len
+    cdef object S
+    cdef object M
+    cdef object Q
+    cdef object Y
+    cdef object normalization
+    cdef object pb
+    cdef object is_cuspform
+    cdef bint parameters_for_dp_initialized
 
     cpdef Acb_Mat construct_non_sc(self, int prec)
 
