@@ -19,7 +19,7 @@ class ApproxModForm():
     """
     This class contains an approximation of a modular form with coefficients given by approximately 'digit_prec' digits precision.
     """
-    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,label=0,c_vec=None,prec_loss=None):
+    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,label=0,c_vec=None,prec_loss=None,use_FFT=False,use_Horner=False):
         if modform_type == "CuspForm":
             starting_order = 1
             normalization = _get_normalization_cuspforms(S,label=label)
@@ -35,9 +35,9 @@ class ApproxModForm():
         cusp_expansions = dict()
         if c_vec == None: #We compute c_vec from scratch
             if modform_type == "CuspForm":
-                c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,label=label,prec_loss=prec_loss)
+                c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_Horner=use_Horner,label=label,prec_loss=prec_loss)
             elif modform_type == "ModForm":
-                c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,label=label,prec_loss=prec_loss)
+                c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_Horner=use_Horner,label=label,prec_loss=prec_loss)
         else: #We construct ApproxModForm from previously computed solution
             if M_0 == 0:
                 raise ArithmeticError("Cannot construct ApproxModForm from c_vec without specifying M_0!")

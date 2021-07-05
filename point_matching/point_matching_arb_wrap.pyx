@@ -15,7 +15,7 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element
+from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element, J_class, W_class
 from classes.plu_class cimport PLU_Mat
 from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
 from iterative_solvers.iterative_refinement_arb_wrap import iterative_refinement_arb_wrap
@@ -91,14 +91,12 @@ cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf
     sig_off()
     acb_mat_clear(W) #It would be more efficient to re-use these allocations...
 
-cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,acb_mat_t J,int l_normalized,int weight,coordinates,int bit_prec): #Computes column of V corresponding to l_normalized
+cdef _compute_V_block_matrix_normalized_column_arb_wrap(acb_mat_t b_view,J_class J,int l_normalized,int weight,coordinates,int bit_prec): #Computes column of V corresponding to l_normalized
     coord_len = len(coordinates)
     cdef acb_mat_t W
     acb_mat_init(W, coord_len, 1)
     _get_W_block_matrix_arb_wrap(W,l_normalized,l_normalized,weight,coordinates,bit_prec)
-    sig_on()
-    acb_mat_approx_mul(b_view,J,W,bit_prec)
-    sig_off()
+    J.act_on_vec(b_view,W,bit_prec)
     acb_mat_clear(W) #It would be more efficient to re-use these allocations...
 
 cdef Acb_Mat get_diagonal_terms(int Ms,int Mf,int weight,Y,int bit_prec):
@@ -280,7 +278,8 @@ cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
     cdef int cii,cjj
     cdef Acb_Mat_Win V_view, b_view
-    cdef Acb_Mat J
+    cdef J_class J
+    use_FFT = False #We currently don't support the matrix multiplication J*W through FFTs
 
     for cii in range(nc):
         for cjj in range(nc):
@@ -292,16 +291,16 @@ cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
             Msii = len(normalization[cii])+1
             Mfii = Msii+M-1
             if coord_len != 0:
-                J = Acb_Mat(M,coord_len)
-                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec) #we compute J here to re-use it later for normalized column
-                _compute_V_block_matrix_arb_wrap(V_view.value,J.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                J = J_class(use_FFT)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
+                _compute_V_block_matrix_arb_wrap(V_view.value,J.J.value,Msjj,Mfjj,weight,coordinates,bit_prec)
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
                     l_normalized = _get_l_normalized(cjj,normalization,1)
                     if len(l_normalized) != 1:
                         raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
                     l_normalized = l_normalized[0]
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized,weight,coordinates,bit_prec)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,l_normalized,weight,coordinates,bit_prec)
             if cii == cjj:
                 _subtract_diagonal_terms(V_view.value,Msjj,Mfjj,weight,Y,bit_prec)
     sig_on()
@@ -309,7 +308,7 @@ cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec):
     sig_off()
     return V, b
 
-cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,labels=None):
+cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_Horner,labels=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -330,7 +329,8 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
     b_vecs = [Acb_Mat(nc*M,1) for _ in range(len(labels))]
     cdef int cii, cjj
     cdef Acb_Mat_Win b_view
-    cdef Acb_Mat J, W
+    cdef J_class J
+    cdef W_class W
     cdef Block_Factored_Element block_factored_element
 
     for cii in range(nc):
@@ -342,12 +342,12 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
             Msii = len(normalizations[0][cii])+1
             Mfii = Msii+M-1
             if coord_len != 0:
-                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
                 W = block_factored_element.W
-                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
-                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
                     for ni in range(len(normalizations)):
                         normalization = normalizations[ni]
@@ -355,7 +355,7 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
                         l_normalized = _get_l_normalized(cjj,normalization,1)
                         if len(l_normalized) != 1: #This would be a normalization like [1,1,0]
                             raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
-                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized[0],weight,coordinates,bit_prec)
+                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,l_normalized[0],weight,coordinates,bit_prec)
                         sig_on()
                         acb_mat_neg(b_view.value, b_view.value)
                         sig_off()
@@ -367,7 +367,7 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
 
     return block_factored_mat, b_vecs
 
-cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec):
+cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_Horner):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W.
@@ -390,7 +390,8 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
     cdef int cii, cjj
     cdef Acb_Mat_Win b_view
-    cdef Acb_Mat J, W
+    cdef J_class J
+    cdef W_class W
     cdef Block_Factored_Element block_factored_element
 
     for cii in range(nc):
@@ -402,15 +403,15 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
             Mfjj = Msjj+M-1
             Mfii = Msii+M-1
             if coord_len != 0:
-                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
                 W = block_factored_element.W
-                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
-                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
                     b_view = b.get_window(cii*M,0,(cii+1)*M,1)
-                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,-1,weight,coordinates,bit_prec)
+                    _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,-1,weight,coordinates,bit_prec)
             if cii == cjj:
                 diag_factored[cii] = get_diagonal_terms(Msjj,Mfjj,weight,Y,bit_prec)
                 diag_inv_factored[cii] = get_diagonal_inv_terms(Msjj,Mfjj,weight,Y,bit_prec)
@@ -423,7 +424,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec)
 
     return block_factored_mat, b
 
-cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_prec,labels=None):
+cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_Horner,labels=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -444,7 +445,8 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
     b_vecs = [Acb_Mat(nc*M,1) for _ in range(len(labels))]
     cdef int cii, cjj
     cdef Acb_Mat_Win b_view
-    cdef Acb_Mat J, W
+    cdef J_class J
+    cdef W_class W
     cdef Block_Factored_Element block_factored_element
     cdef Acb_Mat tmp
 
@@ -457,12 +459,12 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
             Msii = len(normalizations[0][cii])
             Mfii = Msii+M-1
             if coord_len != 0:
-                V_factored[cii][cjj] = Block_Factored_Element(Acb_Mat(M,coord_len), Acb_Mat(coord_len, Mfjj-Msjj+1))
+                V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
                 W = block_factored_element.W
-                _get_J_block_matrix_arb_wrap(J.value,Msii,Mfii,weight,Q,coordinates,bit_prec)
-                _get_W_block_matrix_arb_wrap(W.value,Msjj,Mfjj,weight,coordinates,bit_prec)
+                W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
                     tmp = Acb_Mat(M,1) #We need this to support normalizations like [1,1,0] -> maybe remove this later
                     for ni in range(len(normalizations)):
@@ -471,7 +473,7 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
                         l_normalized = _get_l_normalized(cjj,normalization,0)
                         if len(l_normalized) != 1: #This would be a normalization like [1,1,0]
                             raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
-                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J.value,l_normalized[0],weight,coordinates,bit_prec)
+                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,l_normalized[0],weight,coordinates,bit_prec)
                         sig_on()
                         acb_mat_neg(b_view.value, b_view.value)
                         sig_off()
@@ -538,7 +540,7 @@ cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     sig_off()
     return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
@@ -559,7 +561,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
@@ -573,7 +575,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
 
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -594,7 +596,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
@@ -610,7 +612,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     else:
         return res, M_0
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=False,use_Horner=False):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
@@ -631,7 +633,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M_0,Q,Y,bit_prec)
+    V, b = get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -652,7 +654,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
         else:
             return res, M_0
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
     """ 
     Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
@@ -673,7 +675,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=[label])
+    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
@@ -689,7 +691,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     else:
         return res, M_0
 
-cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None):
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=False,use_Horner=False):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -709,7 +711,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
     cdef Block_Factored_Mat V
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=labels)
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=labels)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
@@ -729,7 +731,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
             labels = range(multiplicity)
         return res_vec, M_0, labels
 
-cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None):
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=False,use_Horner=False):
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -749,7 +751,7 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     cdef Block_Factored_Mat V
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,labels=labels)
+    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=labels)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()

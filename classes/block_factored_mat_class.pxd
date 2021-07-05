@@ -1,8 +1,25 @@
+from sage.libs.arb.acb_mat cimport *
+
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 
-cdef class Block_Factored_Element():
+cdef class J_class():
     cdef Acb_Mat J
+    cdef bint use_FFT
+    cdef bint is_initialized
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
+
+cdef class W_class():
     cdef Acb_Mat W
+    cdef bint use_Horner
+    cdef bint is_initialized
+    cdef int _nrows
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
+
+cdef class Block_Factored_Element():
+    cdef J_class J
+    cdef W_class W
 
 cdef class Block_Factored_Mat():
     cdef list A
@@ -19,23 +36,13 @@ cdef class Block_Factored_Mat():
     cdef object is_cuspform
     cdef bint parameters_for_dp_initialized
 
-    cpdef Acb_Mat construct_non_sc(self, int prec)
-
-    cpdef Acb_Mat construct_sc(self, int prec)
-
-    cpdef Acb_Mat construct(self, int prec, is_scaled)
-
     cpdef _get_max_len(self)
-
-    cpdef act_on_vec_non_sc(self, Acb_Mat b, Acb_Mat x, int prec)
 
     cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec)
 
     cpdef construct_sc_np(self)
 
     cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled)
-
-    cpdef act_on_vec_win_non_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec)
 
     cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec)
 

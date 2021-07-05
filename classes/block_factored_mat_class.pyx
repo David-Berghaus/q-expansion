@@ -13,9 +13,87 @@ from sage.libs.arb.acb_mat cimport *
 
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from point_matching.point_matching_arb_wrap cimport _get_J_block_matrix_arb_wrap, _get_W_block_matrix_arb_wrap
+
+cdef class J_class():
+    def __init__(self, use_FFT):
+        self.use_FFT = use_FFT
+        self.is_initialized = False #This flag indicates if J has been fully initialized or not
+
+    def _construct_non_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
+        """
+        We compute the action of J by constructing it as a matrix.
+        """
+        self.J = Acb_Mat(M,len(coordinates))
+        _get_J_block_matrix_arb_wrap(self.J.value,Ms,Mf,weight,Q,coordinates,bit_prec)
+    
+    def _construct_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
+        raise ArithmeticError("NOT IMPLEMENTED YET!")
+    
+    def _construct(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,bint use_FFT):
+        if use_FFT == False and self.use_FFT == False:
+            self._construct_non_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec)
+        elif use_FFT == True and self.use_FFT == True:
+            self._construct_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec)
+        else:
+            raise ArithmeticError("Wrong initialization!")
+        self.is_initialized = True
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
+        cdef Acb_Mat two_Q_vec
+        cdef Acb_Mat_Win post_fft_vec
+
+        if self.is_initialized == True:
+            if self.use_FFT == False:
+                sig_on()
+                acb_mat_approx_mul(b, self.J.value, x, prec)
+                sig_off()
+            else:
+                raise ArithmeticError("Not implemented yet")
+        else:
+            raise ArithmeticError("J has not been properly initialized yet!")
+
+cdef class W_class():
+    def __init__(self, use_Horner):
+        self.use_Horner = use_Horner
+        self.is_initialized = False #This flag indicates if W has been fully initialized or not
+
+    def _construct_non_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
+        self.W = Acb_Mat(len(coordinates),M)
+        _get_W_block_matrix_arb_wrap(self.W.value,Ms,Mf,weight,coordinates,bit_prec)
+    
+    def _construct_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
+        raise ArithmeticError("NOT IMPLEMENTED YET!")
+    
+    def _construct(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,bint use_Horner):
+        self._nrows = len(coordinates)
+        if use_Horner == False and self.use_Horner == False:
+            self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+        elif use_Horner == True and self.use_Horner == True:
+            self._construct_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+        else:
+            raise ArithmeticError("Wrong initialization!")
+        self.is_initialized = True
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
+        if self.is_initialized == True:
+            if self.use_Horner == False:
+                sig_on()
+                acb_mat_approx_mul(b, self.W.value, x, prec)
+                sig_off()
+            else:
+                raise ArithmeticError("Not implemented yet")
+        else:
+            raise ArithmeticError("W has not been properly initialized yet!")
+    
+    def nrows(self):
+        if self.is_initialized == True:
+            return self._nrows
+        else:
+            raise ArithmeticError("W has not been properly initialized yet!")
 
 cdef class Block_Factored_Element():
-    def __cinit__(self, Acb_Mat J, Acb_Mat W):
+    def __cinit__(self, J_class J, W_class W):
         self.J = J
         self.W = W
 
@@ -61,79 +139,6 @@ cdef class Block_Factored_Mat():
         self.is_cuspform = is_cuspform
         self.parameters_for_dp_initialized = True
 
-    cpdef Acb_Mat construct_non_sc(self, int prec):
-        """
-        Explicitly performs the block-matrix multiplications at precision prec and returns the result
-        """
-        cdef int nc, cii, cjj, i, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat V_tilde = Acb_Mat(nc*M, nc*M)
-        cdef Acb_Mat_Win V_view
-        cdef Acb_Mat J, W, diag_cast
-        cdef Block_Factored_Element block_factored_element
-        
-        for cii in range(nc):
-            for cjj in range(nc):
-                V_view = V_tilde.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    sig_on()
-                    acb_mat_approx_mul(V_view.value, J.value, W.value, prec)
-                    sig_off()
-                if cii == cjj:
-                    diag_cast = diag[cii]
-                    for i in range(M):
-                        acb_approx_sub(acb_mat_entry(V_view.value,i,i),acb_mat_entry(V_view.value,i,i),acb_mat_entry(diag_cast.value,i,0),prec)   
-        
-        return V_tilde
-
-    cpdef Acb_Mat construct_sc(self, int prec):
-        """
-        Explicitly performs the scaled block-matrix multiplications at precision prec and returns the result
-        The scaled matrix is given by the expression V_sc = V*Diag_inv
-        """
-        cdef int nc, cii, cjj, i, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        diag_inv = self.diag_inv
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat V_tilde = Acb_Mat(nc*M, nc*M)
-        cdef Acb_Mat_Win V_view
-        cdef Acb_Mat J, W, diag_cast, acb_mat_tmp
-        cdef Block_Factored_Element block_factored_element
-        
-        for cii in range(nc):
-            for cjj in range(nc):
-                V_view = V_tilde.get_window(cii*M,cjj*M,(cii+1)*M,(cjj+1)*M)
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    diag_cast = diag_inv[cjj]
-                    acb_mat_tmp = Acb_Mat(W.nrows(), W.ncols())
-                    #We perform the multiplications "from right to left"
-                    sig_on()
-                    acb_mat_approx_right_mul_diag(acb_mat_tmp.value, W.value, diag_cast.value, prec)
-                    sig_off()
-                    sig_on()
-                    acb_mat_approx_mul(V_view.value, J.value, acb_mat_tmp.value, prec)
-                    sig_off()
-                if cii == cjj:
-                    for i in range(M):
-                        acb_sub_ui(acb_mat_entry(V_view.value,i,i),acb_mat_entry(V_view.value,i,i),1,prec)
-        
-        return V_tilde
-
     cpdef construct_sc_np(self):
         """
         Construct V_tilde_sc by using FFTs and truncate at 2e-16.
@@ -158,7 +163,7 @@ cdef class Block_Factored_Mat():
         cdef double Y_pow_weight = Y_dp**weight_half
         G = S.group()
         cdef int nc = G.ncusps()
-        V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
+        V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_) #To reduce memory consumption, consider using https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.lil_matrix.html
         fft_input = np.zeros(2*Q,dtype=np.complex_)
         fft_output = np.zeros(2*Q,dtype=np.complex_)
         cdef int cii,cjj,i,j
@@ -242,15 +247,6 @@ cdef class Block_Factored_Mat():
 
         return V
 
-    cpdef Acb_Mat construct(self, int prec, is_scaled):
-        """
-        Explicitly performs the scaled block-matrix multiplications at precision prec and returns the result
-        """
-        if is_scaled == True:
-            return self.construct_sc(prec)
-        elif is_scaled == False:
-            return self.construct_non_sc(prec)
-
     cpdef _get_max_len(self):
         """
         Returns the largest row-length of W (i.e. the highest amount of matching-points per cusp-pair)
@@ -273,65 +269,6 @@ cdef class Block_Factored_Mat():
         
         return self.max_len
 
-
-    cpdef act_on_vec_non_sc(self, Acb_Mat b, Acb_Mat x, int prec):
-        """
-        Computes Block_Factored_Mat*x = b
-        """
-        cdef int nc, cii, cjj, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        if x.value == b.value:
-            raise NameError("Aliasing not allowed here!")
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat tmp = Acb_Mat(self._get_max_len(), 1)
-        cdef Acb_Mat_Win tmp_view
-        cdef Acb_Mat tmp2 = Acb_Mat(M, 1)
-        cdef Acb_Mat J, W, diag_cast
-        cdef Acb_Mat_Win b_cast, x_cast
-        cdef Block_Factored_Element block_factored_element
-
-        #Slice vectors x & b into blocks
-        x_blocks = []
-        b_blocks = []
-        for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
-            b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
-
-        for cii in range(nc):
-            b_cast = b_blocks[cii]
-            diag_cast = diag[cii]
-            x_cast = x_blocks[cii]
-            #b[cii] = -Diag[cii]*x[cii]
-            sig_on()
-            acb_mat_approx_left_mul_diag(b_cast.value, diag_cast.value, x_cast.value, prec)
-            sig_off()
-            sig_on()
-            acb_mat_neg(b_cast.value, b_cast.value)
-            sig_off()
-            for cjj in range(nc):
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    x_cast = x_blocks[cjj]
-                    tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
-                    #tmp = W[cii][cjj]*x[cjj]
-                    sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, x_cast.value, prec)
-                    sig_off()
-                    #tmp2 = J[cii][cjj]*tmp
-                    sig_on()
-                    acb_mat_approx_mul(tmp2.value, J.value, tmp_view.value, prec)
-                    sig_off()
-                    #b[cii] += tmp2
-                    sig_on()
-                    acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
-                    sig_off()
-
     cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec):
         """
         Computes Block_Factored_Mat*Diag_inv*x = b
@@ -349,7 +286,9 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat tmp = Acb_Mat(self._get_max_len(), 1)
         cdef Acb_Mat_Win tmp_view
         cdef Acb_Mat tmp2 = Acb_Mat(M, 1)
-        cdef Acb_Mat J, W, diag_cast
+        cdef J_class J
+        cdef W_class W
+        cdef Acb_Mat diag_cast
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
@@ -381,13 +320,9 @@ cdef class Block_Factored_Mat():
                     acb_mat_approx_left_mul_diag(tmp2.value, diag_cast.value, x_cast.value, prec)
                     tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
                     #tmp = W[cii][cjj]*tmp2
-                    sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, tmp2.value, prec)
-                    sig_off()
+                    W.act_on_vec(tmp_view.value, tmp2.value, prec)
                     #tmp2 = J[cii][cjj]*tmp
-                    sig_on()
-                    acb_mat_approx_mul(tmp2.value, J.value, tmp_view.value, prec)
-                    sig_off()
+                    J.act_on_vec(tmp2.value, tmp_view.value, prec)
                     #b[cii] += tmp2
                     sig_on()
                     acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
@@ -400,65 +335,7 @@ cdef class Block_Factored_Mat():
         if is_scaled == True:
             return self.act_on_vec_sc(b, x, prec)
         elif is_scaled == False:
-            return self.act_on_vec_non_sc(b, x, prec)
-
-    cpdef act_on_vec_win_non_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
-        """
-        Computes Block_Factored_Mat*x = b
-        """
-        cdef int nc, cii, cjj, M
-        nc = self.nc
-        A = self.A
-        diag = self.diag
-        if x.value == b.value:
-            raise NameError("Aliasing not allowed here!")
-        if diag[0] == None:
-            raise NameError("Matrix is not properly initialized yet!")
-        M = diag[0].nrows() #diag[0] cannot be None if matrix is initialized
-        cdef Acb_Mat tmp = Acb_Mat(self._get_max_len(), 1)
-        cdef Acb_Mat_Win tmp_view
-        cdef Acb_Mat tmp2 = Acb_Mat(M, 1)
-        cdef Acb_Mat J, W, diag_cast
-        cdef Acb_Mat_Win b_cast, x_cast
-        cdef Block_Factored_Element block_factored_element
-
-        #Slice vectors x & b into blocks
-        x_blocks = []
-        b_blocks = []
-        for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
-            b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
-
-        for cii in range(nc):
-            b_cast = b_blocks[cii]
-            diag_cast = diag[cii]
-            x_cast = x_blocks[cii]
-            #b[cii] = -Diag[cii]*x[cii]
-            sig_on()
-            acb_mat_approx_left_mul_diag(b_cast.value, diag_cast.value, x_cast.value, prec)
-            sig_off()
-            sig_on()
-            acb_mat_neg(b_cast.value, b_cast.value)
-            sig_off()
-            for cjj in range(nc):
-                if A[cii][cjj] != None:
-                    block_factored_element = A[cii][cjj]
-                    J = block_factored_element.J
-                    W = block_factored_element.W
-                    x_cast = x_blocks[cjj]
-                    tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
-                    #tmp = W[cii][cjj]*x[cjj]
-                    sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, x_cast.value, prec)
-                    sig_off()
-                    #tmp2 = J[cii][cjj]*tmp
-                    sig_on()
-                    acb_mat_approx_mul(tmp2.value, J.value, tmp_view.value, prec)
-                    sig_off()
-                    #b[cii] += tmp2
-                    sig_on()
-                    acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
-                    sig_off()
+            raise ArithmeticError("This functionality is not supported!")
 
     cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
         """
@@ -477,7 +354,9 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat tmp = Acb_Mat(self._get_max_len(), 1)
         cdef Acb_Mat_Win tmp_view
         cdef Acb_Mat tmp2 = Acb_Mat(M, 1)
-        cdef Acb_Mat J, W, diag_cast
+        cdef Acb_Mat diag_cast
+        cdef J_class J
+        cdef W_class W
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
@@ -509,13 +388,9 @@ cdef class Block_Factored_Mat():
                     acb_mat_approx_left_mul_diag(tmp2.value, diag_cast.value, x_cast.value, prec)
                     tmp_view = tmp.get_window(0, 0, W.nrows(), 1)
                     #tmp = W[cii][cjj]*tmp2
-                    sig_on()
-                    acb_mat_approx_mul(tmp_view.value, W.value, tmp2.value, prec)
-                    sig_off()
+                    W.act_on_vec(tmp_view.value, tmp2.value, prec)
                     #tmp2 = J[cii][cjj]*tmp
-                    sig_on()
-                    acb_mat_approx_mul(tmp2.value, J.value, tmp_view.value, prec)
-                    sig_off()
+                    J.act_on_vec(tmp2.value, tmp_view.value, prec)
                     #b[cii] += tmp2
                     sig_on()
                     acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
@@ -528,7 +403,7 @@ cdef class Block_Factored_Mat():
         if is_scaled == True:
             return self.act_on_vec_win_sc(b, x, prec)
         elif is_scaled == False:
-            return self.act_on_vec_win_non_sc(b, x, prec)
+            raise ArithmeticError("This functionality is not supported!")
 
     cpdef nrows(self):
         """
