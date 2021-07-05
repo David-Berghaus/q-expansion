@@ -9,6 +9,7 @@ Cython.Compiler.Options.annotate=False #Set to "True" if html should be created 
 
 extensions = [
     Extension("classes.acb_mat_class", ["classes/acb_mat_class.pyx"]),
+    Extension("classes.acb_dft_class", ["classes/acb_dft_class.pyx"]),
     Extension("classes.plu_class", ["classes/plu_class.pyx"]),
     Extension("classes.block_factored_mat_class", ["classes/block_factored_mat_class.pyx"]),
     Extension("classes.modform_class", ["classes/modform_class.pyx"]),

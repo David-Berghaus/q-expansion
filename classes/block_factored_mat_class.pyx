@@ -39,7 +39,7 @@ cdef class J_class():
             raise ArithmeticError("Wrong initialization!")
         self.is_initialized = True
 
-    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec, DFT_precomp=None):
         cdef Acb_Mat two_Q_vec
         cdef Acb_Mat_Win post_fft_vec
 
