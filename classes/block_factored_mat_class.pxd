@@ -1,8 +1,25 @@
+from sage.libs.arb.acb_mat cimport *
+
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 
-cdef class Block_Factored_Element():
+cdef class J_class():
     cdef Acb_Mat J
+    cdef bint use_FFT
+    cdef bint is_initialized
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
+
+cdef class W_class():
     cdef Acb_Mat W
+    cdef bint use_Horner
+    cdef bint is_initialized
+    cdef int _nrows
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
+
+cdef class Block_Factored_Element():
+    cdef J_class J
+    cdef W_class W
 
 cdef class Block_Factored_Mat():
     cdef list A
