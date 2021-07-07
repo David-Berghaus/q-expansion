@@ -2,7 +2,7 @@
 #include "acb_mat.h"
 
 #include "acb.h"
-#include <complex.h>
+// #include <complex.h>
 
 void
 acb_approx_mul(acb_t res, const acb_t x, const acb_t y, int prec);
@@ -39,4 +39,4 @@ arb_approx_hypot(arb_t z, const arb_t x, const arb_t y, int prec);
 
 void acb_approx_abs(arb_t r, const acb_t z, int prec);
 
-double complex acb_to_dc(acb_t z);
+// double complex acb_to_dc(acb_t z);

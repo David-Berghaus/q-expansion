@@ -96,40 +96,40 @@ cdef class Acb_Mat():
     cpdef ncols(self):
         return acb_mat_ncols(self.value)
 
-    cpdef get_np(self):
-        """
-        Converts and returns np-matrix of self
-        """
-        nrows, ncols = self.nrows(), self.ncols()
-        res = np.zeros(shape=(nrows,ncols), dtype=np.complex_)
-        cdef double complex [:, ::1] res_view = res
-        cdef int i, j
-        for i in range(nrows):
-            for j in range(ncols):
-                res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+    # cpdef get_np(self):
+    #     """
+    #     Converts and returns np-matrix of self
+    #     """
+    #     nrows, ncols = self.nrows(), self.ncols()
+    #     res = np.zeros(shape=(nrows,ncols), dtype=np.complex_)
+    #     cdef double complex [:, ::1] res_view = res
+    #     cdef int i, j
+    #     for i in range(nrows):
+    #         for j in range(ncols):
+    #             res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
         
-        return res
+    #     return res
 
-    cpdef get_np_trunc(self, double tol):
-        """
-        Converts and returns np-matrix of self.
-        All entries whose absolute value is less than tol are set to zero.
-        """
-        nrows, ncols = self.nrows(), self.ncols()
-        res = np.zeros(shape=(nrows,ncols), dtype=np.complex_, order='F')
-        cdef double complex [::1, :] res_view = res
-        cdef int i, j
-        trunc_col = ncols
-        for j in range(ncols):
-            above_tol = False #Set to True if value is larger than tol
-            for i in range(nrows):
-                res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
-                if abs(creal(res_view[i,j])) > tol or abs(cimag(res_view[i,j])) > tol:
-                    above_tol = True #Detected a large value so we are not finished yet
-            if above_tol == False:
-                trunc_col = j
-                break
-        return res[:, :trunc_col]
+    # cpdef get_np_trunc(self, double tol):
+    #     """
+    #     Converts and returns np-matrix of self.
+    #     All entries whose absolute value is less than tol are set to zero.
+    #     """
+    #     nrows, ncols = self.nrows(), self.ncols()
+    #     res = np.zeros(shape=(nrows,ncols), dtype=np.complex_, order='F')
+    #     cdef double complex [::1, :] res_view = res
+    #     cdef int i, j
+    #     trunc_col = ncols
+    #     for j in range(ncols):
+    #         above_tol = False #Set to True if value is larger than tol
+    #         for i in range(nrows):
+    #             res_view[i, j] = acb_to_dc(acb_mat_entry(self.value, i, j))
+    #             if abs(creal(res_view[i,j])) > tol or abs(cimag(res_view[i,j])) > tol:
+    #                 above_tol = True #Detected a large value so we are not finished yet
+    #         if above_tol == False:
+    #             trunc_col = j
+    #             break
+    #     return res[:, :trunc_col]
 
     cpdef set_np(self, A):
         """

@@ -1,17 +1,24 @@
+cimport numpy as np
+
 from sage.libs.arb.acb_mat cimport *
 
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.acb_dft_class cimport Acb_DFT
 
 cdef class J_class():
-    cdef Acb_Mat D_L
     cdef Acb_Mat J
-    cdef Acb_Mat D_R
-    cdef Acb_DFT FFT_precomp_cast
     cdef bint use_FFT
     cdef bint is_initialized
 
-    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec, DFT_precomp=*)
+    #These objects are only needed if use_FFT=True
+    cdef Acb_Mat D_L
+    cdef Acb_Mat D_R
+    cdef object DFT_precomp
+    cdef np.int64_t[::1] j_values
+    cdef Acb_Mat two_Q_vec
+    cdef Acb_Mat coord_len_vec
+
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
 
 cdef class W_class():
     cdef Acb_Mat W

@@ -3,17 +3,21 @@ import numpy as np
 import math
 cimport numpy as np
 
-cdef extern from "complex.h":
+from sage.rings.complex_arb cimport *
+from sage.libs.arb.acb_mat cimport *
+from sage.rings.real_arb import RealBallField
+from sage.rings.complex_arb import ComplexBallField
+
+cdef extern from "complex.h": #For some reason it is important to include this after "from sage.rings.complex_arb cimport *" otherwise it won't compile
     cdef double cimag(double complex)
     cdef double creal(double complex)
     cdef double cabs(double complex)
     cdef double complex cexp(double complex)
 
-from sage.libs.arb.acb_mat cimport *
-
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from point_matching.point_matching_arb_wrap cimport _get_J_block_matrix_arb_wrap, _get_W_block_matrix_arb_wrap
+from point_matching.point_matching_arb_wrap import get_pi_ball
 
 cdef class J_class():
     def __init__(self, use_FFT):
@@ -27,21 +31,61 @@ cdef class J_class():
         self.J = Acb_Mat(M,len(coordinates))
         _get_J_block_matrix_arb_wrap(self.J.value,Ms,Mf,weight,Q,coordinates,bit_prec)
     
-    def _construct_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec):
-        raise ArithmeticError("NOT IMPLEMENTED YET!")
+    def _construct_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,np.int64_t[::1] j_values,Acb_DFT DFT_precomp):
+        """
+        We compute the action of J by constructing it as a DFT. For this we need to setup the corresponding diagonal matrices
+        (the DFT precomputation is handled separately).
+        """
+        cdef int i, j_pos
+        cdef int coord_len = len(coordinates)
+        CBF = ComplexBallField(bit_prec)
+        RBF = RealBallField(bit_prec)
+        pi = get_pi_ball(bit_prec)
+        one_over_2Q = RBF(1)/(2*Q)
+        self.D_R = Acb_Mat(coord_len,1)
+        self.D_L = Acb_Mat(Mf-Ms+1,1)
+        self.DFT_precomp = DFT_precomp
+        self.two_Q_vec = Acb_Mat(2*Q,1)
+        self.coord_len_vec = Acb_Mat(coord_len,1)
+        cdef ComplexBall D_R_fact, tmp
+
+        for i in range(coord_len):    
+            j_pos = j_values[i] #position in zero-padded vector
+            (z_horo,_,_,c,d) = coordinates[i]
+            if weight != 0:
+                czd = c*z_horo+d
+                weight_fact = (czd.abs()/czd)**weight
+            else:
+                weight_fact = CBF(1,0)
+            D_R_fact = weight_fact*one_over_2Q
+            if Ms != 0:
+                D_R_fact *= CBF(0,-one_over_2Q*pi*(Ms*(2*j_pos-2*Q+1))).exp() #To do: Replace this with precomputed inverse root of unity
+            acb_set(acb_mat_entry(self.D_R.value, i, 0), D_R_fact.value)
+
+        D_L = np.empty(shape=(M,1),dtype=np.complex_)
+        acb_one(acb_mat_entry(self.D_L.value,0,0))
+        tmp = CBF(0,pi*(2*Q-1)/(2*Q)).exp()
+        acb_set(acb_mat_entry(self.D_L.value,1,0),tmp.value)
+        for i in range(2,M):
+            acb_approx_mul(acb_mat_entry(self.D_L.value,i,0),acb_mat_entry(self.D_L.value,i-1,0),tmp.value,bit_prec)
+        
+        self.j_values = j_values
     
-    def _construct(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,bint use_FFT):
+    def _construct(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,bint use_FFT,j_values=None,DFT_precomp=None):
         if use_FFT == False and self.use_FFT == False:
             self._construct_non_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec)
         elif use_FFT == True and self.use_FFT == True:
-            self._construct_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec)
+            self._construct_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec,j_values,DFT_precomp)
         else:
             raise ArithmeticError("Wrong initialization!")
         self.is_initialized = True
 
-    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec, DFT_precomp=None):
+    cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
         cdef Acb_Mat two_Q_vec
-        cdef Acb_Mat_Win post_fft_vec
+        cdef Acb_Mat coord_len_vec
+        cdef Acb_Mat_Win acb_mat_win_cast
+        cdef np.int64_t[::1] j_values
+        cdef int i, coord_len, M
 
         if self.is_initialized == True:
             if self.use_FFT == False:
@@ -49,7 +93,30 @@ cdef class J_class():
                 acb_mat_approx_mul(b, self.J.value, x, prec)
                 sig_off()
             else:
-                raise ArithmeticError("Not implemented yet")
+                coord_len = acb_mat_nrows(x)
+                M = acb_mat_nrows(b)
+                two_Q_vec = self.two_Q_vec
+                coord_len_vec = self.coord_len_vec
+                j_values = self.j_values
+
+                #Apply D_R and store result in coord_len_vec
+                acb_mat_approx_left_mul_diag(coord_len_vec.value, self.D_R.value, x, prec)
+
+                #Transform result into two_Q_vec in zero-padded form
+                for i in range(coord_len):
+                    acb_swap(acb_mat_entry(coord_len_vec.value,i,0), acb_mat_entry(two_Q_vec.value,j_values[i],0))
+                
+                #Compute DFT
+                self.DFT_precomp.perform_dft(two_Q_vec, two_Q_vec, prec)
+
+                #Select first M entries of result
+                acb_mat_win_cast = two_Q_vec.get_window(0,0,M,1)
+
+                #Apply D_L
+                acb_mat_approx_left_mul_diag(b, self.D_L.value, acb_mat_win_cast.value, prec)
+
+                #Reset two_Q_vec for later usage
+                acb_mat_zero(two_Q_vec.value)
         else:
             raise ArithmeticError("J has not been properly initialized yet!")
 
@@ -195,7 +262,7 @@ cdef class Block_Factored_Mat():
                         czd = c*z_horo+d
                         D_R_fact = one_over_2Q*(cabs(czd)/czd)**weight
                         if Msii != 0:
-                            D_R_fact *= cexp(-one_over_2Q*pi*Msii*(2*j_pos+2*Q+1)*1j)
+                            D_R_fact *= cexp(-one_over_2Q*pi*Msii*(2*j_pos-2*Q+1)*1j)
                         D_R[j_pos,0] = D_R_fact
                         q_values[j_pos] = cexp(two_pi*(z_fund*1j+Y_dp)) #We already divide by exp(-2*pi*Y) here
                         y_facts[j_pos] = (cimag(z_fund)/Y_dp)**weight_half #We already divide by Y^(k/2) here
@@ -230,7 +297,7 @@ cdef class Block_Factored_Mat():
                     D_L[1,0] = tmp
                     for i in range(2,M):
                         D_L[i,0] = D_L[i-1,0]*tmp
-                    
+
                     #Left multiply diagonal matrix
                     res *= D_L
 

@@ -29,6 +29,8 @@ belyi/number_fields.c
 belyi/number_fields.pyx
 classes/__init__.py
 classes/acb_dft_class.c
+classes/acb_dft_class.pxd
+classes/acb_dft_class.pyx
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
