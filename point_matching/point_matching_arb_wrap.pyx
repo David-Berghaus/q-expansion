@@ -343,8 +343,10 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     if use_FFT == True:
         DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
     else:
         DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -368,7 +370,7 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
@@ -409,8 +411,10 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec,
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     if use_FFT == True:
         DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
     else:
         DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -434,7 +438,7 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec,
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
@@ -469,8 +473,10 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     if use_FFT == True:
         DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
     else:
         DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -495,7 +501,7 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:

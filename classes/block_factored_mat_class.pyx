@@ -31,7 +31,7 @@ cdef class J_class():
         self.J = Acb_Mat(M,len(coordinates))
         _get_J_block_matrix_arb_wrap(self.J.value,Ms,Mf,weight,Q,coordinates,bit_prec)
     
-    def _construct_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,np.int64_t[::1] j_values,Acb_DFT DFT_precomp):
+    def _construct_fft(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,np.int64_t[::1] j_values,Acb_DFT DFT_precomp,Acb_Mat inv_roots_of_unity):
         """
         We compute the action of J by constructing it as a DFT. For this we need to setup the corresponding diagonal matrices
         (the DFT precomputation is handled separately).
@@ -43,12 +43,13 @@ cdef class J_class():
         pi = get_pi_ball(bit_prec)
         one_over_2Q = RBF(1)/(2*Q)
         self.D_R = Acb_Mat(coord_len,1)
-        self.D_L = Acb_Mat(Mf-Ms+1,1)
+        self.D_L = Acb_Mat(M,1) #We could potentially re-use this for multiple cusps to reduce memory consumption
         self.DFT_precomp = DFT_precomp
         self.two_Q_vec = Acb_Mat(2*Q,1)
         self.coord_len_vec = Acb_Mat(coord_len,1)
         cdef ComplexBall D_R_fact, tmp
 
+        tmp = CBF(0,pi*(Ms*(2*Q-1))/(2*Q)).exp()
         for i in range(coord_len):    
             j_pos = j_values[i] #position in zero-padded vector
             (z_horo,_,_,c,d) = coordinates[i]
@@ -59,10 +60,10 @@ cdef class J_class():
                 weight_fact = CBF(1,0)
             D_R_fact = weight_fact*one_over_2Q
             if Ms != 0:
-                D_R_fact *= CBF(0,-one_over_2Q*pi*(Ms*(2*j_pos-2*Q+1))).exp() #To do: Replace this with precomputed inverse root of unity
-            acb_set(acb_mat_entry(self.D_R.value, i, 0), D_R_fact.value)
+                acb_approx_mul(D_R_fact.value, D_R_fact.value, tmp.value, bit_prec)
+                acb_approx_mul(D_R_fact.value, D_R_fact.value, acb_mat_entry(inv_roots_of_unity.value,0,(Ms*j_pos)%(2*Q)), bit_prec)
+            acb_swap(acb_mat_entry(self.D_R.value, i, 0), D_R_fact.value)
 
-        D_L = np.empty(shape=(M,1),dtype=np.complex_)
         acb_one(acb_mat_entry(self.D_L.value,0,0))
         tmp = CBF(0,pi*(2*Q-1)/(2*Q)).exp()
         acb_set(acb_mat_entry(self.D_L.value,1,0),tmp.value)
@@ -71,11 +72,11 @@ cdef class J_class():
         
         self.j_values = j_values
     
-    def _construct(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,bint use_FFT,j_values=None,DFT_precomp=None):
+    def _construct(self,int M,int Ms,int Mf,int weight,int Q,coordinates,int bit_prec,bint use_FFT,j_values=None,DFT_precomp=None,inv_roots_of_unity=None):
         if use_FFT == False and self.use_FFT == False:
             self._construct_non_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec)
         elif use_FFT == True and self.use_FFT == True:
-            self._construct_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec,j_values,DFT_precomp)
+            self._construct_fft(M,Ms,Mf,weight,Q,coordinates,bit_prec,j_values,DFT_precomp,inv_roots_of_unity)
         else:
             raise ArithmeticError("Wrong initialization!")
         self.is_initialized = True
