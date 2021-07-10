@@ -3,10 +3,11 @@ from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
-from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_cuspform_arb_wrap, get_coefficients_gmres_cuspform_arb_wrap
+from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_cuspform_arb_wrap, get_coefficients_gmres_cuspform_arb_wrap, get_V_tilde_matrix_factored_b_cuspform_arb_wrap
 
 def run_unit_tests_gmres_arb_wrap():
     test_gmres_non_factored()
+    test_gmres_non_precond()
     test_get_coefficients_gmres_cuspform_arb_wrap()
     test_get_coefficients_gmres_cuspform_arb_wrap2()
 
@@ -34,6 +35,32 @@ def test_gmres_non_factored():
     assert abs(res[0][0]+24) < RBF(1e-45)
 
     print("test_gmres_non_factored ok")
+
+def test_gmres_non_precond():
+    """
+    Tests GMRES without preconditioner for V_scaled using classical matrix-vector multiplication.
+    """
+    digit_prec = 50
+    S = AutomorphicFormSpace(Gamma0(1),weight=12)
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    Y = RBF(S.group().minimal_height()*0.8)
+    M = 30
+    Q = 50
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec,use_FFT=False,use_Horner=False,labels=[0])
+    b = b_vecs[0]
+
+    tol = RBF(10.0)**(-digit_prec)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, maxiter=10)
+
+    res = x_gmres_arb_wrap[0]
+    V.diag_inv_scale_vec(res, res, bit_prec)
+   
+    res = x_gmres_arb_wrap[0]._get_mcbd(bit_prec)
+
+    assert abs(res[0][0]+24) < RBF(1e-45)
+
+    print("test_gmres_non_precond ok")
 
 def test_get_coefficients_gmres_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(8),4) #This example contains some empty coordinate lists
