@@ -11,9 +11,9 @@ cdef class Acb_Mat():
 
     cpdef ncols(self)
 
-    cpdef get_np(self)
+    # cpdef get_np(self)
 
-    cpdef get_np_trunc(self, double tol)
+    # cpdef get_np_trunc(self, double tol)
 
     cpdef set_np(self, A)
 

@@ -6,6 +6,7 @@ from classes.approx_modform import ApproxModForm, get_approxmodform_basis
 
 def run_unit_tests_approx_modform():
     test_approx_modform_cuspform()
+    test_approx_modform_cuspform_non_fft_non_horner()
     test_approx_modform_cuspform_prec_loss()
     test_approx_modform_modform()
     test_approx_modform_basis_cuspform()
@@ -16,6 +17,15 @@ def test_approx_modform_cuspform():
     MF = ApproxModForm(S,50,modform_type="CuspForm",label=1)
     assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-45
     print("test_approx_modform_cuspform ok")
+
+def test_approx_modform_cuspform_non_fft_non_horner():
+    """
+    Test case where 'use_FFT=False' and 'use_Horner=False' and classical matrix-vector multiplication is used.
+    """
+    S = AutomorphicFormSpace(Gamma0(11),weight=4) #Search for a multiplicity two new-form
+    MF = ApproxModForm(S,50,modform_type="CuspForm",label=1,use_FFT=False,use_Horner=False)
+    assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-45
+    print("test_approx_modform_cuspform_non_fft_non_horner ok")
 
 def test_approx_modform_cuspform_prec_loss(): #Test that prec_loss is working as intended
     S = AutomorphicFormSpace(Gamma0(1),weight=12)

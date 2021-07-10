@@ -9,6 +9,7 @@ from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
 from sage.matrix.matrix_space import MatrixSpace
+from sage.arith.misc import prime_factors
 
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
@@ -16,6 +17,7 @@ from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport my_pullback_pts_arb_wrap, apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.block_factored_mat_class cimport Block_Factored_Mat, Block_Factored_Element, J_class, W_class
+from classes.acb_dft_class cimport Acb_DFT
 from classes.plu_class cimport PLU_Mat
 from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
 from iterative_solvers.iterative_refinement_arb_wrap import iterative_refinement_arb_wrap
@@ -136,6 +138,22 @@ cdef Acb_Mat get_diagonal_inv_terms(int Ms,int Mf,int weight,Y,int bit_prec):
         acb_approx_mul(acb_mat_entry(diag_inv.value,i-Ms,0), acb_mat_entry(diag_inv.value,i-Ms-1,0), exp_one.value, bit_prec)
 
     return diag_inv
+
+def get_inv_roots_of_unity(int N, int bit_prec):
+    """
+    Compute N inverse roots of unity. The computations are performed recursively.
+    """
+    cdef int i
+    cdef Acb_Mat inv_roots_of_unity = Acb_Mat(1,N) #Maybe replace this with vector later
+    cdef RR = RealBallField(bit_prec)
+    cdef CC = ComplexBallField(bit_prec)
+    cdef ComplexBall exp_one = CC(0,-2*get_pi_ball(bit_prec)/N).exp()
+
+    acb_one(acb_mat_entry(inv_roots_of_unity.value,0,0))
+    for i in range(1,N):
+        acb_approx_mul(acb_mat_entry(inv_roots_of_unity.value,0,i), acb_mat_entry(inv_roots_of_unity.value,0,i-1), exp_one.value, bit_prec)
+    
+    return inv_roots_of_unity
 
 cdef _subtract_diagonal_terms(acb_mat_t V_view,int Ms,int Mf,int weight,Y,int bit_prec):
     """
@@ -323,6 +341,12 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
     normalizations = [_get_normalization_cuspforms(S,label=i) for i in labels]
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    if use_FFT == True:
+        DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
+    else:
+        DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -342,10 +366,11 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
             Msii = len(normalizations[0][cii])+1
             Mfii = Msii+M-1
             if coord_len != 0:
+                j_values = pb[cii][cjj]['j_values']
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
@@ -384,6 +409,12 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec,
     cdef int nc = G.ncusps()
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    if use_FFT == True:
+        DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
+    else:
+        DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -403,10 +434,11 @@ cpdef get_V_tilde_matrix_factored_b_haupt_arb_wrap(S,int M,int Q,Y,int bit_prec,
             Mfjj = Msjj+M-1
             Mfii = Msii+M-1
             if coord_len != 0:
+                j_values = pb[cii][cjj]['j_values']
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
@@ -439,6 +471,12 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
     normalizations = [_get_normalization_modforms(S,label=i) for i in labels]
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    if use_FFT == True:
+        DFT_precomp = Acb_DFT(2*Q, bit_prec)
+        inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
+    else:
+        DFT_precomp = None
+        inv_roots_of_unity = None
     V_factored = block_factored_mat.A
     diag_factored = block_factored_mat.diag
     diag_inv_factored = block_factored_mat.diag_inv
@@ -459,10 +497,11 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
             Msii = len(normalizations[0][cii])
             Mfii = Msii+M-1
             if coord_len != 0:
+                j_values = pb[cii][cjj]['j_values']
                 V_factored[cii][cjj] = Block_Factored_Element(J_class(use_FFT), W_class(use_Horner))
                 block_factored_element = V_factored[cii][cjj]
                 J = block_factored_element.J
-                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT)
+                J._construct(M,Msii,Mfii,weight,Q,coordinates,bit_prec,use_FFT,j_values=j_values,DFT_precomp=DFT_precomp,inv_roots_of_unity=inv_roots_of_unity)
                 W = block_factored_element.W
                 W._construct(M,Msjj,Mfjj,weight,coordinates,bit_prec,use_Horner)
                 if cjj == 0:
@@ -515,7 +554,20 @@ cpdef get_Q(Y, weight, digit_prec, is_cuspform=True):
     """
     if is_cuspform == False:
         weight = 12 #To do: ADD PROPER ASYMPTOTIC FORMULAS
-    return math.ceil(get_M_for_holom(Y,weight,digit_prec))+8
+    Q_min = math.ceil(get_M_for_holom(Y,weight,digit_prec))+1
+
+    #Now choose Q in a way such that it has small prime factors to make life easier for the FFT
+    max_prime_factors = []
+    for i in range(10): #Look at the next ten Q-values to check which has the smallest prime factors
+        max_prime_factors.append(max(prime_factors(Q_min+i)))
+    if min(max_prime_factors) <= 13: #Found a decent choice for Q
+        Q = Q_min+max_prime_factors.index(min(max_prime_factors))
+    else: #Keep searching until we are satisfied
+        Q = Q_min+10
+        while max(prime_factors(Q)) > 13:
+            Q += 1
+
+    return Q
 
 cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,prec_loss=None):
     """
@@ -540,7 +592,7 @@ cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     sig_off()
     return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_Horner=False):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
@@ -575,7 +627,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
 
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_Horner=False):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -612,7 +664,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     else:
         return res, M_0
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=True,use_Horner=False):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
@@ -654,7 +706,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
         else:
             return res, M_0
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_Horner=False):
     """ 
     Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
@@ -691,7 +743,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     else:
         return res, M_0
 
-cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_Horner=False):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -731,7 +783,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
             labels = range(multiplicity)
         return res_vec, M_0, labels
 
-cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=False,use_Horner=False):
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_Horner=False):
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """

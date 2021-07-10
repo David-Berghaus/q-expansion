@@ -2,6 +2,32 @@
 #include "acb_mat.h"
 #include "acb_approx_helpers.h"
 
+void //Perform DFT on matrix column
+acb_dft_column_precomp(acb_mat_t b, acb_dft_pre_t pre_comp, acb_mat_t x, int prec)
+{
+    int len = acb_mat_nrows(x);
+    acb_ptr tmp_vec;
+
+    TMP_INIT;
+
+    TMP_START;
+    tmp_vec = TMP_ALLOC(sizeof(acb_struct) * len);
+
+    int i;
+    for (i = 0; i < len; i++)
+    {
+        tmp_vec[i] = *acb_mat_entry(x, i, 0);
+    }
+
+    acb_dft_precomp(tmp_vec, tmp_vec, pre_comp, prec);
+    for (i = 0; i < len; i++)
+    {
+        acb_swap(acb_mat_entry(b, i, 0), &tmp_vec[i]);
+    }
+
+    TMP_END;
+}
+
 void acb_compute_dft_matrix(acb_mat_t A, int N, int bit_prec){
     int i, j;
     acb_t two_pi_i_over_N, acb_tmp;

@@ -10,9 +10,9 @@ def run_unit_tests_ir_arb_wrap():
 
 def test_get_coefficients_cuspform_ir_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(8),4) #This example contains some empty coordinate lists
-    C = get_coefficients_cuspform_ir_arb_wrap(S,35)._get_mcbd(53)
-    assert abs(C[0][0]) < RBF(1e-12)
-    assert abs(C[1][0]-(-4))/abs(C[1][0]+(-4)) < RBF(1e-12)
+    C = get_coefficients_cuspform_ir_arb_wrap(S,50)._get_mcbd(167)
+    assert abs(C[0][0]) < RBF(1e-45)
+    assert abs(C[1][0]-(-4))/abs(C[1][0]+(-4)) < RBF(1e-45)
 
     print("test_get_coefficients_cuspform_ir_arb_wrap ok")
 

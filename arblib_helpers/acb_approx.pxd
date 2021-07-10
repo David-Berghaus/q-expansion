@@ -21,6 +21,13 @@ cdef extern from "arb_wrap.h":
     void acb_mat_window_init(acb_mat_t window, const acb_mat_t mat, long r1, long c1, long r2, long c2)
     void acb_mat_window_clear(acb_mat_t window)
 
+    ctypedef struct acb_dft_pre_struct:
+        pass
+    ctypedef acb_dft_pre_struct[1] acb_dft_pre_t
+    void acb_dft_precomp_init(acb_dft_pre_t pre, long len, long prec)
+    void acb_dft_precomp_clear(acb_dft_pre_t pre)
+    void acb_dft_precomp(acb_ptr w, acb_srcptr v, const acb_dft_pre_t pre, long prec)
+
     void arf_printd(const arf_t x, long d)
     void arf_set_d(arf_t res, double x)
     void acb_set_d_d(acb_t z, double x, double y)
@@ -59,6 +66,7 @@ cdef extern from "acb_mat_approx_helpers.c":
     void lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, int prec)
 
 cdef extern from "acb_dft_helpers.c":
+    void acb_dft_column_precomp(acb_mat_t b, acb_dft_pre_t pre_comp, acb_mat_t x, int prec)
     void acb_compute_dft_matrix(acb_mat_t A, int N, int bit_prec)
     void acb_test_fft(int N, int bit_prec)
 
