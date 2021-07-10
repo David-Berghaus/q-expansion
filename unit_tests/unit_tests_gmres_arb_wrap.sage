@@ -31,15 +31,15 @@ def test_gmres_non_factored():
 
     res = x_gmres_arb_wrap[0]._get_mcbd(bit_prec)
 
-    assert abs(res[0][0]+24) < RBF(1e-12)
+    assert abs(res[0][0]+24) < RBF(1e-45)
 
     print("test_gmres_non_factored ok")
 
 def test_get_coefficients_gmres_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(8),4) #This example contains some empty coordinate lists
-    C = get_coefficients_gmres_cuspform_arb_wrap(S,35)._get_mcbd(53)
-    assert abs(C[0][0]) < RBF(1e-12)
-    assert abs(C[1][0]-(-4))/abs(C[1][0]+(-4)) < RBF(1e-12)
+    C = get_coefficients_gmres_cuspform_arb_wrap(S,50)._get_mcbd(167)
+    assert abs(C[0][0]) < RBF(1e-45)
+    assert abs(C[1][0]-(-4))/abs(C[1][0]+(-4)) < RBF(1e-45)
 
     print("test_get_coefficients_gmres_cuspform_arb_wrap ok")
 

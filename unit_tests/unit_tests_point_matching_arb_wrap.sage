@@ -17,8 +17,8 @@ def run_unit_tests_point_matching_arb_wrap():
 def test_get_coefficients_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(2),weight=12) #Search for a multiplicity two old-form
     C = get_coefficients_cuspform_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-252)/abs(C[0][0]+252) < RBF(1e-10)
-    assert abs(C[1][0]-(-2048))/abs(C[1][0]+(-2048)) < RBF(1e-10)
+    assert abs(C[0][0]-252)/abs(C[0][0]+252) < RBF(1e-12)
+    assert abs(C[1][0]-(-2048))/abs(C[1][0]+(-2048)) < RBF(1e-12)
     print("test_get_coefficients_cuspform_arb_wrap ok")
 
 def test_get_V_tilde_matrix_b_cuspform_arb_wrap():
@@ -46,17 +46,17 @@ def test_get_V_tilde_matrix_cuspform_arb_wrap():
 def test_get_coefficients_haupt_ir_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(4),weight=0)
     C = get_coefficients_haupt_ir_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-20)/abs(C[0][0]+20) < RBF(1e-10)
+    assert abs(C[0][0]-20)/abs(C[0][0]+20) < RBF(1e-12)
     print("test_get_coefficients_haupt_ir_arb_wrap ok")
 
 def test_get_coefficients_modform_ir_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(4),weight=2)
     C = get_coefficients_modform_ir_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-24)/abs(C[0][0]+24) < RBF(1e-10)
+    assert abs(C[0][0]-24)/abs(C[0][0]+24) < RBF(1e-12)
     print("test_get_coefficients_modform_ir_arb_wrap ok")
 
 def test_get_coefficients_modform_ir_arb_wrap_higher_multiplicity():
     S = AutomorphicFormSpace(Gamma0(5),weight=2)
     C = get_coefficients_modform_ir_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-6)/abs(C[0][0]+6) < RBF(1e-10)
+    assert abs(C[0][0]-6)/abs(C[0][0]+6) < RBF(1e-12)
     print("test_get_coefficients_modform_ir_arb_wrap_higher_multiplicity ok")
