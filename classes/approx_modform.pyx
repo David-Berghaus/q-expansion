@@ -19,7 +19,7 @@ class ApproxModForm():
     """
     This class contains an approximation of a modular form with coefficients given by approximately 'digit_prec' digits precision.
     """
-    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,label=0,c_vec=None,prec_loss=None,use_FFT=False,use_Horner=False):
+    def __init__(self,S,digit_prec,modform_type="CuspForm",Y=0,M_0=0,label=0,c_vec=None,prec_loss=None,use_FFT=True,use_Horner=False):
         if modform_type == "CuspForm":
             starting_order = 1
             normalization = _get_normalization_cuspforms(S,label=label)

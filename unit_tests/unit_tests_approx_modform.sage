@@ -30,7 +30,7 @@ def test_approx_modform_cuspform_non_fft_non_horner():
 def test_approx_modform_cuspform_prec_loss(): #Test that prec_loss is working as intended
     S = AutomorphicFormSpace(Gamma0(1),weight=12)
     MF = ApproxModForm(S,100,modform_type="CuspForm",label=0,prec_loss=30)
-    assert abs(MF.get_cusp_expansion(Cusp(1,0))[45]-(-548895690)) < 1e-70 #this wouldn't work without setting prec_loss
+    assert abs(MF.get_cusp_expansion(Cusp(1,0))[45]-(-548895690)) < 1e-69 #this wouldn't work without setting prec_loss
     print("test_approx_modform_cuspform_prec_loss ok")
 
 def test_approx_modform_modform():
