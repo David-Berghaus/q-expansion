@@ -403,6 +403,7 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
     cdef RealBall RB = RBF(0)
     f_x_mcbd = f_x._get_mcbd(53) #It is more convenient to use Sage's class here
     for i in range(N):
+        #print(f_x_mcbd[i][0].real(), f_x_mcbd[i][0].imag())
         real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real()), get_decimal_digit_prec(f_x_mcbd[i][0].imag())
         if real_prec < smallest_digit_prec:
             smallest_digit_prec = real_prec

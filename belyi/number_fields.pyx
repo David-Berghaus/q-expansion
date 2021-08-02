@@ -34,4 +34,5 @@ cpdef gp_lindep(x, int correct_digits, int max_order): #Not sure if this functio
         gp_command += ",x^" + str(i)
     gp_command += "])"
     lindep_res = gp(gp_command).sage()
+    print("Warning, we have not set default(realprecision) correctly!")
     return lindep_res
