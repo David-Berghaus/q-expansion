@@ -23,19 +23,19 @@ def numberfield_reduction_example():
     P.<x> = ZZ[]
 
     numberfield = P(17*x**5 + 124*x**4 + 69*x**3 + 420*x**2 + 3*x + 1) #Some random polynomial to define a numberfield
-    r = numberfield.roots(ring=QQbar)
+    r = numberfield.roots(ring=QQbar,multiplicities=False)
     numberfield_red = P(pari.polredabs(numberfield))
-    r_red = numberfield_red.roots(ring=QQbar)
+    r_red = numberfield_red.roots(ring=QQbar,multiplicities=False)
 
     gp("default(realprecision, 100)")
-    alg_number_approximation = N(r[1][0],digits=100) #Obviously we usually start here and then determine 'numberfield'
+    alg_number_approximation = N(r[1],digits=100) #Obviously we usually start here and then determine 'numberfield'
     for i in range(len(r_red)):
-        gp("x = " + N(r_red[i][0],digits=100).str())
+        gp("x = " + N(r_red[i],digits=100).str())
         gp("alg_number_approximation = " + alg_number_approximation.str())
         gp_command = "lindep([alg_number_approximation,1"
         for j in range(1,5):
             gp_command += ",x^" + str(j)
         gp_command += ",Pi])"
         lindep_res = gp(gp_command).sage()
-        print(r_red[i][0], lindep_res)
-    print("We hence see that our algebraic number can be written as a powers of ", r_red[4][0])
+        print(r_red[i], lindep_res)
+    print("We hence see that our algebraic number can be written as a powers of ", r_red[4])
