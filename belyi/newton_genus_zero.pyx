@@ -7,6 +7,7 @@ from sage.rings.polynomial.polynomial_complex_arb cimport *
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.real_arb import RealBallField
+from sage.modular.cusps import Cusp
 
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
@@ -404,8 +405,7 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
     cdef RealBall RB = RBF(0)
     f_x_mcbd = f_x._get_mcbd(53) #It is more convenient to use Sage's class here
     for i in range(N):
-        #print(f_x_mcbd[i][0].real(), f_x_mcbd[i][0].imag())
-        real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real()), get_decimal_digit_prec(f_x_mcbd[i][0].imag())
+        real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real().mid()), get_decimal_digit_prec(f_x_mcbd[i][0].imag().mid())
         if real_prec < smallest_digit_prec:
             smallest_digit_prec = real_prec
         if imag_prec < smallest_digit_prec:
