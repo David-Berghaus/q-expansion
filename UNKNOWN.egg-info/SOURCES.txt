@@ -2,6 +2,7 @@
 README.md
 eisenstein.sage
 petersson_product.sage
+rational_functions.sage
 run.sage
 setup.py
 ss.sage
