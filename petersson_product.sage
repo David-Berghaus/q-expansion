@@ -76,22 +76,33 @@ def arb_besselk(nu, z, epsilon):
         res = CBF(z).bessel_K(nu)
     return CF(res)
 
-def compute_eisenstein_series(cuspform,modforms):
+def compute_eisenstein_series(cuspforms,modforms):
     """
-    Given a cuspform and a list of modforms, return a list of modforms orthogonal to cuspform.
+    Compute the orthogonal complement of the cuspforms in the space of modular forms (which corresponds to a basis of Eisenstein series).
+    We assume that cuspforms/modforms are lists of basis functions in reduced row echelon form.
+    This function then returns a basis of Eisenstein series in reduced row echelon form.
     """
-    #Apply Gram-Schmidt
-    orthoforms = [cuspform]
-    orthonorms = [petersson_product_nelson_collins(cuspform._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())]
-    for modform in modforms:
-        new_orthoform = modform
-        for i in range(len(orthoforms)):
-            orthoform = orthoforms[i]
-            scale_fact = petersson_product_nelson_collins(orthoform._get_cusp_expansions_dict(),modform._get_cusp_expansions_dict())/orthonorms[i]
-            new_orthoform -= orthoform._scal_mul(scale_fact)
-        orthoforms.append(new_orthoform)
-        orthonorms.append(petersson_product_nelson_collins(new_orthoform._get_cusp_expansions_dict(),new_orthoform._get_cusp_expansions_dict()))
-    return orthoforms[1:]
+    dim_S = len(cuspforms)
+    dim_M = len(modforms)
+    dim_E = dim_M-dim_S
+    petersson_products = dict()
+    for i in range(dim_S):
+        petersson_products[i] = [petersson_product_nelson_collins(modforms[j]._get_cusp_expansions_dict(),cuspforms[i]._get_cusp_expansions_dict()) for j in range(dim_M)]
+    CF = petersson_products[0][0].parent()
+    M_A, M_b = MatrixSpace(CF,dim_S,dim_S), MatrixSpace(CF,dim_S,1)
+    A = M_A([petersson_products[i][j] for i in range(dim_S) for j in range(dim_E,dim_M)])
+    b_vecs = [-M_b([petersson_products[i][j] for i in range(dim_S)]) for j in range(dim_E)]
+    c_vecs = [A\b_vecs[j] for j in range(dim_E)]
+
+    #We are now ready to construct the eisforms from the modforms
+    eisforms = []
+    for j in range(dim_E):
+        eisform = modforms[j]
+        for i in range(dim_S):
+            eisform += modforms[dim_E+i]._scal_mul(c_vecs[j][i,0])
+        eisforms.append(eisform)
+
+    return eisforms
 
 def compute_eisenstein_series_index_7(cuspform,modforms):
     a = 1
@@ -100,60 +111,4 @@ def compute_eisenstein_series_index_7(cuspform,modforms):
     den = petersson_product_nelson_collins(modforms[1]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
     print(den)
     b = -num/den
-    return modforms[0]._scal_mul(a) + modforms[1]._scal_mul(b), b
-
-#Now to the bruteforce approach
-
-two_pi = RR(2*pi)
-two_pi_i = two_pi*I
-
-@CachedFunction
-def e_x(x, w, m):
-    return exp(two_pi_i*x*m/w)
-
-@CachedFunction
-def e_y(y, w, m, weight):
-    return y**(weight-2)*exp(-two_pi*y*m/w)
-
-def get_psl2z_grid(Q, dr, max_r):
-    """
-    Return a grid of points in a fundamental domain of PSL(2,Z). The points are sampled along arcs parallel to the x^2+y^2 = 1.
-    We choose Q values of -0.5<x<0.5 and afterwards sample values of y until sqrt(x^2+y^2) < max_r.
-    """
-    r = 1
-    dx = RR(1/(Q+1))
-    x_vals = [i*dx-0.5 for i in range(1,Q+1)]
-    y_rows = []
-    while r < max_r:
-        y_row = [sqrt(r**2-x**2) for x in x_vals]
-        y_rows.append(y_row)
-        r += dr
-    return x_vals, y_rows
-
-def bruteforce_integration(f, g, weight):
-    """
-    Compute Petersson product by numerically solving the double integral.
-    This function is so far only implemented for SL(2,ZZ).
-    """
-    w = 1
-    res = 0
-    Q = 50
-    dr = 0.01
-    max_r = 1.4
-    x_vals, y_rows = get_psl2z_grid(Q, dr, max_r)
-    for n in range(1,f.prec()): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
-        for m in range(1,g.prec()): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
-            #Compute the double integrals
-            summand = 0
-            for x in x_vals:
-                for y_row in y_rows:
-                    for y in y_row:
-                        summand += e_y(y, w, n+m, weight)*e_x(x, w, n-m)
-            summand *= (1/Q)*dr
-
-            #Multiply cuspform coefficients
-            summand *= f[n] * conjugate(g[m])
-
-            res += summand
-    return res/RR(pi/3) #scale by volume
-            
+    return modforms[0]._scal_mul(a) + modforms[1]._scal_mul(b), b   
