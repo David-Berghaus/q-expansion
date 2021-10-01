@@ -25,7 +25,7 @@ def get_cusp_width_from_var_name(var_name):
     """
     return int(var_name[2:])
 
-def petersson_product_nelson_collins(F, G):
+def compute_petersson_product_nelson_collins(F, G):
     """
     We use the notation of https://arxiv.org/pdf/1802.09740.pdf theorem 4.2
     But fixed the arguments of the Bessel functions...
@@ -75,40 +75,3 @@ def arb_besselk(nu, z, epsilon):
         CBF = ComplexBallField(arb_prec)
         res = CBF(z).bessel_K(nu)
     return CF(res)
-
-def compute_eisenstein_series(cuspforms,modforms):
-    """
-    Compute the orthogonal complement of the cuspforms in the space of modular forms (which corresponds to a basis of Eisenstein series).
-    We assume that cuspforms/modforms are lists of basis functions in reduced row echelon form.
-    This function then returns a basis of Eisenstein series in reduced row echelon form.
-    """
-    dim_S = len(cuspforms)
-    dim_M = len(modforms)
-    dim_E = dim_M-dim_S
-    petersson_products = dict()
-    for i in range(dim_S):
-        petersson_products[i] = [petersson_product_nelson_collins(modforms[j]._get_cusp_expansions_dict(),cuspforms[i]._get_cusp_expansions_dict()) for j in range(dim_M)]
-    CF = petersson_products[0][0].parent()
-    M_A, M_b = MatrixSpace(CF,dim_S,dim_S), MatrixSpace(CF,dim_S,1)
-    A = M_A([petersson_products[i][j] for i in range(dim_S) for j in range(dim_E,dim_M)])
-    b_vecs = [-M_b([petersson_products[i][j] for i in range(dim_S)]) for j in range(dim_E)]
-    c_vecs = [A\b_vecs[j] for j in range(dim_E)]
-
-    #We are now ready to construct the eisforms from the modforms
-    eisforms = []
-    for j in range(dim_E):
-        eisform = modforms[j]
-        for i in range(dim_S):
-            eisform += modforms[dim_E+i]._scal_mul(c_vecs[j][i,0])
-        eisforms.append(eisform)
-
-    return eisforms
-
-def compute_eisenstein_series_index_7(cuspform,modforms):
-    a = 1
-    num = petersson_product_nelson_collins(modforms[0]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
-    print(num)
-    den = petersson_product_nelson_collins(modforms[1]._get_cusp_expansions_dict(),cuspform._get_cusp_expansions_dict())
-    print(den)
-    b = -num/den
-    return modforms[0]._scal_mul(a) + modforms[1]._scal_mul(b), b   
