@@ -1,5 +1,12 @@
 from sage.rings.power_series_poly import PowerSeries_poly
 
+"""
+Ideas for future optimizations of haberland formula:
+    -evaluate period integrals only for cusps and not for all cosets
+    -test Cohen's approach of working with (X-tau)^n
+    -technical optimizations
+"""
+
 def get_cusp_width_from_var_name(var_name):
     """
     Given a string of the form 'q_N' where N is an integer, return N.
