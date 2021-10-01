@@ -5,9 +5,9 @@ G1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(4 6 7)')
 u_G1 = (-7)**(1/4)/7**2
 H1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(7 6 4)')
 u_H1 = (-7**3)**(1/5)/7**2
-z3 = exp(2*pi*I/3)
-u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
-U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
+# z3 = exp(2*pi*I/3)
+# u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
+# U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
 
 def oldform_example():
     #We consider an example of a group with a non-trivial supergroup
