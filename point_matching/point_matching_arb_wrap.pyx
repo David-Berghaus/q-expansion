@@ -529,10 +529,13 @@ def get_M_0(S, digit_prec, is_cuspform=True):
     Get truncation order of modular form. M_0 = M(Y_0) where Y_0 is the the point in the fundamental region with the smallest height.
     """
     Y_0 = S.group().minimal_height()
-    if is_cuspform == True:
+    if is_cuspform == True: #For cuspforms, the coefficients grow like O(n^(weight/2))
         weight = S.weight()
     else:
-        weight = 12 #To do: ADD PROPER ASYMPTOTIC FORMULAS
+        if S.weight() != 0:
+            weight = 2*S.weight() #For modforms, the coefficients grow like O(n^(weight-1))
+        else:
+            weight = 12 #TO DO: ADD PROPER ASYMPTOTIC FORMULA FOR HAUPTMODUL
     M_0 = math.ceil(get_M_for_holom(Y_0,weight,digit_prec))
     return M_0
 
@@ -553,7 +556,10 @@ cpdef get_Q(Y, weight, digit_prec, is_cuspform=True):
     Get amount of sampling points 'Q', based on choice of horocycle height 'Y'.
     """
     if is_cuspform == False:
-        weight = 12 #To do: ADD PROPER ASYMPTOTIC FORMULAS
+        if weight != 0:
+            weight = 2*weight #For modforms, the coefficients grow like O(n^(weight-1))
+        else:
+            weight = 12 #TO DO: ADD PROPER ASYMPTOTIC FORMULA FOR HAUPTMODUL
     Q_min = math.ceil(get_M_for_holom(Y,weight,digit_prec))+1
 
     #Now choose Q in a way such that it has small prime factors to make life easier for the FFT

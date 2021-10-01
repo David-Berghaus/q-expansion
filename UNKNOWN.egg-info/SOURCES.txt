@@ -1,8 +1,8 @@
 .gitignore
 README.md
 eisenstein.sage
-petersson_product.sage
-rational_functions.sage
+haberland.sage
+nelson_collins.sage
 run.sage
 setup.py
 ss.sage
@@ -75,6 +75,7 @@ pullback/my_pullback.pxd
 pullback/my_pullback.pyx
 unit_tests/unit_tests.sage
 unit_tests/unit_tests_approx_modform.sage
+unit_tests/unit_tests_eisenstein.sage
 unit_tests/unit_tests_gmres_arb_wrap.sage
 unit_tests/unit_tests_ir_arb_wrap.sage
 unit_tests/unit_tests_newton_genus_zero.sage
