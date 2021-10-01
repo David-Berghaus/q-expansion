@@ -32,17 +32,18 @@ def get_coset_expansions(F):
         c = G.cusps()[ci]
         cusp_expansion = F.get_cusp_expansion(c)
         CF = cusp_expansion[0].parent()
-        width = CF(G._vertex_data[ci]['width'],0)
+        width_int = G._vertex_data[ci]['width']
+        width = CF(width_int,0)
         R = cusp_expansion.parent()
         q = R.gen()
         cusp_expansion *= width**(-weight/2) #We assume that the cusp-expansions of F have the width absorbed so we need to rescale
-        zeta_w = exp(2*CF(0,pi)/width)
+        roots_of_unity = [exp(2*CF(0,pi)*i/width) for i in range(width_int)]
         cusp_normalizer = G.cusp_normalizer(c)
         for coset_i in G._vertex_data[ci]['coset']:
             m = get_m(cusp_normalizer,cosets[coset_i])
             coset_expansion = PowerSeries_poly(R,prec=cusp_expansion.degree()+1) #This corresponds to O(q**M_0) in sage syntax
             for n in range(cusp_expansion.degree()+1):
-                coeff = cusp_expansion[n]*zeta_w**(n*m) #It would be faster to work with mod here instead of generic powers
+                coeff = cusp_expansion[n]*roots_of_unity[(n*m)%width_int]
                 coset_expansion += coeff*q**n
             coset_expansions[coset_i] = coset_expansion
     
