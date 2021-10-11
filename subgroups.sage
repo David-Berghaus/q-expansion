@@ -1,5 +1,5 @@
 """
-Routines for loading data/noncong_reps.sobj
+Routines for loading noncong_reps.sobj
 """
 
 from psage.modform.arithgroup.mysubgroup import MySubgroup
@@ -7,7 +7,7 @@ from psage.modform.arithgroup.mysubgroup import MySubgroup
 def get_list_of_all_subgroups(max_index, only_genus_zero=False):
     if max_index > 17:
         raise ArithmeticError("The database of subgroups only goes up to and including order 17!")
-    data = load("data/noncong_reps.sobj")
+    data = load("noncong_reps.sobj")
     res = []
     sorted_signatures = sorted(data.keys())
     for signature in sorted_signatures:
