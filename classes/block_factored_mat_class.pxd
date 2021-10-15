@@ -26,6 +26,9 @@ cdef class W_class():
     cdef bint is_initialized
     cdef int _nrows
 
+    #These objects are only needed if rectangular splitting is used
+    cdef Acb_Mat W_rect
+
     cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
 
 cdef class Block_Factored_Element():
