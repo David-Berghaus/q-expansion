@@ -3,9 +3,11 @@ README.md
 eisenstein.sage
 haberland.sage
 nelson_collins.sage
+noncong_reps.sobj
 run.sage
 setup.py
 ss.sage
+subgroups.sage
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt

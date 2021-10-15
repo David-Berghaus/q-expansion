@@ -46,7 +46,7 @@ def test_get_V_tilde_matrix_cuspform_arb_wrap():
 def test_get_coefficients_haupt_ir_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(4),weight=0)
     C = get_coefficients_haupt_ir_arb_wrap(S,16)._get_mcbd(53)
-    assert abs(C[0][0]-20)/abs(C[0][0]+20) < RBF(1e-12)
+    assert abs(C[0][0]-20)/abs(C[0][0]+20) < RBF(1e-11)
     print("test_get_coefficients_haupt_ir_arb_wrap ok")
 
 def test_get_coefficients_modform_ir_arb_wrap():

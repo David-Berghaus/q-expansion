@@ -10,6 +10,7 @@ from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.arith.misc import prime_factors
+from sage.rings.real_double import RealDoubleElement
 
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
@@ -62,7 +63,7 @@ cpdef digits_to_bits(int digits): #Approximates how many bits are required to ac
 cpdef bits_to_digits(int bit_prec):
     return math.ceil(bit_prec*math.log10(2))
 
-cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinates,int bit_prec):
+cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True):
     cdef int weight_half = weight//2
     cdef int coord_len = len(coordinates)
     cdef RR = RealBallField(bit_prec)
@@ -72,6 +73,11 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
     cdef ComplexBall z_horo, z_fund, tmp, exp_one
     cdef RealBall a, b, c, d
     cdef RealBall y_fund_fact = RR(1)
+
+    #Hopefully we can remove this section once arb adds fast Horner schemes...
+    cdef CF_low_prec = ComplexBallField(53)
+    cdef double log10_pow_minus_D = -1.1*bits_to_digits(bit_prec)*math.log(10)
+
     for j in range(coord_len):
         (z_horo,a,b,c,d) = coordinates[j]
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
@@ -80,7 +86,13 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
         exp_one = (two_pi_i*z_fund).exp()
         tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use exp_one here for performance
         acb_set(acb_mat_entry(W, j, 0), tmp.value)
-        for l in range(Ms+1,Mf+1):
+        if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
+            #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
+            suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CF_low_prec(exp_one).abs()).log()))
+            trunc_order = min(suggested_trunc_order,Mf)
+        else:
+            trunc_order = Mf
+        for l in range(Ms+1,trunc_order+1):
             acb_approx_mul(acb_mat_entry(W, j, l-Ms), acb_mat_entry(W, j, l-Ms-1), exp_one.value, bit_prec)
 
 cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf,int weight,coordinates,int bit_prec): #computes a V-block-matrix and stores it in V
