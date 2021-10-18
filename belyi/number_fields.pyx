@@ -1,6 +1,7 @@
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.complex_mpc import MPComplexField
 from sage.rings.real_mpfr import RealField
+from sage.rings.qqbar import QQbar
 # from sage.rings.complex_mpfr import ComplexField #This only works in Sage/9.3
 from sage.interfaces.gp import gp
 
@@ -17,11 +18,18 @@ cpdef get_decimal_digit_prec(epsilon):
         eps_approx = RF(epsilon).abs() #There is no reason to perform this computation at full precision
         return -int(eps_approx.log10())
 
-cpdef algebraic_dependency(x, int correct_digits, int max_order):
-    bit_prec = digits_to_bits(correct_digits)
-    CF = MPComplexField(bit_prec)
-    x_cf = CF(x.real(),x.imag())
-    return x_cf.algebraic_dependency(max_order)
+cpdef to_QQbar(x, max_extension_field_degree):
+    """
+    Tries to express x as an element of QQbar (this expression might not be correct).  
+    """
+    numberfield = x.algebraic_dependency(max_extension_field_degree)
+    roots = numberfield.roots(ring=QQbar,multiplicities=False)
+
+    #Now we need to recognize to which root our expression corresponds. Is there a better way for this?
+    diffs = [(root-x).abs() for root in roots]
+    root_index = diffs.index(min(diffs))
+
+    return roots[root_index]
 
 cpdef gp_lindep(x, int correct_digits, int max_order): #Not sure if this function will be useful
     bit_prec = digits_to_bits(correct_digits)
