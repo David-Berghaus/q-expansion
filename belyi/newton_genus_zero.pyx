@@ -352,7 +352,10 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
     return coeff_tuples
 
-cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
+cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
+    if max_extension_field_degree == None:
+        max_extension_field_degree = G.index() #For the groups that we are considering the conjugacy class size is <= the index
+
     while curr_bit_prec < target_bit_prec:
         coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
         if 2*curr_bit_prec < target_bit_prec:
@@ -372,6 +375,21 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
             factored_polynomials = (p3, p2, pc)
             curr_bit_prec *= 2
         print("Estimated digit prec: ", get_coeff_min_precision(factored_polynomials,G.index()+1))
+
+        if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
+            alg_factored_polynomials = []
+            for factored_polynomial in factored_polynomials:
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(max_extension_field_degree)
+                if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
+                    break
+                else:
+                    alg_factored_polynomials.append(alg_factored_polynomial)
+            if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
+                return alg_factored_polynomials
+    
+    if stop_when_coeffs_are_recognized == True:
+        raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
+
     return factored_polynomials
 
 cpdef get_factored_polynomial_starting_values(S, digit_prec):
@@ -412,11 +430,11 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
             smallest_digit_prec = imag_prec
     return smallest_digit_prec
 
-cpdef run_newton(S, starting_digit_prec, target_digit_prec):
+cpdef run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True):
     G = S.group()
     factored_polynomials = get_factored_polynomial_starting_values(S, starting_digit_prec)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec)
+    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec, stop_when_coeffs_are_recognized)
     return factored_polynomials
