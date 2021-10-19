@@ -64,6 +64,19 @@ class Factored_Polynomial():
             for coeff_tuple in coeff_tuples:
                 factors.append(construct_poly_from_coeff_tuple(polygen,coeff_tuple))
         self.factors = factors
+    
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        res = ""
+        for (p,order) in self.factors:
+            res += "("
+            res += p.__str__()
+            res += ")"
+            if order != 1:
+                res += "^" + str(order)
+        return res
 
     def construct(self):
         """
