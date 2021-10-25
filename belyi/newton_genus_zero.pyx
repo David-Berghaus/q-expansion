@@ -378,8 +378,9 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
 
         if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
             alg_factored_polynomials = []
+            principal_cusp_width = G.cusp_width(Cusp(1,0))
             for factored_polynomial in factored_polynomials:
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(max_extension_field_degree)
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(max_extension_field_degree, principal_cusp_width)
                 if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
                     break
                 else:

@@ -21,7 +21,7 @@ cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
         p = polynomial_ring(coeffs)
     return [p,order]
 
-cpdef get_algebraic_poly_coeffs(p, max_extension_field_degree):
+cpdef get_algebraic_poly_coeffs(p, max_extension_field_degree, principal_cusp_width):
     """
     Given a polynomial p, try to recognize coefficients as algebraic numbers. 
     Return False if this does not succeed.
@@ -31,16 +31,22 @@ cpdef get_algebraic_poly_coeffs(p, max_extension_field_degree):
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
     for i in range(p.degree()+1):
-        algebraic_expression, is_invalid = to_QQbar(CC(p[i]),max_extension_field_degree+1,check_if_poly_has_max_degree=True)
+        coeff_floating_approx = CC(p[i])
+        expression_to_recognize = coeff_floating_approx**principal_cusp_width 
+        recognized_expression, is_invalid = to_QQbar(expression_to_recognize,max_extension_field_degree+1,check_if_poly_has_max_degree=True)
 
         if is_invalid == True: #Degree of expression is too large -> Found an invalid example, therefore precision is insufficient to recognize alg numbers
             return False
         else:
+            potential_algebraic_expressions = recognized_expression.nth_root(principal_cusp_width,all=True) #We need to recognize the correct root
+            diffs = [(potential_algebraic_expression-coeff_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
+            algebraic_expression = potential_algebraic_expressions[diffs.index(min(diffs))]
             algebraic_coeffs.append(algebraic_expression)
     var_name = p.variable_name()
     polynomial_ring = PolynomialRing(QQbar,var_name)
+    p_algebraic = polynomial_ring(algebraic_coeffs)
 
-    return polynomial_ring(algebraic_coeffs)
+    return p_algebraic
 
 class Factored_Polynomial():
     """
@@ -103,7 +109,7 @@ class Factored_Polynomial():
         derivative = inner_derivative*outer_derivative #this multiplication by a monomial can certainly be optimized
         return derivative
     
-    def get_algebraic_expressions(self, max_extension_field_degree, reduce_numberfields=False):
+    def get_algebraic_expressions(self, max_extension_field_degree, principal_cusp_width, reduce_numberfields=False):
         """
         Tries to recognize coefficients of factor polynomials as algebraic numbers.
         If this succeeds (which we only verify empirically here), return instance of Factored_Polynomial over algebraic numbers.
@@ -111,7 +117,7 @@ class Factored_Polynomial():
         """
         algebraic_factors = []
         for (p,order) in self.factors:
-            p_algebraic = get_algebraic_poly_coeffs(p, max_extension_field_degree)
+            p_algebraic = get_algebraic_poly_coeffs(p, max_extension_field_degree, principal_cusp_width)
             if p_algebraic == False:
                 return False
             else:
