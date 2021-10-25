@@ -31,9 +31,9 @@ cpdef get_algebraic_poly_coeffs(p, max_extension_field_degree):
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
     for i in range(p.degree()+1):
-        algebraic_expression = to_QQbar(CC(p[i]),max_extension_field_degree+1)
-        numberfield = algebraic_expression.minpoly()
-        if numberfield[max_extension_field_degree+1] != 0: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
+        algebraic_expression, is_invalid = to_QQbar(CC(p[i]),max_extension_field_degree+1,check_if_poly_has_max_degree=True)
+
+        if is_invalid == True: #Degree of expression is too large -> Found an invalid example, therefore precision is insufficient to recognize alg numbers
             return False
         else:
             algebraic_coeffs.append(algebraic_expression)

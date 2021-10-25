@@ -18,9 +18,11 @@ cpdef get_decimal_digit_prec(epsilon):
         eps_approx = RF(epsilon).abs() #There is no reason to perform this computation at full precision
         return -int(eps_approx.log10())
 
-cpdef to_QQbar(x, max_extension_field_degree):
+cpdef to_QQbar(x, max_extension_field_degree, check_if_poly_has_max_degree=False):
     """
-    Tries to express x as an element of QQbar (this expression might not be correct).  
+    Tries to express x as an element of QQbar (this expression might not be correct).
+    If check_if_poly_has_max_degree == True then also return if the polynomial is of maximal order which
+    makes it likely that the expression is not a true solution.
     """
     numberfield = x.algebraic_dependency(max_extension_field_degree)
     roots = numberfield.roots(ring=QQbar,multiplicities=False)
@@ -29,7 +31,10 @@ cpdef to_QQbar(x, max_extension_field_degree):
     diffs = [(root-x).abs() for root in roots]
     root_index = diffs.index(min(diffs))
 
-    return roots[root_index]
+    if check_if_poly_has_max_degree == False:
+        return roots[root_index]
+    else:
+        return roots[root_index], numberfield.degree()==max_extension_field_degree
 
 cpdef gp_lindep(x, int correct_digits, int max_order): #Not sure if this function will be useful
     bit_prec = digits_to_bits(correct_digits)
