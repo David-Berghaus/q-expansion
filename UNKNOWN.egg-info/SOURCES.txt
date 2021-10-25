@@ -40,6 +40,7 @@ classes/acb_mat_class.pyx
 classes/approx_modform.c
 classes/approx_modform.pyx
 classes/belyi_map.c
+classes/belyi_map.pyx
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
