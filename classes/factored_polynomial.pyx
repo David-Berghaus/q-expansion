@@ -3,7 +3,7 @@ from sage.rings.qqbar import QQbar
 from sage.rings.complex_field import ComplexField
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 
-from belyi.number_fields import to_QQbar
+from belyi.number_fields import to_QQbar, get_numberfield_and_gen
 
 cpdef construct_poly_from_root_tuple(x, root_tuple):
     p = 1
@@ -21,32 +21,55 @@ cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
         p = polynomial_ring(coeffs)
     return [p,order]
 
-cpdef get_algebraic_poly_coeffs(p, max_extension_field_degree, principal_cusp_width):
+cpdef get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
     """
-    Given a polynomial p, try to recognize coefficients as algebraic numbers. 
+    Given a polynomial p, try to recognize coefficients as algebraic numbers.
+    We assume that the generators of the numberfield have already been identified.
     Return False if this does not succeed.
     Otherwise return polynomial over QQbar.
     """
-    bit_prec = p[0].parent().precision()
+    if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
+        bit_prec = p[0].parent().precision()
+    else:
+        bit_prec = estimated_bit_prec
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
     for i in range(p.degree()+1):
-        coeff_floating_approx = CC(p[i])
+        coeff_floating_approx = CC(p[i]) #Because we cannot directly convert acbs to pari
         expression_to_recognize = coeff_floating_approx**principal_cusp_width 
-        recognized_expression, is_invalid = to_QQbar(expression_to_recognize,max_extension_field_degree+1,check_if_poly_has_max_degree=True)
-
-        if is_invalid == True: #Degree of expression is too large -> Found an invalid example, therefore precision is insufficient to recognize alg numbers
-            return False
+        if expression_to_recognize.is_one() == True:
+            recognized_expression = QQbar(1)
         else:
-            potential_algebraic_expressions = recognized_expression.nth_root(principal_cusp_width,all=True) #We need to recognize the correct root
-            diffs = [(potential_algebraic_expression-coeff_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
-            algebraic_expression = potential_algebraic_expressions[diffs.index(min(diffs))]
-            algebraic_coeffs.append(algebraic_expression)
+            recognized_expression = to_QQbar(expression_to_recognize,gen,extension_field_degree)
+
+        if recognized_expression == False: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
+            return False
+        #We need to recognize the correct root. Is there a better way for this?
+        potential_algebraic_expressions = recognized_expression.nth_root(principal_cusp_width,all=True)
+        diffs = [(potential_algebraic_expression-coeff_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
+        algebraic_expression = potential_algebraic_expressions[diffs.index(min(diffs))]
+        algebraic_coeffs.append(algebraic_expression)
     var_name = p.variable_name()
     polynomial_ring = PolynomialRing(QQbar,var_name)
     p_algebraic = polynomial_ring(algebraic_coeffs)
 
     return p_algebraic
+
+def get_numberfield_of_poly(p, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
+    """
+    Try to recognize the numberfield of (one of the coefficients) of p by trying to express the first non-trivial coefficient as an algebraic number.
+    Note that we define the numberfield to be the numberfield of c**principal_cusp_width.
+    If this succeeds, return the (potentially reduced) numberfield and its generator, otherwise return False.
+    """
+    if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
+        bit_prec = p[0].parent().precision()
+    else:
+        bit_prec = estimated_bit_prec
+    CC = ComplexField(bit_prec)
+    coeff_floating_approx = CC(p[p.degree()-1]) #The second leading coefficient is usually easiest to identify
+    expression_to_recognize = coeff_floating_approx**principal_cusp_width
+    res = get_numberfield_and_gen(expression_to_recognize, max_extension_field_degree)
+    return res
 
 class Factored_Polynomial():
     """
@@ -109,23 +132,39 @@ class Factored_Polynomial():
         derivative = inner_derivative*outer_derivative #this multiplication by a monomial can certainly be optimized
         return derivative
     
-    def get_algebraic_expressions(self, max_extension_field_degree, principal_cusp_width, reduce_numberfields=False):
+    def get_algebraic_expressions(self, gen, extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
         """
-        Tries to recognize coefficients of factor polynomials as algebraic numbers.
+        Tries to recognize coefficients of factor polynomials as algebraic numbers defined over a numberfield with generator gen.
         If this succeeds (which we only verify empirically here), return instance of Factored_Polynomial over algebraic numbers.
         Otherwise return False.
         """
+        if len(self.factors) == 0:
+            return self #The empty class is already (somewhat) algebraic
         algebraic_factors = []
         for (p,order) in self.factors:
-            p_algebraic = get_algebraic_poly_coeffs(p, max_extension_field_degree, principal_cusp_width)
+            p_algebraic = get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_width, estimated_bit_prec=estimated_bit_prec)
             if p_algebraic == False:
                 return False
             else:
                 algebraic_factors.append([p_algebraic,order])
-        
-        if reduce_numberfields == True: #For spurious numberfields this might take very long so it is important to call this last when it seems likely that the numberfields are correct
-            raise NotImplementedError("This functionality has not been added yet!")
 
         polygen = algebraic_factors[0][0][0].parent().gen()
         algebraic_factored_polynomial = Factored_Polynomial(polygen,coeff_tuples=algebraic_factors)
         return algebraic_factored_polynomial
+    
+    def get_smallest_degree_poly(self):
+        """
+        Return the polynomial p_i that has the smallest degree.
+        This routine is useful because the coefficients of the smallest degree polynomial are usually the easiest to recognize.
+        """
+        factors = self.factors
+        if len(factors) == 0:
+            return None
+        p_smallest_deg = factors[0][0]
+        for i in range(1,len(factors)):
+            p,_ = factors[i]
+            if p.degree() < p_smallest_deg.degree():
+                p_smallest_deg = p
+            if p_smallest_deg.degree() == 1: #Cannot get smaller
+                break
+        return p_smallest_deg

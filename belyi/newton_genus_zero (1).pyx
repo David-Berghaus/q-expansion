@@ -7,13 +7,12 @@ from sage.rings.polynomial.polynomial_complex_arb cimport *
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.real_arb import RealBallField
-from sage.modular.cusps import Cusp
 
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_poly
+from classes.factored_polynomial import Factored_Polynomial
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
 # Possible optimizations:
@@ -352,10 +351,7 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
     return coeff_tuples
 
-cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
-    if max_extension_field_degree == None:
-        max_extension_field_degree = G.index() #For the groups that we are considering the conjugacy class size is <= the index
-
+cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
     while curr_bit_prec < target_bit_prec:
         coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
         if 2*curr_bit_prec < target_bit_prec:
@@ -374,44 +370,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
             factored_polynomials = (p3, p2, pc)
             curr_bit_prec *= 2
-        coeff_prec = get_coeff_min_precision(factored_polynomials,G.index()+1)
-        coeff_bit_prec = digits_to_bits(coeff_prec)
-        print("Estimated digit prec: ", coeff_prec)
-
-        if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
-            principal_cusp_width = G.cusp_width(Cusp(1,0))
-            #We first try to find a coefficient that should be comparatively easy to identify.
-            #For this, we choose a coefficient of the polynomial of smallest degree.
-            p_smallest_deg = p3.get_smallest_degree_poly()
-            if p_smallest_deg.degree() != 1: #If the poly is of degree 1 we cannot find a smaller one
-                tmp = p2.get_smallest_degree_poly()
-                if tmp.degree() < p_smallest_deg.degree():
-                    p_smallest_deg = tmp
-            if p_smallest_deg.degree() != 1: #If the poly is of degree 1 we cannot find a smaller one
-                tmp = pc.get_smallest_degree_poly()
-                if tmp != None: #If we only have one cusp then pc is empty
-                    if tmp.degree() < p_smallest_deg.degree():
-                        p_smallest_deg = tmp
-            # if p_smallest_deg.degree() != 1:
-            #     raise ArithmeticError("We have not considered this case yet!")
-            tmp = get_numberfield_of_poly(p_smallest_deg, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=coeff_bit_prec)
-            if tmp == False: #Failed to recognize coeffs as alg numbers
-                break
-            numberfield, gen = tmp
-            extension_field_degree = numberfield.degree()
-
-            alg_factored_polynomials = []
-            for factored_polynomial in factored_polynomials:
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen, extension_field_degree, principal_cusp_width)
-                if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
-                    break
-                alg_factored_polynomials.append(alg_factored_polynomial)
-            if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
-                return alg_factored_polynomials
-    
-    if stop_when_coeffs_are_recognized == True:
-        raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
-
+        print("Estimated digit prec: ", get_coeff_min_precision(factored_polynomials,G.index()+1))
     return factored_polynomials
 
 cpdef get_factored_polynomial_starting_values(S, digit_prec):
@@ -445,18 +404,19 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
     cdef RealBall RB = RBF(0)
     f_x_mcbd = f_x._get_mcbd(53) #It is more convenient to use Sage's class here
     for i in range(N):
-        real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real().mid()), get_decimal_digit_prec(f_x_mcbd[i][0].imag().mid())
+        #print(f_x_mcbd[i][0].real(), f_x_mcbd[i][0].imag())
+        real_prec, imag_prec = get_decimal_digit_prec(f_x_mcbd[i][0].real()), get_decimal_digit_prec(f_x_mcbd[i][0].imag())
         if real_prec < smallest_digit_prec:
             smallest_digit_prec = real_prec
         if imag_prec < smallest_digit_prec:
             smallest_digit_prec = imag_prec
     return smallest_digit_prec
 
-cpdef run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True):
+cpdef run_newton(S, starting_digit_prec, target_digit_prec):
     G = S.group()
     factored_polynomials = get_factored_polynomial_starting_values(S, starting_digit_prec)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec, stop_when_coeffs_are_recognized)
+    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec)
     return factored_polynomials
