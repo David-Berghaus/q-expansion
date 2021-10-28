@@ -392,8 +392,6 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                 if tmp != None: #If we only have one cusp then pc is empty
                     if tmp.degree() < p_smallest_deg.degree():
                         p_smallest_deg = tmp
-            # if p_smallest_deg.degree() != 1:
-            #     raise ArithmeticError("We have not considered this case yet!")
             tmp = get_numberfield_of_poly(p_smallest_deg, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=coeff_bit_prec)
             if tmp == False: #Failed to recognize coeffs as alg numbers
                 break
