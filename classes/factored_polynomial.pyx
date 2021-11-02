@@ -112,7 +112,7 @@ class Factored_Polynomial():
         Explicitly constructs self as a polynomial.
         """
         factors = self.factors
-        res = 1
+        res = self.polygen.parent().one()
         for (factor, order) in factors:
             res *= factor**order
         return res
@@ -122,7 +122,7 @@ class Factored_Polynomial():
         Returns a polynomial that corresponds to the derivative with respect to the 'coeff_index'th coefficient of polynomial at 'poly_index'.
         """
         factors = self.factors
-        outer_derivative = 1
+        outer_derivative = self.polygen.parent().one()
         for i in range(len(factors)):
             p, order = factors[i]
             if i == poly_index:
