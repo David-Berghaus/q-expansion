@@ -392,7 +392,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                 if tmp != None: #If we only have one cusp then pc is empty
                     if tmp.degree() < p_smallest_deg.degree():
                         p_smallest_deg = tmp
-            tmp = get_numberfield_of_poly(p_smallest_deg, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=coeff_bit_prec)
+            tmp = get_numberfield_of_poly(p_smallest_deg, max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == False: #Failed to recognize coeffs as alg numbers
                 break
             numberfield, gen = tmp
@@ -400,7 +400,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
 
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen, extension_field_degree, principal_cusp_width)
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)
