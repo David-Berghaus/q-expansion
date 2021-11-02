@@ -338,10 +338,10 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     cdef ComplexBall condition_at_infinity = CBF(0,0)
     p3 = factored_polynomials[0]
     for (factor, order) in p3.factors:
-        condition_at_infinity += order*factor.coefficients()[-2]
+        condition_at_infinity += order*factor[factor.degree()-1]
     pc = factored_polynomials[2]
     for (factor, order) in pc.factors:
-        condition_at_infinity -= order*factor.coefficients()[-2]
+        condition_at_infinity -= order*factor[factor.degree()-1]
     if G.cusp_width(Cusp(1,0)) == 1: #Otherwise the last equation is equal to zero so we don't have to change anything
         condition_at_infinity -= 744
     acb_set(acb_mat_entry(f_x.value,N-1,0),condition_at_infinity.value)
