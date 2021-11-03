@@ -24,6 +24,12 @@ cpdef get_decimal_digit_prec(epsilon):
         eps_approx = RF(epsilon).abs() #There is no reason to perform this computation at full precision
         return -int(eps_approx.log10())
 
+def is_effectively_zero(x, estimated_digit_prec):
+    """
+    Given a number x, test if x is effectively zero (up to the estimated precision).
+    """
+    return get_decimal_digit_prec(x.abs()) > estimated_digit_prec
+
 cpdef to_QQbar(x, gen, extension_field_degree):
     """
     Try to express x as an algebraic number in terms of gen or return False.

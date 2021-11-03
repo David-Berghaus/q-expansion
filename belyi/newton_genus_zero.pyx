@@ -12,8 +12,8 @@ from sage.modular.cusps import Cusp
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from belyi.number_fields import get_decimal_digit_prec
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_poly
+from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
+from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
 # Possible optimizations:
@@ -352,6 +352,42 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
     return coeff_tuples
 
+def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
+    """
+    Tries to find a non-zero coefficient that is comparatively easy to identify which can be used to define the numberfield of the Belyi map.
+    This is usually c_{N-1} (i.e., the second leading coefficient which is denoted by coeff_shift=-1) of the smallest factored polynomial (if it is unequal to zero).
+    """
+    p_smallest_deg = p3.get_smallest_degree_poly()
+    c = p_smallest_deg[p_smallest_deg.degree()+coeff_shift]
+    if p_smallest_deg.degree() != 1 or is_effectively_zero(c,digit_prec) == True: #Try to find a smaller poly or a coeff that is non-zero
+        tmp = p2.get_smallest_degree_poly()
+        c_tmp = tmp[tmp.degree()+coeff_shift]
+        if is_effectively_zero(c,digit_prec) == True: #We cannot work with a zero coeff so we definitely want to switch
+            p_smallest_deg = tmp
+            c = c_tmp
+        elif tmp.degree() < p_smallest_deg.degree() and is_effectively_zero(c_tmp,digit_prec) == False:
+            p_smallest_deg = tmp
+            c = c_tmp
+    if p_smallest_deg.degree() != 1 or is_effectively_zero(c,digit_prec) == True: #Try to find a smaller poly or a coeff that is non-zero
+        tmp = pc.get_smallest_degree_poly()
+        if tmp != None: #If we only have one cusp then pc is empty
+            c_tmp = tmp[tmp.degree()+coeff_shift]
+            if is_effectively_zero(c,digit_prec) == True: #We cannot work with a zero coeff so we definitely want to switch
+                p_smallest_deg = tmp
+                c = c_tmp
+            elif tmp.degree() < p_smallest_deg.degree() and is_effectively_zero(c_tmp,digit_prec) == False:
+                p_smallest_deg = tmp
+                c = c_tmp
+    if is_effectively_zero(c,digit_prec) == True:
+        if coeff_shift == -1: #All second leading order coefficients are zero so we need to look at the third one
+            #This currently does not work because for example if the field is Q[sqrt(-1)] then this function would recognize it as Q...
+            #We therefore need to use an exponent that is a divisor of the principal cusp-width or is there a better way?
+            #return get_simplest_coeff(p3,p2,pc,digit_prec,coeff_shift=-2)
+            raise ArithmeticError("We have not considered this case yet")
+        else:
+            raise ArithmeticError("We have not considered this case yet")
+    return c
+
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
     if max_extension_field_degree == None:
         max_extension_field_degree = G.index() #For the groups that we are considering the conjugacy class size is <= the index
@@ -380,21 +416,10 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
 
         if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
             principal_cusp_width = G.cusp_width(Cusp(1,0))
-            #We first try to find a coefficient that should be comparatively easy to identify.
-            #For this, we choose a coefficient of the polynomial of smallest degree.
-            p_smallest_deg = p3.get_smallest_degree_poly()
-            if p_smallest_deg.degree() != 1: #If the poly is of degree 1 we cannot find a smaller one
-                tmp = p2.get_smallest_degree_poly()
-                if tmp.degree() < p_smallest_deg.degree():
-                    p_smallest_deg = tmp
-            if p_smallest_deg.degree() != 1: #If the poly is of degree 1 we cannot find a smaller one
-                tmp = pc.get_smallest_degree_poly()
-                if tmp != None: #If we only have one cusp then pc is empty
-                    if tmp.degree() < p_smallest_deg.degree():
-                        p_smallest_deg = tmp
-            tmp = get_numberfield_of_poly(p_smallest_deg, max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+            c = get_simplest_coeff(p3,p2,pc,coeff_prec)
+            tmp = get_numberfield_of_coeff(c,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == False: #Failed to recognize coeffs as alg numbers
-                break
+                continue
             numberfield, gen = tmp
             extension_field_degree = numberfield.degree()
 

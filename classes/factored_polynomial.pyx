@@ -36,7 +36,7 @@ cpdef get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_w
     algebraic_coeffs = []
     for i in range(p.degree()+1):
         coeff_floating_approx = CC(p[i]) #Because we cannot directly convert acbs to pari
-        expression_to_recognize = coeff_floating_approx**principal_cusp_width 
+        expression_to_recognize = coeff_floating_approx**principal_cusp_width
         if expression_to_recognize.is_one() == True:
             recognized_expression = QQbar(1)
         else:
@@ -55,18 +55,18 @@ cpdef get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_w
 
     return p_algebraic
 
-def get_numberfield_of_poly(p, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
+def get_numberfield_of_coeff(c, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
     """
-    Try to recognize the numberfield of (one of the coefficients) of p by trying to express the first non-trivial coefficient as an algebraic number.
+    Try to recognize the numberfield of one of the coefficients by trying to express it as an algebraic number.
     Note that we define the numberfield to be the numberfield of c**principal_cusp_width.
     If this succeeds, return the (potentially reduced) numberfield and its generator, otherwise return False.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
-        bit_prec = p[0].parent().precision()
+        bit_prec = c.parent().precision()
     else:
         bit_prec = estimated_bit_prec
     CC = ComplexField(bit_prec)
-    coeff_floating_approx = CC(p[p.degree()-1]) #The second leading coefficient is usually easiest to identify
+    coeff_floating_approx = CC(c)
     expression_to_recognize = coeff_floating_approx**principal_cusp_width
     res = get_numberfield_and_gen(expression_to_recognize, max_extension_field_degree)
     return res
