@@ -5,6 +5,7 @@ from sage.rings.power_series_poly import PowerSeries_poly
 from sage.modular.modform.j_invariant import j_invariant_qexp
 from sage.rings.complex_field import ComplexField
 from sage.rings.laurent_series_ring import LaurentSeriesRing
+from sage.rings.real_mpfr import RealField
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
@@ -37,7 +38,7 @@ def get_j_Gamma(S,digit_prec,trunc_order=None):
     We are currently only considering the cusp at infinity.
     """
     G = S.group()
-    if G.cusp_width(Cusp(1,0)) != 1:
+    if G.cusp_width(Cusp(1,0)) != 1: #Here we would need to work with q_n
         raise NotImplementedError("We have not considered this case yet!")
     c, M = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=True,return_M=True)
     bit_prec = digits_to_bits(digit_prec)
@@ -55,6 +56,37 @@ def get_j_Gamma(S,digit_prec,trunc_order=None):
         j_Gamma += CC(c[j-1,0])*q**j
     
     return j_Gamma
+
+def get_n_th_root_of_1_over_j(trunc_order,n):
+    """
+    Returns (1/j)^(1/n) up to trunc_order terms.
+    The result is a power series in q_n where q_n = exp(2*pi*I/n).
+    """
+    j = j_invariant_qexp(trunc_order)
+    j_inv = j.inverse()
+    var_name = "q_" + str(n)
+    L = PowerSeriesRing(j[0].parent(),var_name)
+    q_n = L.gen()
+    #.subs() seems quite slow, maybe try to write faster cython code
+    tmp = L(j_inv.power_series().polynomial().subs(q=q_n**n)) #Because we currently cannot work with Puiseux series in Sage.
+    res = tmp.nth_root(n)
+    return res
+
+def get_approx_n_th_root_of_1_over_j(trunc_order,n,digit_prec):
+    """
+    Returns (1/j)^(1/n) up to trunc_order terms with digit_prec precision.
+    The result is a power series in q_n where q_n = exp(2*pi*I/n).
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RR = RealField(bit_prec)
+    j = j_invariant_qexp(trunc_order)
+    j_inv = j.inverse() #This seems to be in ZZ instead of QQ and is thus quite cheap
+    var_name = "q_" + str(n)
+    L = PowerSeriesRing(RR,var_name)
+    q_n = L.gen()
+    tmp = L(j_inv.power_series().polynomial().subs(q=q_n**n)) #Because we currently cannot work with Puiseux series in Sage.
+    res = tmp.nth_root(n)
+    return res
 
 def get_cuspform_q_expansion_from_hauptmodul(S, digit_prec):
     weight_half = S.weight()//2
@@ -90,6 +122,7 @@ class BelyiMap():
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
+        self.princial_cusp_width = G.cusp_width(Cusp(1,0))
 
         #If these 4 steps succeed, then the result is verified
         self._ell_2_point_evaluations = self._get_elliptic_two_point_evaluations()
@@ -150,7 +183,7 @@ class BelyiMap():
         p3_constructed, p2_constructed, pc_constructed = self.p3_constructed, self.p2_constructed, self.pc_constructed
         if p3_constructed-p2_constructed-1728*pc_constructed != 0: #Verify result
             raise ArithmeticError("Verification of polynomial_equation failed!")
-        if pc_constructed.degree()+self.G.cusp_width(Cusp(1,0)) != self.G.index():
+        if pc_constructed.degree()+self.princial_cusp_width != self.G.index():
             raise ArithmeticError("Wrong behavior at infinity!")
     
     def get_rational_function(self):
@@ -341,8 +374,26 @@ class BelyiMap():
         R_series = p3_series/pc_series
         return R_series
 
-    def get_q_expansion(self, trunc_order):
-        raise NotImplementedError("This functionality has not been implemented yet!")
+    def get_hauptmodul_q_expansion(self, trunc_order):
+        parent = self.p2_constructed[0].parent()
+        L = LaurentSeriesRing(parent,"x")
+        x = L.gen()
+        princial_cusp_width = self.princial_cusp_width
+        s = (L(self.pc_constructed).subs(x=1/x)/L(self.p3_constructed).subs(x=1/x)).power_series().nth_root(self.princial_cusp_width)
+        r = s.reverse().inverse()
+        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,princial_cusp_width)
+        j_G = r.subs(x=n_sqrt_j_inverse)
+        return j_G
     
-    def get_approx_q_expansion(self, trunc_order, digit_prec):
-        raise NotImplementedError("This functionality has not been implemented yet!")
+    def get_hauptmodul_approx_q_expansion(self, trunc_order, digit_prec):
+        bit_prec = digits_to_bits(digit_prec)
+        CC = ComplexField(bit_prec)
+        L = LaurentSeriesRing(CC,"x")
+        x = L.gen()
+        princial_cusp_width = self.princial_cusp_width
+        #The .subs is not working correctly yet!
+        s = (L(self.pc_constructed).subs(x=1/x)/L(self.p3_constructed).subs(x=1/x)).power_series().nth_root(self.princial_cusp_width)
+        r = s.reverse().inverse()
+        n_sqrt_j_inverse = get_approx_n_th_root_of_1_over_j(trunc_order,princial_cusp_width,digit_prec) #Sometimes the QQ-version might be faster...
+        j_G = r.subs(x=n_sqrt_j_inverse)
+        return j_G
