@@ -53,29 +53,3 @@ def numberfield_reduction_example():
         lindep_res = gp(gp_command).sage()
         print(r_red[i], lindep_res)
     print("We hence see that our algebraic number can be written as a powers of ", r_red[4])
-
-def test(trunc_order, digit_prec):
-    bit_prec = round(3.33*digit_prec)
-    CC = ComplexField(bit_prec)
-    P.<x> = PowerSeriesRing(CC)
-    s = P(x).O(trunc_order)/P((x-16)**3).O(trunc_order)
-    r = s.reverse()
-    print("s[s.degree()]: ", s[s.degree()])
-    print("r[r.degree()]: ", r[r.degree()])
-    res = r.subs({x:1/j_invariant_qexp(trunc_order)})
-    return res
-
-def test2(trunc_order, digit_prec):
-    bit_prec = round(3.33*digit_prec)
-    CC = ComplexField(bit_prec)
-    P.<x> = PowerSeriesRing(CC)
-    s = P(x).O(trunc_order)/P((x-16)**3).O(trunc_order)
-    s_transformed_list = []
-    for i in range(s.degree()+1):
-        s_transformed_list.append(s[i]*4**i)
-    s_transformed = P(s_transformed_list).O(trunc_order)
-    r = s_transformed.reverse()
-    print("s_transformed[s_transformed.degree()]: ", s_transformed[s_transformed.degree()])
-    print("r[r.degree()]: ", r[r.degree()])
-    res = r.subs({x:1/j_invariant_qexp(trunc_order)})
-    return res

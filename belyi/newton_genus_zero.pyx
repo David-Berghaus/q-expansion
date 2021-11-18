@@ -127,15 +127,18 @@ cdef eval_hauptmodul(acb_mat_t haupt_coeffs, ComplexBall q, int bit_prec):
     acb_get_mid(res.value, res.value)
     return res
 
-cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
+cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec, return_cusp_rep_values=False):
     """
     Returns hauptmodul values at cusps that are not i*infinity by returning the values of c_0 of the corresponding cusps.
-    Return format is a tuple denoting the value of the cusp and the cusp-width.
+    Return format is a tuple denoting the evaluation at the cusp and the cusp-width.
+    If "return_cusp_rep_values==True" we also return the cusp representatives corresponding to the evaluations.
+    This useful to identify the cusp corresponding to a root of pc later.
     """
     CBF = ComplexBallField(bit_prec+16)
     ncusps = G.ncusps()
     cusps = G.cusps()
-    cusp_values = []
+    cusp_values = [] #This list collects cusp evaluations for each width
+    cusp_rep_values = [] #This list contains entries of the form (cusp,cusp_evaluation)
     cdef ComplexBall cb_cast
     for i in range(1,ncusps):
         cusp_value = CBF(0,0)
@@ -148,7 +151,12 @@ cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
             cusp_values.append( ([cusp_value],width) )
         else:
             cusp_values[pos][0].append(cusp_value)
-    return cusp_values
+        cusp_rep_values.append( (cusps[i],cusp_value) )
+
+    if return_cusp_rep_values == False:
+        return cusp_values
+    else:
+        return cusp_values, cusp_rep_values
 
 cdef get_tuple_list_index(tuple_list, tuple_pos, value):
     """
@@ -216,14 +224,17 @@ cdef get_p2_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     p2 = Factored_Polynomial(x,root_tuples=haupt_values)
     return p2
 
-cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
+cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec, return_cusp_rep_values=False):
     """
     Returns polynomials corresponding to o2 in non-factored form as well as the exponents.
     The starting values are obtained by evaluating the hauptmodul at the cusps.
     """
-    haupt_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec)
+    haupt_values, cusp_rep_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec, return_cusp_rep_values=True)
     pc = Factored_Polynomial(x,root_tuples=haupt_values)
-    return pc
+    if return_cusp_rep_values == False:
+        return pc
+    else:
+        return pc, cusp_rep_values
 
 cpdef get_f(factored_polynomials):
     """
@@ -437,7 +448,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
 
     return factored_polynomials
 
-cpdef get_factored_polynomial_starting_values(S, digit_prec):
+cpdef get_factored_polynomial_starting_values(S, digit_prec, return_cusp_rep_values=False):
     """
     Get first approximation of factored polynomial by computing the hauptmodul to digit_prec digits precision.
     """
@@ -450,10 +461,13 @@ cpdef get_factored_polynomial_starting_values(S, digit_prec):
 
     p2 = get_p2_haupt(G, x, c, M, bit_prec)
     p3 = get_p3_haupt(G, x, c, M, bit_prec)
-    pc = get_pc_haupt(G, x, c, M, bit_prec)
+    pc, cusp_rep_values = get_pc_haupt(G, x, c, M, bit_prec, return_cusp_rep_values=True)
     factored_polynomials = (p3, p2, pc)
 
-    return factored_polynomials
+    if return_cusp_rep_values == False:
+        return factored_polynomials
+    else:
+        return factored_polynomials, cusp_rep_values
 
 cpdef get_coeff_min_precision(factored_polynomials, int N):
     """
@@ -475,11 +489,14 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
             smallest_digit_prec = imag_prec
     return smallest_digit_prec
 
-cpdef run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True):
+cpdef run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=False):
     G = S.group()
-    factored_polynomials = get_factored_polynomial_starting_values(S, starting_digit_prec)
+    factored_polynomials, cusp_rep_values = get_factored_polynomial_starting_values(S, starting_digit_prec, return_cusp_rep_values=True)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
     factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec, stop_when_coeffs_are_recognized)
-    return factored_polynomials
+    if return_cusp_rep_values == False:
+        return factored_polynomials
+    else:
+        return factored_polynomials, cusp_rep_values
