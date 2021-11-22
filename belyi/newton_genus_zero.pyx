@@ -392,7 +392,7 @@ def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
     if is_effectively_zero(c,digit_prec) == True:
         if coeff_shift == -1: #All second leading order coefficients are zero so we need to look at the third one
             #This currently does not work because for example if the field is Q[sqrt(-1)] then this function would recognize it as Q...
-            #We therefore need to use an exponent that is a divisor of the principal cusp-width or is there a better way?
+            #We therefore probably have to recognize the quotient of two coefficients raised to the n-th power.
             #return get_simplest_coeff(p3,p2,pc,digit_prec,coeff_shift=-2)
             raise ArithmeticError("We have not considered this case yet")
         else:
@@ -400,9 +400,6 @@ def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
     return c
 
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
-    if max_extension_field_degree == None:
-        max_extension_field_degree = G.index() #For the groups that we are considering the conjugacy class size is <= the index
-
     while curr_bit_prec < target_bit_prec:
         coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
         if 2*curr_bit_prec < target_bit_prec:
@@ -426,6 +423,8 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
         print("Estimated digit prec: ", coeff_prec)
 
         if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
+            if max_extension_field_degree == None:
+                raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
             principal_cusp_width = G.cusp_width(Cusp(1,0))
             c = get_simplest_coeff(p3,p2,pc,coeff_prec)
             tmp = get_numberfield_of_coeff(c,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
@@ -489,13 +488,13 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
             smallest_digit_prec = imag_prec
     return smallest_digit_prec
 
-cpdef run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=False):
+cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_degree=None, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=False):
     G = S.group()
     factored_polynomials, cusp_rep_values = get_factored_polynomial_starting_values(S, starting_digit_prec, return_cusp_rep_values=True)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec, stop_when_coeffs_are_recognized)
+    factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:

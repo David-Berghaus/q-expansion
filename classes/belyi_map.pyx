@@ -96,7 +96,7 @@ class BelyiMap():
         
         G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
-        (p3, p2, pc), cusp_rep_values = run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=True)
+        (p3, p2, pc), cusp_rep_values = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
