@@ -214,7 +214,7 @@ class BelyiMap():
         B = B_cusp_factors+B_elliptic_factors #This is the syntax for merging lists in python
         return B
 
-    def _get_p_list_cuspform(self, weight):
+    def _get_p_list_cuspform(self, weight, B_factored):
         """
         This function returns a list of polynomials p such that for each p in list, (j_G'^weight_half)*p/B corresponds to a cuspform.
         p is written in factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
@@ -227,7 +227,6 @@ class BelyiMap():
         cuspform_dim = self.G.dimension_cusp_forms(weight)
         if cuspform_dim == 0:
             raise ArithmeticError("The dimension of cuspforms is zero for this space!")
-        B_factored = self._get_B_factored(weight) #!!! Maybe we want to precompute this
         B_factored_degree = get_B_factored_degree(B_factored)
         p_list = [[] for _ in range(cuspform_dim)]
 
@@ -243,7 +242,7 @@ class BelyiMap():
         
         return p_list
     
-    def _get_p_list_modform(self, weight):
+    def _get_p_list_modform(self, weight, B_factored):
         """
         This function returns a list of polynomials p such that for each p in list, (j_G'^weight_half)*p/B corresponds to a holomorphic modform.
         p is written in factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
@@ -269,14 +268,19 @@ class BelyiMap():
         
         return p_list
     
-    def get_cuspforms(self, weight, trunc_order):
+    def get_cuspforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
+        If "digit_prec" is given, use approximate arithmetic.
         """
         cusp = Cusp(1,0) #Add functionality for other cusps later
-        F = self._get_regularized_modular_form_q_expansion(cusp,weight,trunc_order)
-        p_list = self._get_p_list_cuspform(weight)
-        j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+        if digit_prec == None:
+            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+        else:
+            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #Again, we could precompute this
+        B_factored = self._get_B_factored(weight)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored)
+        p_list = self._get_p_list_cuspform(weight,B_factored)
         ring = j_G[1].parent()
         M = MatrixSpace(ring,len(p_list),trunc_order)
         A = []
@@ -298,14 +302,19 @@ class BelyiMap():
 
         return cuspforms
     
-    def get_modforms(self, weight, trunc_order):
+    def get_modforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
+        If "digit_prec" is given, use approximate arithmetic.
         """
         cusp = Cusp(1,0) #Add functionality for other cusps later
-        F = self._get_regularized_modular_form_q_expansion(cusp,weight,trunc_order)
-        p_list = self._get_p_list_modform(weight)
-        j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+        if digit_prec == None:
+            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+        else:
+            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #Again, we could precompute this
+        B_factored = self._get_B_factored(weight)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored)
+        p_list = self._get_p_list_modform(weight,B_factored)
         ring = j_G[1].parent()
         M = MatrixSpace(ring,len(p_list),trunc_order)
         A = []
@@ -439,7 +448,7 @@ class BelyiMap():
         r_pos_degree = r[0:r.degree()+1].power_series().polynomial().change_ring(CBF) #We treat the 1/x term later because arb only supports polynomials
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,trunc_order) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse_CBF.variable_name())
-        one_over_x_term = P(n_sqrt_j_inverse_CBF).O(trunc_order).inverse() #Treat 1/x term separately because it is not supported by arb
+        one_over_x_term = P(n_sqrt_j_inverse_CBF).O(n_sqrt_j_inverse_CBF.degree()+1).inverse() #Treat 1/x term separately because it is not supported by arb
         j_G = one_over_x_term + P(tmp)
 
         return j_G.change_ring(CC_res)
@@ -513,48 +522,32 @@ class BelyiMap():
         j_G = CBF(cusp_evaluation) + P(tmp).O(trunc_order)
         return j_G.change_ring(CC_res)
     
-    def _get_hauptmodul_q_expansion_derivative(self, cusp, trunc_order, j_G=None):
+    def _get_hauptmodul_q_expansion_derivative(self, j_G):
         """
         Returns 1/(2*pi*i) * d/dtau j_Gamma(tau).
+        This function works for both rigorous and approximate arithmetic.
         """
-        if j_G == None: #We have not precomputed j_G so we compute it from scratch here
-            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order)
         q = j_G.parent().gen()
         j_G_prime = 0
-        for n in range(1,j_G.degree()+1): #The derivative of the q^0 term is zero
+        for n in range(1,j_G.prec()): #The derivative of the q^0 term is zero
             j_G_prime += n*j_G[n]*q**n
-        if cusp == Cusp(1,0): #j_G starts with 1/q instead of a constant term
+        if j_G[-1] != 0: #j_G starts with 1/q instead of a constant term
             j_G_prime += -1/q #Derivative of q^-1
-        return j_G_prime.O(j_G.degree()+1)
+        return j_G_prime.O(j_G.prec())
 
-    def _get_hauptmodul_q_expansion_derivative_approx(self, cusp, trunc_order, digit_prec, j_G=None):
-        """
-        Returns 1/(2*pi*i) * d/dtau j_Gamma(tau) using floating arithmetic.
-        """
-        if j_G == None: #We have not precomputed j_G so we compute it from scratch here
-            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec)
-        q = j_G.parent().gen()
-        j_G_prime = 0
-        for n in range(1,j_G.degree()+1): #The derivative of the q^0 term is zero
-            j_G_prime += n*j_G[n]*q**n
-        if cusp == Cusp(1,0): #j_G starts with 1/q instead of a constant term
-            j_G_prime += -1/q #Derivative of q^-1
-        return j_G_prime.O(j_G.degree()+1)
-    
-    def _get_regularized_modular_form_q_expansion(self, cusp, weight, trunc_order):
+    def _get_regularized_modular_form_q_expansion(self, weight, j_G, B_factored):
         """
         Returns a (non-holomorphic!) modular form of G that has no poles outside infinity and no zeros.
         This form is given by (j'_Gamma)^weight_half/B.
         """
         #Note that many of these expressions could be precomputed
         weight_half = weight//2
-        j_Gamma = self.get_hauptmodul_q_expansion(cusp,trunc_order)
-        num = self._get_hauptmodul_q_expansion_derivative(cusp,trunc_order)**weight_half
-        B_factored = self._get_B_factored(weight)
+        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
+        num = j_G_prime**weight_half
         #It is probably best to avoid divisions of PowerSeries so we first build the denominator through multiplication
         den = 1
         for (B_factor,order) in B_factored:
             x = B_factor.parent().gen()
-            factor_q_expansion = B_factor.subs(x=j_Gamma)
+            factor_q_expansion = B_factor.subs(x=j_G)
             den *= factor_q_expansion**order #Working with powers of these factors should generally be faster than constructing p(x) and substituting with Horner
         return num/den
