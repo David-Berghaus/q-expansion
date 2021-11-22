@@ -9,6 +9,8 @@ setup.py
 ss.sage
 subgroups.sage
 UNKNOWN.egg-info/PKG-INFO
+UNKNOWN.egg-info/PKG-INFO (1)
+UNKNOWN.egg-info/SOURCES (1).txt
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt
 UNKNOWN.egg-info/not-zip-safe
@@ -39,6 +41,8 @@ classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
 classes/approx_modform.c
 classes/approx_modform.pyx
+classes/belyi_map.c
+classes/belyi_map.pyx
 classes/block_factored_mat_class.c
 classes/block_factored_mat_class.pxd
 classes/block_factored_mat_class.pyx
@@ -77,6 +81,7 @@ pullback/my_pullback.pxd
 pullback/my_pullback.pyx
 unit_tests/unit_tests.sage
 unit_tests/unit_tests_approx_modform.sage
+unit_tests/unit_tests_belyi_map.sage
 unit_tests/unit_tests_eisenstein.sage
 unit_tests/unit_tests_gmres_arb_wrap.sage
 unit_tests/unit_tests_ir_arb_wrap.sage

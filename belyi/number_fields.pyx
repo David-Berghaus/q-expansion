@@ -1,10 +1,17 @@
+from copy import copy
+
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.complex_mpc import MPComplexField
 from sage.rings.real_mpfr import RealField
+from sage.rings.qqbar import QQbar
 # from sage.rings.complex_mpfr import ComplexField #This only works in Sage/9.3
 from sage.interfaces.gp import gp
+from sage.interfaces.gp import pari
+from sage.symbolic.constants import pi
+from sage.rings.integer_ring import ZZ
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 
-from point_matching.point_matching_arb_wrap import digits_to_bits
+from point_matching.point_matching_arb_wrap import digits_to_bits, bits_to_digits
 
 cpdef get_decimal_digit_prec(epsilon):
     """
@@ -17,22 +24,96 @@ cpdef get_decimal_digit_prec(epsilon):
         eps_approx = RF(epsilon).abs() #There is no reason to perform this computation at full precision
         return -int(eps_approx.log10())
 
-cpdef algebraic_dependency(x, int correct_digits, int max_order):
-    bit_prec = digits_to_bits(correct_digits)
-    CF = MPComplexField(bit_prec)
-    x_cf = CF(x.real(),x.imag())
-    return x_cf.algebraic_dependency(max_order)
+def is_effectively_zero(x, estimated_digit_prec):
+    """
+    Given a number x, test if x is effectively zero (up to the estimated precision).
+    """
+    return get_decimal_digit_prec(x.abs()) > estimated_digit_prec
 
-cpdef gp_lindep(x, int correct_digits, int max_order): #Not sure if this function will be useful
-    bit_prec = digits_to_bits(correct_digits)
-    CF = MPComplexField(bit_prec)
-    x_cf = CF(x.real(),x.imag())
-    x_str = x_cf.str()
-    gp("x = " + x_str)
-    gp_command = "lindep([1"
-    for i in range(1,max_order+1):
-        gp_command += ",x^" + str(i)
-    gp_command += "])"
-    lindep_res = gp(gp_command).sage()
-    print("Warning, we have not set default(realprecision) correctly!")
-    return lindep_res
+cpdef to_QQbar(x, gen, extension_field_degree):
+    """
+    Try to express x as an algebraic number in terms of gen or return False.
+    """
+    gen_approx = x.parent(gen)
+    LLL_basis = [x]
+    for i in range(extension_field_degree):
+        LLL_basis.append(gen_approx**i)
+    LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
+    if LLL_res == False: #Result is invalid
+        return False
+    
+    x_alg = 0
+    for i in range(extension_field_degree):
+        x_alg += LLL_res[i+1]*gen**i
+    x_alg /= -LLL_res[0]
+    return x_alg   
+
+def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=True):
+    """
+    Try to express x in a numberfield over QQbar with specified max_extension_field_degree.
+    This function returns a polynomial over which the numberfield is defined as well as the generator (expressed as an algebraic number) or False.
+
+    If reduce_numberfield == True then try to reduce the numberfield and return the generator of this numberfield.
+    """
+    LLL_basis = [x.parent().one(),x]
+    LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
+    if LLL_res == False: #Current basis is not large enough to find solution
+        for i in range(2,max_extension_field_degree+1): #Look for larger degree extension fields
+            LLL_basis.append(x**i) #Increase basis size
+            LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
+            if LLL_res != False: #We found a solution that seems to be valid
+                break
+        if LLL_res == False: #Found no solution even for the maximal basis size
+            return False
+    
+    P = PolynomialRing(ZZ,"x")
+    numberfield = P(LLL_res)
+    if reduce_numberfield == False:
+        #Now we need to recognize to which root our expression corresponds. Is there a better way for this?
+        roots = numberfield.roots(ring=QQbar,multiplicities=False)
+        diffs = [(root-x).abs() for root in roots]
+        root_index = diffs.index(min(diffs))
+        gen = roots[root_index]
+        return numberfield, gen
+    else:
+        numberfield_red = P(pari.polredabs(numberfield))
+        print("Identified numberfield: ", numberfield_red)
+        if numberfield_red.degree() == 1:
+            return numberfield_red, QQbar(1)
+        else:
+            #Now we need to recognize to which root our expression corresponds. Is there a better way for this?
+            roots = numberfield_red.roots(ring=QQbar,multiplicities=False)
+            for root in roots:
+                root_approx = x.parent(root)
+                LLL_basis = [x]
+                for i in range(numberfield_red.degree()):
+                    LLL_basis.append(root_approx**i)
+                LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
+                if LLL_res != False: #This seems to be the correct generator
+                    return numberfield_red, root
+            raise ArithmeticError("We should not get here!")
+
+def lindep(L, check_if_result_is_invalid=True):
+    """
+    Given a list L, use PARI to return a list of factors F_i s.t. sum_i F_i*L_i = 0.
+    If check_if_result_is_invalid==True, we perform several checks to test if the result is invalid.
+    If solution is invalid, return False.
+    """
+    F = pari(L).lindep().list()
+    res = [f.sage() for f in F]
+    if check_if_result_is_invalid == True or len(res) == 0: #len(res) == 0 happens when len(L) == 2 because 1 and a complex number are independent over QQ...
+        #We add additional constants to our list to check if LLL detects that these are not part of the solution
+        parent = L[-1].parent()
+        L_copy_results = []
+        for c in [parent(pi),parent(pi,pi)]:
+            L_copy = copy(L)
+            L_copy.append(c)
+            F = pari(L_copy).lindep().list()
+            L_copy_res = [f.sage() for f in F]
+            if L_copy_res[-1] != 0 or L_copy_res[:len(res)] != res: #Found an invalid example
+                return False
+            if len(L_copy_results) != 0 and L_copy_results[-1] != L_copy_res: #Found an invalid example
+                return False
+            L_copy_results.append(L_copy_res)
+        return L_copy_results[0][:len(L)]
+    return res

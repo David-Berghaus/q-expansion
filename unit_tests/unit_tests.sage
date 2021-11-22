@@ -5,6 +5,7 @@ load("unit_tests_ir_arb_wrap.sage")
 load("unit_tests_newton_genus_zero.sage")
 load("unit_tests_approx_modform.sage")
 load("unit_tests_eisenstein.sage")
+load("unit_tests_belyi_map.sage")
 
 def run_unit_tests():
     run_unit_tests_point_matching_dp()
@@ -14,3 +15,4 @@ def run_unit_tests():
     run_unit_tests_newton_genus_zero()
     run_unit_tests_approx_modform()
     run_unit_tests_eisenstein()
+    run_unit_tests_belyi_map()

@@ -12,8 +12,8 @@ from sage.modular.cusps import Cusp
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from belyi.number_fields import get_decimal_digit_prec
-from classes.factored_polynomial import Factored_Polynomial
+from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
+from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
 # Possible optimizations:
@@ -127,15 +127,18 @@ cdef eval_hauptmodul(acb_mat_t haupt_coeffs, ComplexBall q, int bit_prec):
     acb_get_mid(res.value, res.value)
     return res
 
-cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
+cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec, return_cusp_rep_values=False):
     """
     Returns hauptmodul values at cusps that are not i*infinity by returning the values of c_0 of the corresponding cusps.
-    Return format is a tuple denoting the value of the cusp and the cusp-width.
+    Return format is a tuple denoting the evaluation at the cusp and the cusp-width.
+    If "return_cusp_rep_values==True" we also return the cusp representatives corresponding to the evaluations.
+    This useful to identify the cusp corresponding to a root of pc later.
     """
     CBF = ComplexBallField(bit_prec+16)
     ncusps = G.ncusps()
     cusps = G.cusps()
-    cusp_values = []
+    cusp_values = [] #This list collects cusp evaluations for each width
+    cusp_rep_values = [] #This list contains entries of the form (cusp,cusp_evaluation)
     cdef ComplexBall cb_cast
     for i in range(1,ncusps):
         cusp_value = CBF(0,0)
@@ -148,7 +151,12 @@ cdef get_non_inf_cusp_values(G, acb_mat_t coeffs, int M, int bit_prec):
             cusp_values.append( ([cusp_value],width) )
         else:
             cusp_values[pos][0].append(cusp_value)
-    return cusp_values
+        cusp_rep_values.append( (cusps[i],cusp_value) )
+
+    if return_cusp_rep_values == False:
+        return cusp_values
+    else:
+        return cusp_values, cusp_rep_values
 
 cdef get_tuple_list_index(tuple_list, tuple_pos, value):
     """
@@ -216,14 +224,17 @@ cdef get_p2_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
     p2 = Factored_Polynomial(x,root_tuples=haupt_values)
     return p2
 
-cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec):
+cdef get_pc_haupt(G, x, Acb_Mat coeffs, int M, int bit_prec, return_cusp_rep_values=False):
     """
     Returns polynomials corresponding to o2 in non-factored form as well as the exponents.
     The starting values are obtained by evaluating the hauptmodul at the cusps.
     """
-    haupt_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec)
+    haupt_values, cusp_rep_values = get_non_inf_cusp_values(G, coeffs.value, M, bit_prec, return_cusp_rep_values=True)
     pc = Factored_Polynomial(x,root_tuples=haupt_values)
-    return pc
+    if return_cusp_rep_values == False:
+        return pc
+    else:
+        return pc, cusp_rep_values
 
 cpdef get_f(factored_polynomials):
     """
@@ -338,10 +349,10 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     cdef ComplexBall condition_at_infinity = CBF(0,0)
     p3 = factored_polynomials[0]
     for (factor, order) in p3.factors:
-        condition_at_infinity += order*factor.coefficients()[-2]
+        condition_at_infinity += order*factor[factor.degree()-1]
     pc = factored_polynomials[2]
     for (factor, order) in pc.factors:
-        condition_at_infinity -= order*factor.coefficients()[-2]
+        condition_at_infinity -= order*factor[factor.degree()-1]
     if G.cusp_width(Cusp(1,0)) == 1: #Otherwise the last equation is equal to zero so we don't have to change anything
         condition_at_infinity -= 744
     acb_set(acb_mat_entry(f_x.value,N-1,0),condition_at_infinity.value)
@@ -352,7 +363,43 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
     return coeff_tuples
 
-cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
+def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
+    """
+    Tries to find a non-zero coefficient that is comparatively easy to identify which can be used to define the numberfield of the Belyi map.
+    This is usually c_{N-1} (i.e., the second leading coefficient which is denoted by coeff_shift=-1) of the smallest factored polynomial (if it is unequal to zero).
+    """
+    p_smallest_deg = p3.get_smallest_degree_poly()
+    c = p_smallest_deg[p_smallest_deg.degree()+coeff_shift]
+    if p_smallest_deg.degree() != 1 or is_effectively_zero(c,digit_prec) == True: #Try to find a smaller poly or a coeff that is non-zero
+        tmp = p2.get_smallest_degree_poly()
+        c_tmp = tmp[tmp.degree()+coeff_shift]
+        if is_effectively_zero(c,digit_prec) == True: #We cannot work with a zero coeff so we definitely want to switch
+            p_smallest_deg = tmp
+            c = c_tmp
+        elif tmp.degree() < p_smallest_deg.degree() and is_effectively_zero(c_tmp,digit_prec) == False:
+            p_smallest_deg = tmp
+            c = c_tmp
+    if p_smallest_deg.degree() != 1 or is_effectively_zero(c,digit_prec) == True: #Try to find a smaller poly or a coeff that is non-zero
+        tmp = pc.get_smallest_degree_poly()
+        if tmp != None: #If we only have one cusp then pc is empty
+            c_tmp = tmp[tmp.degree()+coeff_shift]
+            if is_effectively_zero(c,digit_prec) == True: #We cannot work with a zero coeff so we definitely want to switch
+                p_smallest_deg = tmp
+                c = c_tmp
+            elif tmp.degree() < p_smallest_deg.degree() and is_effectively_zero(c_tmp,digit_prec) == False:
+                p_smallest_deg = tmp
+                c = c_tmp
+    if is_effectively_zero(c,digit_prec) == True:
+        if coeff_shift == -1: #All second leading order coefficients are zero so we need to look at the third one
+            #This currently does not work because for example if the field is Q[sqrt(-1)] then this function would recognize it as Q...
+            #We therefore probably have to recognize the quotient of two coefficients raised to the n-th power.
+            #return get_simplest_coeff(p3,p2,pc,digit_prec,coeff_shift=-2)
+            raise ArithmeticError("We have not considered this case yet")
+        else:
+            raise ArithmeticError("We have not considered this case yet")
+    return c
+
+cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
     while curr_bit_prec < target_bit_prec:
         coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
         if 2*curr_bit_prec < target_bit_prec:
@@ -371,10 +418,36 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec):
             pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
             factored_polynomials = (p3, p2, pc)
             curr_bit_prec *= 2
-        print("Estimated digit prec: ", get_coeff_min_precision(factored_polynomials,G.index()+1))
+        coeff_prec = get_coeff_min_precision(factored_polynomials,G.index()+1)
+        coeff_bit_prec = digits_to_bits(coeff_prec)
+        print("Estimated digit prec: ", coeff_prec)
+
+        if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
+            if max_extension_field_degree == None:
+                raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
+            principal_cusp_width = G.cusp_width(Cusp(1,0))
+            c = get_simplest_coeff(p3,p2,pc,coeff_prec)
+            tmp = get_numberfield_of_coeff(c,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+            if tmp == False: #Failed to recognize coeffs as alg numbers
+                continue
+            numberfield, gen = tmp
+            extension_field_degree = numberfield.degree()
+
+            alg_factored_polynomials = []
+            for factored_polynomial in factored_polynomials:
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+                if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
+                    break
+                alg_factored_polynomials.append(alg_factored_polynomial)
+            if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
+                return alg_factored_polynomials
+    
+    if stop_when_coeffs_are_recognized == True:
+        raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
+
     return factored_polynomials
 
-cpdef get_factored_polynomial_starting_values(S, digit_prec):
+cpdef get_factored_polynomial_starting_values(S, digit_prec, return_cusp_rep_values=False):
     """
     Get first approximation of factored polynomial by computing the hauptmodul to digit_prec digits precision.
     """
@@ -387,10 +460,13 @@ cpdef get_factored_polynomial_starting_values(S, digit_prec):
 
     p2 = get_p2_haupt(G, x, c, M, bit_prec)
     p3 = get_p3_haupt(G, x, c, M, bit_prec)
-    pc = get_pc_haupt(G, x, c, M, bit_prec)
+    pc, cusp_rep_values = get_pc_haupt(G, x, c, M, bit_prec, return_cusp_rep_values=True)
     factored_polynomials = (p3, p2, pc)
 
-    return factored_polynomials
+    if return_cusp_rep_values == False:
+        return factored_polynomials
+    else:
+        return factored_polynomials, cusp_rep_values
 
 cpdef get_coeff_min_precision(factored_polynomials, int N):
     """
@@ -412,11 +488,14 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
             smallest_digit_prec = imag_prec
     return smallest_digit_prec
 
-cpdef run_newton(S, starting_digit_prec, target_digit_prec):
+cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_degree=None, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=False):
     G = S.group()
-    factored_polynomials = get_factored_polynomial_starting_values(S, starting_digit_prec)
+    factored_polynomials, cusp_rep_values = get_factored_polynomial_starting_values(S, starting_digit_prec, return_cusp_rep_values=True)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials, G, curr_bit_prec, target_bit_prec)
-    return factored_polynomials
+    factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    if return_cusp_rep_values == False:
+        return factored_polynomials
+    else:
+        return factored_polynomials, cusp_rep_values
