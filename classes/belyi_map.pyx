@@ -274,11 +274,11 @@ class BelyiMap():
         """
         cusp = Cusp(1,0) #Add functionality for other cusps later
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #Again, we could precompute this
+            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #We could precompute this
         B_factored = self._get_B_factored(weight)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for modforms of the same weight
         p_list = self._get_p_list_cuspform(weight,B_factored)
         ring = j_G[1].parent()
         M = MatrixSpace(ring,len(p_list),trunc_order)
@@ -308,11 +308,11 @@ class BelyiMap():
         """
         cusp = Cusp(1,0) #Add functionality for other cusps later
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #Again, we could precompute this
+            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #Again, we could precompute this
+            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #We could precompute this
         B_factored = self._get_B_factored(weight)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for cuspforms of the same weight
         p_list = self._get_p_list_modform(weight,B_factored)
         ring = j_G[1].parent()
         M = MatrixSpace(ring,len(p_list),trunc_order)
@@ -539,7 +539,6 @@ class BelyiMap():
         Returns a (non-holomorphic!) modular form of G that has no poles outside infinity and no zeros.
         This form is given by (j'_Gamma)^weight_half/B.
         """
-        #Note that many of these expressions could be precomputed
         weight_half = weight//2
         j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
         num = j_G_prime**weight_half
