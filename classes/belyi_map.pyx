@@ -254,7 +254,6 @@ class BelyiMap():
         modform_dim = self.G.dimension_modular_forms(weight)
         if modform_dim == 0:
             raise ArithmeticError("The dimension of modforms is zero for this space!")
-        B_factored = self._get_B_factored(weight) #!!! Maybe we want to precompute this
         B_factored_degree = get_B_factored_degree(B_factored)
         p_list = [[] for _ in range(modform_dim)]
 
