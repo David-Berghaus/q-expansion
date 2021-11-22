@@ -14,6 +14,7 @@ from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
+from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 from belyi.newton_genus_zero import run_newton
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
@@ -82,20 +83,19 @@ class BelyiMap():
     """
     Class for working with Belyi maps that are expressed in terms of Factored_Polynomials with algebraic coefficients.
     """
-    def __init__(self, S, starting_digit_prec=42, target_digit_prec=50000, max_extension_field_degree=None):
+    def __init__(self, G, starting_digit_prec=42, target_digit_prec=50000, max_extension_field_degree=None):
         """
         Compute Belyi map from scratch. This is done by first using Hejhal's method to get approximate values at the elliptic points and cusps.
         Afterwards, Newton iterations are used to refine the solution. In the last step, the result is verified.
         """
-        G = S.group()
         if G.genus() != 0:
             raise ArithmeticError("This function only works for genus zero subgroups!")
-        if S.weight() != 0:
-            raise ArithmeticError("This function only works for weight zero!")
         if max_extension_field_degree == None:
             print("We are using the index as max_extension_field_degree which is not correct in general!")
             max_extension_field_degree = G.index()
         
+        G = MySubgroup(G)
+        S = AutomorphicFormSpace(G,0)
         (p3, p2, pc), cusp_rep_values = run_newton(S, starting_digit_prec, target_digit_prec, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=True)
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
