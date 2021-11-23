@@ -50,6 +50,7 @@ classes/factored_polynomial.c
 classes/factored_polynomial.pxd
 classes/factored_polynomial.pyx
 classes/fourier_expansion.c
+classes/fourier_expansion.pyx
 classes/gamma_2_subgroup.c
 classes/gamma_2_subgroup.pxd
 classes/gamma_2_subgroup.pyx
