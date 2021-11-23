@@ -43,7 +43,6 @@ def get_coset_expansions(F):
         width = CF(width_int,0)
         R = cusp_expansion.parent()
         q = R.gen()
-        cusp_expansion *= width**(-weight/2) #We assume that the cusp-expansions of F have the width absorbed so we need to rescale
         roots_of_unity = [exp(2*CF(0,pi)*i/width) for i in range(width_int)]
         cusp_normalizer = G.cusp_normalizer(c)
         for coset_i in G._vertex_data[ci]['coset']:

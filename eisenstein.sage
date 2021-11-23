@@ -30,7 +30,7 @@ def compute_eisenstein_series(cuspforms,modforms,return_scaling_constants=False)
         scaling_constants[j] = []
         for i in range(dim_S):
             scaling_constant = c_vecs[j][i,0]
-            eisform += modforms[dim_E+i]._scal_mul(scaling_constant)
+            eisform += modforms[dim_E+i]*scaling_constant
             scaling_constants[j].append(scaling_constant)
         eisforms.append(eisform)
 
