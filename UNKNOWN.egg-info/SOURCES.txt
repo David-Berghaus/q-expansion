@@ -39,8 +39,6 @@ classes/acb_dft_class.pyx
 classes/acb_mat_class.c
 classes/acb_mat_class.pxd
 classes/acb_mat_class.pyx
-classes/approx_modform.c
-classes/approx_modform.pyx
 classes/belyi_map.c
 classes/belyi_map.pyx
 classes/block_factored_mat_class.c
@@ -49,6 +47,8 @@ classes/block_factored_mat_class.pyx
 classes/factored_polynomial.c
 classes/factored_polynomial.pxd
 classes/factored_polynomial.pyx
+classes/fourier_expansion.c
+classes/fourier_expansion.pyx
 classes/gamma_2_subgroup.c
 classes/gamma_2_subgroup.pxd
 classes/gamma_2_subgroup.pyx
@@ -80,9 +80,9 @@ pullback/my_pullback.c
 pullback/my_pullback.pxd
 pullback/my_pullback.pyx
 unit_tests/unit_tests.sage
-unit_tests/unit_tests_approx_modform.sage
 unit_tests/unit_tests_belyi_map.sage
 unit_tests/unit_tests_eisenstein.sage
+unit_tests/unit_tests_fourier_expansion.sage
 unit_tests/unit_tests_gmres_arb_wrap.sage
 unit_tests/unit_tests_ir_arb_wrap.sage
 unit_tests/unit_tests_newton_genus_zero.sage

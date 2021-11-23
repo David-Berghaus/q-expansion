@@ -30,21 +30,25 @@ def compute_petersson_product_nelson_collins(F, G):
     We use the notation of https://arxiv.org/pdf/1802.09740.pdf theorem 4.2
     But fixed the arguments of the Bessel functions...
     """
-    bit_prec = F['bit_prec']
+    bit_prec = F.get_cusp_expansion(Cusp(1,0))[0].parent().precision()
     epsilon = N(2**(-bit_prec),10)
-    weight = F['weight']
+    weight = F.weight
     RF = RealField(bit_prec)
     res = 0
     PI = RF(pi)
-    for c in F['cusp_expansions'].keys():
+    for ci in range(F.G.ncusps()):
+        c = F.G.cusps()[ci]
         cusp_res = 0
-        f, g = F['cusp_expansions'][c], G['cusp_expansions'][c]
+        f, g = F.get_cusp_expansion(c), G.get_cusp_expansion(c)
         cusp_width = get_cusp_width_from_var_name(f.variable())
+        if c != Cusp(1,0): #Collins uses cusp-normalizers which absorb the cusp-width so we have to rescale again in order to keep notation...
+            f /= RF(cusp_width)**(-weight//2)
+            g /= RF(cusp_width)**(-weight//2)
         for n in range(1,min(f.prec(),g.prec())): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
             x = 4*PI*sqrt(RF(n)/cusp_width)
             cusp_res += f[n] * conjugate(g[n]) * W(weight, x, epsilon) / n**(weight-1)
         res += cusp_res #note that the width is already inside the normalizer
-    return 4*(8*PI)**(-(weight-1))*res/F['index']
+    return 4*(8*PI)**(-(weight-1))*res/F.G.index()
 
 def W(weight, x, epsilon): #There are faster ways to compute this function, see https://arxiv.org/pdf/1809.10908.pdf section 4.3
     res = 0

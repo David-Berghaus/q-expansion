@@ -1,6 +1,6 @@
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
-from classes.approx_modform import get_approxmodform_basis
+from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 
 load("../eisenstein.sage")
 load("../haberland.sage")
@@ -12,8 +12,8 @@ def run_unit_tests_eisenstein():
 
 def test_compute_eisenstein_series():
     S = AutomorphicFormSpace(Gamma0(2),8)
-    cuspforms = get_approxmodform_basis(S,50)
-    modforms = get_approxmodform_basis(S,50,modform_type="ModForm")
+    cuspforms = get_cuspform_basis_approx(S,50)
+    modforms = get_modform_basis_approx(S,50)
     eisforms = compute_eisenstein_series(cuspforms,modforms)
     M = ModularForms(2,8,prec=10).eisenstein_subspace()
     c_1_correct = M.q_echelon_basis()[1][2]
@@ -23,8 +23,10 @@ def test_compute_eisenstein_series():
 
 def test_petersson_product():
     S = AutomorphicFormSpace(Gamma0(4),6)
-    f, g = ApproxModForm(S,50), ApproxModForm(S,50,modform_type="ModForm")
+    f, g = get_cuspform_q_expansion_approx(S,50), get_modform_q_expansion_approx(S,50)
     petersson_1 = compute_petersson_product_haberland(f,g)
-    petersson_2 = compute_petersson_product_nelson_collins(f._get_cusp_expansions_dict(),g._get_cusp_expansions_dict())
+    petersson_2 = compute_petersson_product_nelson_collins(f,g)
+    print("petersson_1: ", petersson_1)
+    print("petersson_2: ", petersson_2)
     assert abs(petersson_1-petersson_2) < 1e-17
     print("test_petersson_product ok")
