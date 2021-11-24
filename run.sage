@@ -12,7 +12,6 @@ from point_matching.fft_test import test_fft
 
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
-from classes.approx_modform import ApproxModForm, get_approxmodform_basis
 from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, to_reduced_row_echelon_form
 
 #These notations are part of the Fiori, Franc paper. Note that we do not get the same permT...

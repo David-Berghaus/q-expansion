@@ -18,6 +18,7 @@ from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 from belyi.newton_genus_zero import run_newton
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
+from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
 
 def get_j_Gamma_hejhal(S,digit_prec,trunc_order=None):
     """
@@ -335,24 +336,34 @@ class BelyiMap():
 
         return modforms
 
-    def get_hauptmodul_q_expansion(self, cusp, trunc_order):
+    def get_hauptmodul_q_expansion(self, trunc_order):
         """
-        Return q-expansion of hauptmodul at specified cusp using rigorous arithmetic.
+        Return q-expansion of hauptmodul at all cusps using rigorous arithmetic.
+        We return the result as an instance of FourierExpansion.
         """
-        if cusp == Cusp(1,0):
-            return self._get_hauptmodul_q_expansion_infinity(trunc_order)
-        else:
-            return self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
+        cusp_expansions = dict()
+        for cusp in self.G.cusps():
+            if cusp == Cusp(1,0):
+                cusp_expansion = self._get_hauptmodul_q_expansion_infinity(trunc_order)
+            else:
+                cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
+            cusp_expansions[cusp] = cusp_expansion
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul")
     
-    def get_hauptmodul_q_expansion_approx(self, cusp, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
+    def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
         """
-        Return q-expansion of hauptmodul at specified cusp using floating point arithmetic.
+        Return q-expansion of hauptmodul at all cusps using floating point arithmetic.
+        We return the result as an instance of FourierExpansion.
         Note that not all coefficients need to be correct up to the specified precision!
         """
-        if cusp == Cusp(1,0):
-            return self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
-        else:
-            return self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+        cusp_expansions = dict()
+        for cusp in self.G.cusps():
+            if cusp == Cusp(1,0):
+                cusp_expansion = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+            else:
+                cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+            cusp_expansions[cusp] = cusp_expansion
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul")
 
     def _get_hauptmodul_q_expansion_infinity(self, trunc_order):
         """
