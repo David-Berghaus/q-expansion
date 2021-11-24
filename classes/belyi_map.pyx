@@ -267,74 +267,52 @@ class BelyiMap():
             p_list[n-1].append([x,power])
         
         return p_list
-    
+
     def get_cuspforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate arithmetic.
         """
-        cusp = Cusp(1,0) #Add functionality for other cusps later
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec) #We could precompute this
         B_factored = self._get_B_factored(weight)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for modforms of the same weight
         p_list = self._get_p_list_cuspform(weight,B_factored)
-        ring = j_G[1].parent()
-        M = MatrixSpace(ring,len(p_list),trunc_order)
-        A = []
-
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for modforms of the same weight
+        cuspforms = []
         for p in p_list:
             cuspform = F
             for (factor, order) in p:
-                x = factor.parent().gen()
-                cuspform *= factor.subs(x=j_G)**order
-            A.append([cuspform[i] for i in range(trunc_order)]) #Generate matrix of coefficients
-        
-        A = M(A).echelon_form()
-        P = PowerSeriesRing(ring,j_G.variable())
-        cuspforms = []
-        for i in range(len(p_list)):
-            cuspform = P(A[i,:].list())
-            cuspform = cuspform.O(trunc_order)
+                #We have not defined .subs() here so we have to do it the ugly way...
+                cusp_evaluation = factor.roots(ring=QQbar,multiplicities=False)[0]
+                cuspform *= (j_G-cusp_evaluation)**order
+            cuspform.modform_type = "CuspForm"
             cuspforms.append(cuspform)
-
-        return cuspforms
+        return to_reduced_row_echelon_form(cuspforms)
     
     def get_modforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate arithmetic.
         """
-        cusp = Cusp(1,0) #Add functionality for other cusps later
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(cusp,trunc_order) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(cusp,trunc_order,digit_prec) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec) #We could precompute this
         B_factored = self._get_B_factored(weight)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for cuspforms of the same weight
         p_list = self._get_p_list_modform(weight,B_factored)
-        ring = j_G[1].parent()
-        M = MatrixSpace(ring,len(p_list),trunc_order)
-        A = []
-
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for cuspforms of the same weight
+        modforms = []
         for p in p_list:
             modform = F
             for (factor, order) in p:
-                x = factor.parent().gen()
-                modform *= factor.subs(x=j_G)**order
-            A.append([modform[i] for i in range(trunc_order)]) #Generate matrix of coefficients
-        
-        A = M(A).echelon_form()
-        P = PowerSeriesRing(ring,j_G.variable())
-        modforms = []
-        for i in range(len(p_list)):
-            modform = P(A[i,:].list())
-            modform = modform.O(trunc_order)
+                #We have not defined .subs() here so we have to do it the ugly way...
+                cusp_evaluation = factor.roots(ring=QQbar,multiplicities=False)[0]
+                modform *= (j_G-cusp_evaluation)**order
+            modform.modform_type = "ModForm"
             modforms.append(modform)
-
-        return modforms
+        return to_reduced_row_echelon_form(modforms)
 
     def get_hauptmodul_q_expansion(self, trunc_order):
         """
@@ -531,19 +509,27 @@ class BelyiMap():
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
         j_G = CBF(cusp_evaluation) + P(tmp).O(trunc_order)
         return j_G.change_ring(CC_res)
-    
-    def _get_hauptmodul_q_expansion_derivative(self, j_G):
+
+    def _get_hauptmodul_q_expansion_derivative(self, j_G, rescale_coefficients):
         """
-        Returns 1/(2*pi*i) * d/dtau j_Gamma(tau).
+        Returns 1/(2*pi*i) * d/dtau j_G(tau) where j_G is an instance of "FourierExpansion".
         This function works for both rigorous and approximate arithmetic.
+        If "rescale_coefficients == True", we rescale the coefficients at the other cusps in order to match the convention of the other functions.
         """
-        q = j_G.parent().gen()
-        j_G_prime = 0
-        for n in range(1,j_G.prec()): #The derivative of the q^0 term is zero
-            j_G_prime += n*j_G[n]*q**n
-        if j_G[-1] != 0: #j_G starts with 1/q instead of a constant term
-            j_G_prime += -1/q #Derivative of q^-1
-        return j_G_prime.O(j_G.prec())
+        cusp_expansions = dict()
+        for cusp in self.G.cusps():
+            cusp_expansion = j_G.get_cusp_expansion(cusp)
+            q = cusp_expansion.parent().gen()
+            cusp_expansion_prime = 0
+            for n in range(1,cusp_expansion.prec()): #The derivative of the q^0 term is zero
+                cusp_expansion_prime += n*cusp_expansion[n]*q**n
+            if cusp_expansion[-1] != 0: #cusp_expansion starts with 1/q instead of a constant term
+                cusp_expansion_prime += -1/q #Derivative of q^-1
+            if rescale_coefficients == True and cusp != Cusp(1,0):
+                cusp_width = self.G.cusp_width(cusp)
+                cusp_expansion_prime /= cusp_width
+            cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
+        return FourierExpansion(self.G,2,cusp_expansions,"ModForm")
 
     def _get_regularized_modular_form_q_expansion(self, weight, j_G, B_factored):
         """
@@ -551,12 +537,13 @@ class BelyiMap():
         This form is given by (j'_Gamma)^weight_half/B.
         """
         weight_half = weight//2
-        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
+        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
         num = j_G_prime**weight_half
         #It is probably best to avoid divisions of PowerSeries so we first build the denominator through multiplication
-        den = 1
+        den = j_G.__one__()
         for (B_factor,order) in B_factored:
-            x = B_factor.parent().gen()
-            factor_q_expansion = B_factor.subs(x=j_G)
+            #We have not defined .subs() here so we have to do it the ugly way...
+            cusp_evaluation = B_factor.roots(ring=QQbar,multiplicities=False)[0]
+            factor_q_expansion = j_G-cusp_evaluation
             den *= factor_q_expansion**order #Working with powers of these factors should generally be faster than constructing p(x) and substituting with Horner
         return num/den

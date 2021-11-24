@@ -98,19 +98,16 @@ def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0, 
         for i in range(M_0):
             f += CF(c_vec_mcbd[i+cii*M_0][0])*q**(i+starting_order+normalization_len)
         if rescale_hejhal_coefficients == True and Cusp(ci) != Cusp(1,0):
-            f *= CF(cusp_width,0)**(-weight//2)
+            f /= cusp_width**(weight//2)
         cusp_expansions[Cusp(ci)] = f.O(M_0)
     return cusp_expansions
 
 def to_reduced_row_echelon_form(fourier_expansions):
     """
-    Given a list of instances of "FourierExpansion" return a list of "FourierExpansion" normalized to reduced row echelon form.
+    Given a list of instances of "FourierExpansion" return a list of "FourierExpansion" normalized to reduced row echelon form (at infinity).
     """
     rowCount = len(fourier_expansions)
-    expansion_degree = fourier_expansions[0].get_cusp_expansion(Cusp(1,0)).prec()-1
-    for i in range(rowCount):
-        if fourier_expansions[i].get_cusp_expansion(Cusp(1,0)).prec()-1 != expansion_degree:
-            raise ArithmeticError("We need equal amounts of terms for all Fourier expansions!")
+    expansion_degree = min([fourier_expansion.cusp_expansions[Cusp(1,0)].prec()-1 for fourier_expansion in fourier_expansions])
     columnCount = expansion_degree
     fourier_expansions_copy = copy(fourier_expansions)
     #We use the algorithm from https://en.wikipedia.org/wiki/Row_echelon_form
@@ -119,7 +116,7 @@ def to_reduced_row_echelon_form(fourier_expansions):
         if columnCount <= lead:
             break
         i = r
-        while fourier_expansions_copy[i].get_cusp_expansion(Cusp(1,0))[lead] == 0:
+        while fourier_expansions_copy[i].cusp_expansions[Cusp(1,0)][lead] == 0:
             i += 1
             if rowCount == i:
                 i = r
@@ -128,11 +125,11 @@ def to_reduced_row_echelon_form(fourier_expansions):
                     break
         if i != r:
             fourier_expansions_copy[i], fourier_expansions_copy[r] = fourier_expansions_copy[r], fourier_expansions_copy[i]
-        tmp = 1/(fourier_expansions_copy[r].get_cusp_expansion(Cusp(1,0))[lead])
+        tmp = 1/(fourier_expansions_copy[r].cusp_expansions[Cusp(1,0)][lead])
         fourier_expansions_copy[r] *= tmp
         for i in range(rowCount):
             if i != r:
-                tmp = fourier_expansions_copy[i].get_cusp_expansion(Cusp(1,0))[lead]
+                tmp = fourier_expansions_copy[i].cusp_expansions[Cusp(1,0)][lead]
                 fourier_expansions_copy[i] -= fourier_expansions_copy[r]*tmp
         lead += 1
     return fourier_expansions_copy
@@ -182,27 +179,37 @@ class FourierExpansion():
             CBF = ComplexField(digits_to_bits(digit_prec))
             return cusp_expansion.O(trunc_order).change_ring(CBF)
     
-    def __add__(self, g):
+    def __add__(self, a):
         """
-        Return self+g where "g" is another instance of "FourierExpansion".
+        Return self+a where "a" is a constant factor or another instance of "FourierExpansion".
         """
         cusp_expansions = dict()
         cusp_expansions_self = self.cusp_expansions
-        cusp_expansions_g = g.cusp_expansions
-        for c in cusp_expansions_self.keys():
-            cusp_expansions[c] = cusp_expansions_self[c]+cusp_expansions_g[c]
-        return FourierExpansion(self.G,self.weight,cusp_expansions,self.modform_type)
+        weight = self.weight
+        if isinstance(a,FourierExpansion):
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]+a.get_cusp_expansion(c)
+            weight += a.weight
+        else: #Scalar addition
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]+a
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
     
-    def __sub__(self, g):
+    def __sub__(self, a):
         """
-        Return self-g where "g" is another instance of "FourierExpansion".
+        Return self-a where "a" is a constant factor or another instance of "FourierExpansion".
         """
         cusp_expansions = dict()
         cusp_expansions_self = self.cusp_expansions
-        cusp_expansions_g = g.cusp_expansions
-        for c in cusp_expansions_self.keys():
-            cusp_expansions[c] = cusp_expansions_self[c]-cusp_expansions_g[c]
-        return FourierExpansion(self.G,self.weight,cusp_expansions,self.modform_type)
+        weight = self.weight
+        if isinstance(a,FourierExpansion):
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]-a.get_cusp_expansion(c)
+            weight += a.weight
+        else: #Scalar subtraction
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]-a
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
     
     def __mul__(self, a):
         """
@@ -246,3 +253,13 @@ class FourierExpansion():
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c]**n
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
+    
+    def __one__(self):
+        """
+        Return one-element of self.
+        """
+        cusp_expansions = dict()
+        cusp_expansions_self = self.cusp_expansions
+        for c in cusp_expansions_self.keys():
+            cusp_expansions[c] = cusp_expansions_self[c].parent().one()
+        return FourierExpansion(self.G,0,cusp_expansions,"ModForm")
