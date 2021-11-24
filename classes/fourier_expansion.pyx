@@ -182,18 +182,6 @@ class FourierExpansion():
             CBF = ComplexField(digits_to_bits(digit_prec))
             return cusp_expansion.O(trunc_order).change_ring(CBF)
     
-    def __mul__(self, a):
-        """
-        Return a*self where "a" is a constant factor or another instance of "FourierExpansion".
-        """
-        if isinstance(a,FourierExpansion):
-            raise NotImplementedError("We have not implemented this yet!")
-        cusp_expansions = dict()
-        cusp_expansions_self = self.cusp_expansions
-        for c in cusp_expansions_self.keys():
-            cusp_expansions[c] = cusp_expansions_self[c]*a
-        return FourierExpansion(self.G,self.weight,cusp_expansions,self.modform_type)
-    
     def __add__(self, g):
         """
         Return self+g where "g" is another instance of "FourierExpansion".
@@ -215,3 +203,46 @@ class FourierExpansion():
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c]-cusp_expansions_g[c]
         return FourierExpansion(self.G,self.weight,cusp_expansions,self.modform_type)
+    
+    def __mul__(self, a):
+        """
+        Return self*a where "a" is a constant factor or another instance of "FourierExpansion".
+        """
+        cusp_expansions = dict()
+        cusp_expansions_self = self.cusp_expansions
+        weight = self.weight
+        if isinstance(a,FourierExpansion):
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]*a.get_cusp_expansion(c)
+            weight += a.weight
+        else: #Scalar multiplication
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]*a
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
+    
+    def __div__(self, a):
+        """
+        Return self/a where "a" is a constant factor or another instance of "FourierExpansion".
+        """
+        cusp_expansions = dict()
+        cusp_expansions_self = self.cusp_expansions
+        weight = self.weight
+        if isinstance(a,FourierExpansion):
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]/a.get_cusp_expansion(c)
+            weight -= a.weight
+        else: #Scalar division
+            for c in cusp_expansions_self.keys():
+                cusp_expansions[c] = cusp_expansions_self[c]/a
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
+    
+    def __pow__(self, n):
+        """
+        Return self**n where "n" is an integer
+        """
+        cusp_expansions = dict()
+        cusp_expansions_self = self.cusp_expansions
+        weight = n*self.weight
+        for c in cusp_expansions_self.keys():
+            cusp_expansions[c] = cusp_expansions_self[c]**n
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type)
