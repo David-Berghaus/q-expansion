@@ -12,8 +12,7 @@ from point_matching.fft_test import test_fft
 
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
-from classes.approx_modform import ApproxModForm, get_approxmodform_basis
-from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, to_reduced_row_echelon_form
+from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, to_reduced_row_echelon_form
 
 #These notations are part of the Fiori, Franc paper. Note that we do not get the same permT...
 G1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(4 6 7)')
@@ -22,7 +21,7 @@ H1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(7 6 4)')
 u_H1 = (-7**3)**(1/5)/7**2
 # z3 = exp(2*pi*I/3)
 # u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
-# U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
+U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
 
 def oldform_example():
     #We consider an example of a group with a non-trivial supergroup

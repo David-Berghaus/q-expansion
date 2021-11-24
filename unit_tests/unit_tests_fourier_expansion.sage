@@ -2,13 +2,14 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
+from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 
 def run_unit_tests_fourier_expansion():
     test_fourier_expansion_cuspform()
     test_fourier_expansion_cuspform_non_fft_non_horner()
     test_fourier_expansion_cuspform_prec_loss()
     test_fourier_expansion_modform()
+    test_fourier_expansion_hauptmodul()
     test_fourier_expansion_basis_cuspform()
     test_fourier_expansion_basis_modform()
 
@@ -38,6 +39,12 @@ def test_fourier_expansion_modform():
     MF = get_modform_q_expansion_approx(S,50,label=0)
     assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-240) < 1e-40
     print("test_fourier_expansion_modform ok")
+
+def test_fourier_expansion_hauptmodul():
+    S = AutomorphicFormSpace(Gamma0(6),weight=0)
+    MF = get_hauptmodul_q_expansion_approx(S,50)
+    assert abs(MF.get_cusp_expansion(Cusp(-1,3))[9]--456) < 1e-40
+    print("test_fourier_expansion_hauptmodul ok")
 
 def test_fourier_expansion_basis_cuspform():
     S = AutomorphicFormSpace(Gamma0(4),weight=10) #Search for multiplicity three new-forms
