@@ -257,9 +257,6 @@ def _get_normalization_cuspforms(S,label=0):
         normalization[0] = _get_echelon_normalization_from_label(label, multiplicity)
     for i in range(1,G.ncusps()):
         normalization[i] = []
-    if multiplicity > 1:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
     return normalization
 
 def _get_normalization_modforms(S,label=0):
@@ -277,9 +274,6 @@ def _get_normalization_modforms(S,label=0):
         normalization[0] = _get_echelon_normalization_from_label(label, multiplicity)
     for i in range(1,G.ncusps()):
         normalization[i] = []
-    if multiplicity > 1:
-        print("Careful, this normalization might not work for all groups!")
-        print("")
     return normalization
 
 def _get_normalization_hauptmodul(S):

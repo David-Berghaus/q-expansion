@@ -20,30 +20,6 @@ from belyi.newton_genus_zero import run_newton
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
 
-def get_j_Gamma_hejhal(S,digit_prec,trunc_order=None):
-    """
-    Get q-expansion of j_Gamma (we currently use Hejhal's method for this).
-    We are currently only considering the cusp at infinity.
-    """
-    G = S.group()
-    print("Note that we absorb the cusp-width into q!")
-    c, M = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=True,return_M=True)
-    bit_prec = digits_to_bits(digit_prec)
-    c = c._get_mcbd(bit_prec)
-    CC = ComplexField(bit_prec)
-    q = LaurentSeriesRing(CC,"q").gen()
-    if trunc_order == None:
-        trunc_order = M
-    elif trunc_order > M:
-        raise ArithmeticError("")
-    
-    j_Gamma = 1/q
-    j_Gamma = j_Gamma.O(trunc_order)
-    for j in range(1,trunc_order): #j_Gamma is normalized to have a zero constant term.
-        j_Gamma += CC(c[j-1,0])*q**j
-    
-    return j_Gamma
-
 def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usually not slower than approx and one does not need to worry about conditioning
     """
     Returns (1/j)^(1/n) up to trunc_order terms.
