@@ -49,14 +49,15 @@ def my_n_th_root(p, n):
     sage: p.nth_root(3)
     TypeError: Cannot convert int to sage.rings.integer.Integer
     """
-    CBF = p.parent().base_ring()
-    cdef ComplexBall c = CBF(p[n]) #Make sure we do not modify p[n]
-    acb_root_ui(c.value,c.value,n,CBF.precision()) #because CBF.nth_root is not implemented...
+    cdef ComplexBall c
     if n == 1:
         return p
     elif n == 2: #Use arbs implementation which is more optimized
         return p.parent()(p.power_series().sqrt())
     else:
+        CBF = p.parent().base_ring()
+        c = CBF(p[n]) #Make sure we do not modify p[n]
+        acb_root_ui(c.value,c.value,n,CBF.precision()) #because CBF.nth_root is not implemented...
         prec = p.prec()-n    
         r = ((1/c)*p.parent().gen()**(-1)).O(0)
         for i in newton_method_sizes(prec)[1:]:
