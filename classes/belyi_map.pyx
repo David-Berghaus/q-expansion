@@ -401,9 +401,6 @@ class BelyiMap():
         CBF = ComplexBallField(bit_prec)
         L = LaurentSeriesRing(CBF,"x")
         x = L.gen()
-        #We need to perform these computations with CC because somehow nth_root does not work with CBF,
-        #although I would have expected these routines to be generic...
-        #Maybe add these functions in the future so that we can output a result with rigorous error bounds (and potentially performance gains).
         s = my_n_th_root(L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order),self.princial_cusp_width)
         s_prec = s.prec() #Exponent of the O-term
         s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
@@ -449,9 +446,6 @@ class BelyiMap():
         Get the reversed series of the reciprocal of the Belyi map expanded in x.
         We need to compute this for "get_hauptmodul_q_expansion_non_infinity_approx".
         """
-        #We need to perform these computations with CC because somehow nth_root does not work with CBF,
-        #although I would have expected these routines to be generic...
-        #Maybe add these functions in the future so that we can output a result with rigorous error bounds (and potentially performance gains).
         cusp_evaluation = self._cusp_valuations[cusp]
         cusp_width = self.G.cusp_width(cusp)
         CBF = ComplexBallField(bit_prec)
