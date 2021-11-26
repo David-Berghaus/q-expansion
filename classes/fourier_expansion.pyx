@@ -237,7 +237,8 @@ class FourierExpansion():
         if isinstance(a,FourierExpansion):
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]+a.get_cusp_expansion(c)
-            weight += a.weight
+            if a.weight != weight:
+                raise ArithmeticError("Please only add forms of equal weight!")
         else: #Scalar addition
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]+a
@@ -253,7 +254,8 @@ class FourierExpansion():
         if isinstance(a,FourierExpansion):
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]-a.get_cusp_expansion(c)
-            weight += a.weight
+            if a.weight != weight:
+                raise ArithmeticError("Please only subtract forms of equal weight!")
         else: #Scalar subtraction
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]-a
