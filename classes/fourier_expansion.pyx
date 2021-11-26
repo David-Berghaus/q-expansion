@@ -2,6 +2,7 @@ from copy import copy, deepcopy
 
 from sage.modular.cusps import Cusp
 from sage.rings.complex_field import ComplexField
+from sage.rings.complex_arb import ComplexBallField
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 
@@ -179,7 +180,7 @@ def to_reduced_row_echelon_form(fourier_expansions):
 
 class FourierExpansion():
     """
-    Class for storing Fourier expansions (q-expansions) of modular forms over general rings.
+    Class for storing Fourier expansions (q-expansions) of modular forms over general numberfields.
     We use the notation q_N = exp(2*pi*I*z/N).
     """
     def __init__(self, G, weight, cusp_expansions, modform_type):
@@ -219,7 +220,11 @@ class FourierExpansion():
         if digit_prec == None:
             return cusp_expansion.O(trunc_order)
         else:
-            CBF = ComplexField(digits_to_bits(digit_prec))
+            if isinstance(cusp_expansion.base_ring(),ComplexField): #Results are non-rigorous
+                CF = ComplexField(digits_to_bits(digit_prec))
+                return cusp_expansion.O(trunc_order).change_ring(CF)
+            #Return rigorous error bounds
+            CBF = ComplexBallField(digits_to_bits(digit_prec))
             return cusp_expansion.O(trunc_order).change_ring(CBF)
     
     def __add__(self, a):
@@ -232,7 +237,8 @@ class FourierExpansion():
         if isinstance(a,FourierExpansion):
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]+a.get_cusp_expansion(c)
-            weight += a.weight
+            if a.weight != weight:
+                raise ArithmeticError("Please only add forms of equal weight!")
         else: #Scalar addition
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]+a
@@ -248,7 +254,8 @@ class FourierExpansion():
         if isinstance(a,FourierExpansion):
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]-a.get_cusp_expansion(c)
-            weight += a.weight
+            if a.weight != weight:
+                raise ArithmeticError("Please only subtract forms of equal weight!")
         else: #Scalar subtraction
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]-a

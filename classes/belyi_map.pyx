@@ -1,5 +1,7 @@
 from math import ceil
 
+from sage.libs.arb.acb cimport *
+from sage.rings.complex_arb cimport *
 from sage.libs.arb.acb_poly cimport *
 from sage.rings.qqbar import QQbar
 from sage.modular.cusps import Cusp
@@ -12,10 +14,12 @@ from sage.rings.real_mpfr import RealField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
+from sage.misc.misc import newton_method_sizes
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
+from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
@@ -35,6 +39,31 @@ def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usu
     tmp = L(j_inv.subs(q=q_n**n)) #Because we currently cannot work with Puiseux series in Sage.
     res = tmp.nth_root(n)
     return res
+
+def my_n_th_root(p, n):
+    """
+    Given a Laurent series p defined over acbs for which the first n-1 coefficients are zero, compute the n-th root using division free newton iterations.
+    The reason for implementing this ourselves is that the following example does not work in sage:
+    sage: P.<x> = PowerSeriesRing(CBF)
+    sage: p = P(2*x**3-16*x**4).O(10)
+    sage: p.nth_root(3)
+    TypeError: Cannot convert int to sage.rings.integer.Integer
+    """
+    cdef ComplexBall c
+    if n == 1:
+        return p
+    elif n == 2: #Use arbs implementation which is more optimized
+        return p.parent()(p.power_series().sqrt())
+    else:
+        CBF = p.parent().base_ring()
+        c = CBF(p[n]) #Make sure we do not modify p[n]
+        acb_root_ui(c.value,c.value,n,CBF.precision()) #because CBF.nth_root is not implemented...
+        prec = p.prec()-n    
+        r = ((1/c)*p.parent().gen()**(-1)).O(0)
+        for i in newton_method_sizes(prec)[1:]:
+            r = r.lift_to_precision(i-1)
+            r = (r*((n+1)-p*r**n))/n
+        return r.inverse()
 
 def get_B_factored_degree(B_factored):
     """
@@ -247,7 +276,7 @@ class BelyiMap():
     def get_cuspforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
-        If "digit_prec" is given, use approximate arithmetic.
+        If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
         if digit_prec == None:
             j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
@@ -270,7 +299,7 @@ class BelyiMap():
     def get_modforms(self, weight, trunc_order, digit_prec=None):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
-        If "digit_prec" is given, use approximate arithmetic.
+        If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
         if digit_prec == None:
             j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
@@ -306,7 +335,7 @@ class BelyiMap():
     
     def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
         """
-        Return q-expansion of hauptmodul at all cusps using floating point arithmetic.
+        Return q-expansion of hauptmodul at all cusps using ball arithmetic with rigorous error bounds.
         We return the result as an instance of FourierExpansion.
         Note that not all coefficients need to be correct up to the specified precision!
         """
@@ -369,35 +398,31 @@ class BelyiMap():
         Get the reversed series of the reciprocal of the Belyi map expanded in 1/x.
         We need to compute this for "get_hauptmodul_q_expansion_infinity_approx".
         """
-        CC = ComplexField(bit_prec)
         CBF = ComplexBallField(bit_prec)
-        L = LaurentSeriesRing(CC,"x")
+        L = LaurentSeriesRing(CBF,"x")
         x = L.gen()
-        #We need to perform these computations with CC because somehow nth_root does not work with CBF,
-        #although I would have expected these routines to be generic...
-        #Maybe add these functions in the future so that we can output a result with rigorous error bounds (and potentially performance gains).
-        s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.princial_cusp_width)
+        s = my_n_th_root(L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order),self.princial_cusp_width)
         s_prec = s.prec() #Exponent of the O-term
-        s_arb_reverted = s.polynomial().change_ring(CBF).revert_series(s_prec) #Perform the reversion in arb because it is expensive
+        s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         r = L(s_arb_reverted).O(s_prec).inverse()
         return r
 
     def _get_hauptmodul_q_expansion_infinity_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
         """
         Compute approximation of the coefficients of the q-expansion of the hauptmodul truncated to "trunc_order" and with "digit_prec"
-        working precision. We make use of fast Arb implementations for performance.
+        working precision. We make use of fast Arb implementations for performance and rigorous error bounds.
         Because of the large coefficients involved, the arithmetic might become ill-conditioned. 
         If "try_to_overcome_ill_conditioning" == True, we try to detect these cases and increase the
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
         """
-        CC_res = ComplexField(digits_to_bits(digit_prec))
         princial_cusp_width = self.princial_cusp_width
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,princial_cusp_width)
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_laurent_expansion(trunc_order,64)
-            required_prec = int(round(r_low_prec[r_low_prec.degree()].abs().log10()))
+            CC = ComplexField(64)
+            required_prec = int(round(1.1*CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -409,64 +434,57 @@ class BelyiMap():
         r = self._get_r_for_laurent_expansion(trunc_order,working_bit_prec)
 
         n_sqrt_j_inverse_CBF = n_sqrt_j_inverse.polynomial().change_ring(CBF)
-        r_pos_degree = r[0:r.degree()+1].power_series().polynomial().change_ring(CBF) #We treat the 1/x term later because arb only supports polynomials
+        r_pos_degree = r[0:r.degree()+1].power_series().polynomial() #We treat the 1/x term later because arb only supports polynomials
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,trunc_order) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse_CBF.variable_name())
-        one_over_x_term = P(n_sqrt_j_inverse_CBF).O(n_sqrt_j_inverse_CBF.degree()+1).inverse() #Treat 1/x term separately because it is not supported by arb
+        one_over_x_term = n_sqrt_j_inverse.inverse() #Treat 1/x term separately because it is not supported by arb
         j_G = one_over_x_term + P(tmp)
-
-        return j_G.change_ring(CC_res)
+        return j_G
 
     def _get_r_for_taylor_expansion(self, cusp, trunc_order, bit_prec):
         """
         Get the reversed series of the reciprocal of the Belyi map expanded in x.
         We need to compute this for "get_hauptmodul_q_expansion_non_infinity_approx".
         """
-        #We need to perform these computations with CC because somehow nth_root does not work with CBF,
-        #although I would have expected these routines to be generic...
-        #Maybe add these functions in the future so that we can output a result with rigorous error bounds (and potentially performance gains).
         cusp_evaluation = self._cusp_valuations[cusp]
         cusp_width = self.G.cusp_width(cusp)
-        CC = ComplexField(bit_prec)
         CBF = ComplexBallField(bit_prec)
-        L = LaurentSeriesRing(CC,"x")
+        L = LaurentSeriesRing(CBF,"x")
         x = L.gen()
-        cusp_evaluation_CC = CC(cusp_evaluation)
-        pc_shifted, p3_shifted = L(self.pc_constructed).subs({x:x+cusp_evaluation_CC}).O(trunc_order), L(self.p3_constructed).subs({x:x+cusp_evaluation_CC}).O(trunc_order)
+        cusp_evaluation_CBF = CBF(cusp_evaluation)
+        pc_shifted, p3_shifted = L(self.pc_constructed).subs({x:x+cusp_evaluation_CBF}).O(trunc_order), L(self.p3_constructed).subs({x:x+cusp_evaluation_CBF}).O(trunc_order)
         
         #It is very important that the leading order terms of pc_shifted are truely zero, otherwise we can get very large rounding errors
         #We therefore set the coefficients that are effectively zero to true zeros
         pc_shifted_coeffs = []
         for i in range(pc_shifted.degree()+1):
             if i < cusp_width:
-                pc_shifted_coeffs.append(CC(0))
+                pc_shifted_coeffs.append(CBF(0))
             else:
                 pc_shifted_coeffs.append(pc_shifted[i])
         pc_shifted = L(pc_shifted_coeffs).O(trunc_order)
 
-        s = (pc_shifted/p3_shifted).power_series().nth_root(cusp_width)
+        s = my_n_th_root(pc_shifted/p3_shifted,cusp_width)
         s_prec = s.prec() #Exponent of the O-term
-        s_arb_reverted = s.polynomial().change_ring(CBF).revert_series(s_prec) #Perform the reversion in arb because it is expensive
+        s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         s_arb_reverted_prec = s_arb_reverted.prec() #Exponent of the O-term
         r = L(s_arb_reverted).O(s_arb_reverted_prec)
-
         return r
 
     def _get_hauptmodul_q_expansion_non_infinity_approx(self, cusp, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
         """
         Compute approximation of the coefficients of the q-expansion of the hauptmodul at a non-principal cusp truncated to "trunc_order" 
-        and with "digit_prec" working precision. We make use of fast Arb implementations for performance.
+        and with "digit_prec" working precision. We make use of fast Arb implementations for performance and rigorous error bounds.
         Because of the large coefficients involved, the arithmetic might become ill-conditioned. 
         If "try_to_overcome_ill_conditioning" == True, we try to detect these cases and increase the
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
         """
-        CC_res = ComplexField(digits_to_bits(digit_prec))
-
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_taylor_expansion(cusp,trunc_order,64)
-            required_prec = int(round(r_low_prec[r_low_prec.degree()].abs().log10()))
+            CC = ComplexField(64)
+            required_prec = int(round(CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -480,16 +498,16 @@ class BelyiMap():
         r = self._get_r_for_taylor_expansion(cusp,trunc_order,working_bit_prec)
 
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width).polynomial().change_ring(CBF)
-        r_pos_degree = r.power_series().polynomial().change_ring(CBF)
+        r_pos_degree = r.power_series().polynomial()
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse,r.degree()+1) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
         j_G = CBF(cusp_evaluation) + P(tmp).O(trunc_order)
-        return j_G.change_ring(CC_res)
+        return j_G
 
     def _get_hauptmodul_q_expansion_derivative(self, j_G, rescale_coefficients):
         """
         Returns 1/(2*pi*i) * d/dtau j_G(tau) where j_G is an instance of "FourierExpansion".
-        This function works for both rigorous and approximate arithmetic.
+        This function works for both rigorous and floating arithmetic.
         If "rescale_coefficients == True", we rescale the coefficients at the other cusps in order to match the convention of the other functions.
         """
         cusp_expansions = dict()
