@@ -179,7 +179,7 @@ def to_reduced_row_echelon_form(fourier_expansions):
 
 class FourierExpansion():
     """
-    Class for storing Fourier expansions (q-expansions) of modular forms over general rings.
+    Class for storing Fourier expansions (q-expansions) of modular forms over general numberfields.
     We use the notation q_N = exp(2*pi*I*z/N).
     """
     def __init__(self, G, weight, cusp_expansions, modform_type):

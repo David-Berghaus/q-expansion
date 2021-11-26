@@ -12,6 +12,7 @@ from sage.rings.real_mpfr import RealField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
+from sage.misc.misc import newton_method_sizes
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.modform.arithgroup.mysubgroup import MySubgroup
@@ -35,6 +36,29 @@ def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usu
     tmp = L(j_inv.subs(q=q_n**n)) #Because we currently cannot work with Puiseux series in Sage.
     res = tmp.nth_root(n)
     return res
+
+def my_n_th_root(p, n):
+    """
+    Given a power series p for which the first n-1 coefficients are zero, compute the n-th root using division free newton iterations.
+    The reason for implementing this ourselves is that the following example does not work in sage:
+    sage: P.<x> = PowerSeriesRing(CBF)
+    sage: p = P(2*x**3-16*x**4).O(10)
+    sage: p.nth_root(3)
+    TypeError: Cannot convert int to sage.rings.integer.Integer
+    """
+    if n == 1:
+        return p
+    elif n == 2: #Use arbs implementation which is more optimized
+        return p.sqrt()
+    else:
+        prec = p.prec()-n
+        CC = ComplexField(p.base_ring().precision())
+        c = p.base_ring()(CC(p[n]).nth_root(n)) #because nth root is not implemented for CBFs...
+        r = ((1/c)*p.parent().gen()**(-1)).O(0)
+        for i in newton_method_sizes(prec)[1:]:
+            r = r.lift_to_precision(i-1)
+            r = (r*((n+1)-p*r**n))/n
+        return r.inverse()
 
 def get_B_factored_degree(B_factored):
     """
@@ -397,7 +421,7 @@ class BelyiMap():
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_laurent_expansion(trunc_order,64)
-            required_prec = int(round(r_low_prec[r_low_prec.degree()].abs().log10()))
+            required_prec = int(round(1.1*r_low_prec[r_low_prec.degree()].abs().log10()))
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
