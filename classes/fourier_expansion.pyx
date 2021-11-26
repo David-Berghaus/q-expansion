@@ -2,6 +2,7 @@ from copy import copy, deepcopy
 
 from sage.modular.cusps import Cusp
 from sage.rings.complex_field import ComplexField
+from sage.rings.complex_arb import ComplexBallField
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 
@@ -219,7 +220,11 @@ class FourierExpansion():
         if digit_prec == None:
             return cusp_expansion.O(trunc_order)
         else:
-            CBF = ComplexField(digits_to_bits(digit_prec))
+            if isinstance(cusp_expansion.base_ring(),ComplexField): #Results are non-rigorous
+                CF = ComplexField(digits_to_bits(digit_prec))
+                return cusp_expansion.O(trunc_order).change_ring(CF)
+            #Return rigorous error bounds
+            CBF = ComplexBallField(digits_to_bits(digit_prec))
             return cusp_expansion.O(trunc_order).change_ring(CBF)
     
     def __add__(self, a):
