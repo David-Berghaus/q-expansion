@@ -428,7 +428,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             principal_cusp_width = G.cusp_width(Cusp(1,0))
             c = get_simplest_coeff(p3,p2,pc,coeff_prec)
             tmp = get_numberfield_of_coeff(c,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
-            if tmp == False: #Failed to recognize coeffs as alg numbers
+            if tmp == None: #Failed to recognize coeffs as alg numbers
                 continue
             numberfield, gen = tmp
             extension_field_degree = numberfield.degree()
@@ -436,7 +436,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
                 alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
-                if alg_factored_polynomial == False: #Failed to recognize coeffs as alg numbers
+                if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)
             if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized

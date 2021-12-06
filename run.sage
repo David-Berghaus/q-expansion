@@ -23,6 +23,17 @@ u_H1 = (-7**3)**(1/5)/7**2
 # u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
 U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
 
+def numberfield_example():
+    #Consider the example of U1 defined over an explicit numberfield
+    Kv.<v> = NumberField(x**2 - x + 1,embedding=CC(-0.5,0.86))
+    B = BelyiMap(U1)
+    c1 = B.pc_constructed.roots(ring=QQbar,multiplicities=False)[0]
+    #lindep([CC(c1**6),1,CC(v)]) = [-7, 103680, -20736]
+    u = (103680/7-20736/7*v)**(1/6) #Can we express this in terms of variable v instead of the value of v (which can be an algebraic number)?
+    #And note that u is not neccessarily the correct root...
+    tmp = (12*v-17)*u**2 #This is an arbitrary expression
+    return tmp
+
 def oldform_example():
     #We consider an example of a group with a non-trivial supergroup
     #Note that this group has non-trivial conjugators between both G_prime and PSL2(Z) (see Strömberg's paper). 
