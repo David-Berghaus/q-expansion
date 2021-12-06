@@ -23,11 +23,6 @@ u_H1 = (-7**3)**(1/5)/7**2
 # u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
 U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
 
-def test():
-    load("subgroups.sage")
-    tmp = get_list_of_all_passports(9,0)
-    B = BelyiMap(tmp[7][0])
-
 def numberfield_example():
     #Consider the example of U1 defined over an explicit numberfield
     Kv.<v> = NumberField(x**2 - x + 1,embedding=CC(-0.5,0.86))
