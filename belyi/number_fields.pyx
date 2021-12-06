@@ -39,8 +39,8 @@ cpdef to_QQbar(x, gen, extension_field_degree):
     for i in range(extension_field_degree):
         LLL_basis.append(gen_approx**i)
     LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
-    if LLL_res == False: #Result is invalid
-        return False
+    if LLL_res == None: #Result is invalid
+        return None
     
     x_alg = 0
     for i in range(extension_field_degree):
@@ -57,14 +57,14 @@ def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=Tr
     """
     LLL_basis = [x.parent().one(),x]
     LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
-    if LLL_res == False: #Current basis is not large enough to find solution
+    if LLL_res == None: #Current basis is not large enough to find solution
         for i in range(2,max_extension_field_degree+1): #Look for larger degree extension fields
             LLL_basis.append(x**i) #Increase basis size
             LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
-            if LLL_res != False: #We found a solution that seems to be valid
+            if LLL_res != None: #We found a solution that seems to be valid
                 break
-        if LLL_res == False: #Found no solution even for the maximal basis size
-            return False
+        if LLL_res == None: #Found no solution even for the maximal basis size
+            return None
     
     P = PolynomialRing(ZZ,"x")
     numberfield = P(LLL_res)
@@ -89,7 +89,7 @@ def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=Tr
                 for i in range(numberfield_red.degree()):
                     LLL_basis.append(root_approx**i)
                 LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
-                if LLL_res != False: #This seems to be the correct generator
+                if LLL_res != None: #This seems to be the correct generator
                     return numberfield_red, root
             raise ArithmeticError("We should not get here!")
 
@@ -97,7 +97,7 @@ def lindep(L, check_if_result_is_invalid=True):
     """
     Given a list L, use PARI to return a list of factors F_i s.t. sum_i F_i*L_i = 0.
     If check_if_result_is_invalid==True, we perform several checks to test if the result is invalid.
-    If solution is invalid, return False.
+    If solution is invalid, return None.
     """
     F = pari(L).lindep().list()
     res = [f.sage() for f in F]
@@ -111,9 +111,9 @@ def lindep(L, check_if_result_is_invalid=True):
             F = pari(L_copy).lindep().list()
             L_copy_res = [f.sage() for f in F]
             if L_copy_res[-1] != 0 or L_copy_res[:len(res)] != res: #Found an invalid example
-                return False
+                return None
             if len(L_copy_results) != 0 and L_copy_results[-1] != L_copy_res: #Found an invalid example
-                return False
+                return None
             L_copy_results.append(L_copy_res)
         return L_copy_results[0][:len(L)]
     return res

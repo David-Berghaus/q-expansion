@@ -3,7 +3,8 @@ from sage.rings.qqbar import QQbar
 from sage.rings.complex_field import ComplexField
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 
-from belyi.number_fields import to_QQbar, get_numberfield_and_gen
+from belyi.number_fields import to_QQbar, get_numberfield_and_gen, is_effectively_zero
+from point_matching.point_matching_arb_wrap import bits_to_digits
 
 cpdef construct_poly_from_root_tuple(x, root_tuple):
     p = 1
@@ -25,7 +26,7 @@ cpdef get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_w
     """
     Given a polynomial p, try to recognize coefficients as algebraic numbers.
     We assume that the generators of the numberfield have already been identified.
-    Return False if this does not succeed.
+    Return None if this does not succeed.
     Otherwise return polynomial over QQbar.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
@@ -39,11 +40,13 @@ cpdef get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_w
         expression_to_recognize = coeff_floating_approx**principal_cusp_width
         if expression_to_recognize.is_one() == True:
             recognized_expression = QQbar(1)
+        elif is_effectively_zero(expression_to_recognize,bits_to_digits(bit_prec)) == True:
+            recognized_expression = QQbar(0)
         else:
             recognized_expression = to_QQbar(expression_to_recognize,gen,extension_field_degree)
 
-        if recognized_expression == False: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
-            return False
+        if recognized_expression == None: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
+            return None
         #We need to recognize the correct root. Is there a better way for this?
         potential_algebraic_expressions = recognized_expression.nth_root(principal_cusp_width,all=True)
         diffs = [(potential_algebraic_expression-coeff_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
@@ -59,7 +62,7 @@ def get_numberfield_of_coeff(c, max_extension_field_degree, principal_cusp_width
     """
     Try to recognize the numberfield of one of the coefficients by trying to express it as an algebraic number.
     Note that we define the numberfield to be the numberfield of c**principal_cusp_width.
-    If this succeeds, return the (potentially reduced) numberfield and its generator, otherwise return False.
+    If this succeeds, return the (potentially reduced) numberfield and its generator, otherwise return None.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
         bit_prec = c.parent().precision()
@@ -136,15 +139,15 @@ class Factored_Polynomial():
         """
         Tries to recognize coefficients of factor polynomials as algebraic numbers defined over a numberfield with generator gen.
         If this succeeds (which we only verify empirically here), return instance of Factored_Polynomial over algebraic numbers.
-        Otherwise return False.
+        Otherwise return None.
         """
         if len(self.factors) == 0:
             return self #The empty class is already (somewhat) algebraic
         algebraic_factors = []
         for (p,order) in self.factors:
             p_algebraic = get_algebraic_poly_coeffs(p, gen, extension_field_degree, principal_cusp_width, estimated_bit_prec=estimated_bit_prec)
-            if p_algebraic == False:
-                return False
+            if p_algebraic == None:
+                return None
             else:
                 algebraic_factors.append([p_algebraic,order])
 
