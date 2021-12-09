@@ -393,20 +393,21 @@ def get_simplest_non_zero_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
         return None
     return c
 
-def get_u(p3, p2, pc, digit_prec, cusp_width, index):
+def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
     """
-    Let QQ(v) denote the numberfield over which the Belyi map can be defined. Then u^cusp_width is an expression in QQ(v).
-    We usually choose u to be one of the second-leading order coefficients. If these are all zero, we choose u to be a quotient of coefficients.
+    Return an expression that is linear in u and easy to recognize. 
+    We usually choose the expression to be one of the second-leading order coefficients. 
+    If these are all zero, we choose u to be a quotient of coefficients.
     """
-    u = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=-1)
-    if u != None:
-        return u
+    res = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=-1)
+    if res != None:
+        return res
     if cusp_width == 1: #u is in QQ(v) so we can choose any coefficient
         for i in range(2,index):
             coeff_shift = -i
-            u = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
-            if u != None:
-                return u
+            res = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
+            if res != None:
+                return res
         raise ArithmeticError("We should not get here!")
     else: #We have to construct quotients of coefficients
         for i in range(2,index):
@@ -416,8 +417,8 @@ def get_u(p3, p2, pc, digit_prec, cusp_width, index):
                 num = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift-1)
                 if num == None:
                     raise ArithmeticError("We have not considered this case yet!")
-                u = num/den
-                return u
+                res = num/den
+                return res
         raise ArithmeticError("We should not get here!")
 
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
@@ -447,16 +448,18 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             if max_extension_field_degree == None:
                 raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
             principal_cusp_width = G.cusp_width(Cusp(1,0))
-            u = get_u(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
-            tmp = get_numberfield_of_coeff(u,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+            coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
+            tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == None: #Failed to recognize coeffs as alg numbers
                 continue
-            numberfield, gen = tmp
+            numberfield, gen, u = tmp
             extension_field_degree = numberfield.degree()
 
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+                #Which method is better for which scenario, dividing by a power of u or raising the coefficients to the n-th power?
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,u=u,estimated_bit_prec=coeff_bit_prec)
+                #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)

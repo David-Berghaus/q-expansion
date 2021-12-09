@@ -52,7 +52,6 @@ def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=Tr
     """
     Try to express x in a numberfield over QQbar with specified max_extension_field_degree.
     This function returns a polynomial over which the numberfield is defined as well as the generator (expressed as an algebraic number) or False.
-
     If reduce_numberfield == True then try to reduce the numberfield and return the generator of this numberfield.
     """
     LLL_basis = [x.parent().one(),x]
