@@ -128,8 +128,6 @@ def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
     Given an expression x which can be written as x = (c*u)^principal_cusp_width, get an expression for c.
     This is done by factoring out common primes whose power is larger than principal_cusp_width.
     """
-    if principal_cusp_width == 1:
-        return QQ(1) #Although we could also try to choose c to cancel the denominators
     LLL_basis = [x]
     gen_approx = x.parent()(gen)
     for i in range(extension_field_degree):
@@ -140,6 +138,7 @@ def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
     numerator_primes_pows = [list(factor(i)) for i in LLL_res[1:]] #Primes and powers
     numerator_primes = [prime_factors(i) for i in LLL_res[1:]] #Only primes
     print("numerator_primes_pows: ", numerator_primes_pows)
+    print("denominator: ", factor(LLL_res[0]))
     numerator_factors = [] #Primes and powers of the numerator that can be factored out
     #Now look for common prime factors which have a power that is larger than principal_cusp_width
     for (prime,power) in numerator_primes_pows[0]:
