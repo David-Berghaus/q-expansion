@@ -452,14 +452,14 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == None: #Failed to recognize coeffs as alg numbers
                 continue
-            numberfield, gen, u = tmp
-            extension_field_degree = numberfield.degree()
+            Kv, Ku, v_Ku, u_interior_Kv = tmp
+            u = Ku.gen()
 
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
                 #Which method is better for which scenario, dividing by a power of u or raising the coefficients to the n-th power?
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,u=u,estimated_bit_prec=coeff_bit_prec)
-                #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,u=u,v_Ku=v_Ku,estimated_bit_prec=coeff_bit_prec)
+                #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)

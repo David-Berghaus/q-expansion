@@ -65,8 +65,8 @@ def numberfield_example2():
     import time
 
     P.<x> = QQ[]
-    #p = P(x**3+x**2-x+1)
-    p = P(x^12 - 2*x^6 + 468*x^5 - 4568*x^4 + 102256*x^3 - 1569312*x^2 + 19226560*x + 45652288)
+    p = P(x**3+x**2-x+1)
+    #p = P(x^12 - 2*x^6 + 468*x^5 - 4568*x^4 + 102256*x^3 - 1569312*x^2 + 19226560*x + 45652288)
     Kv.<v> = NumberField(p,embedding=CC(-0.5,0.86)) #This is QQ(v)
     u = QQbar(123*v**5+64*v**4/13+15*v**3+1769*v**2+(1763*v+1255)/7).nth_root(6) #Arbitrary expression
     u_minpoly = u.minpoly() #Using lindep([1,u1**6,u**12]) should be faster but we are prefering cleaner code here
@@ -99,15 +99,15 @@ def numberfield_example3():
     cusp_width = 6
 
     P.<x> = QQ[]
-    #p = P(x**3+x**2-x+1)
-    p = P(x^12 - 2*x^6 + 468*x^5 - 4568*x^4 + 102256*x^3 - 1569312*x^2 + 19226560*x + 45652288)
+    p = P(x**4+x**2-x+1)
+    #p = P(x^12 - 2*x^6 + 468*x^5 - 4568*x^4 + 102256*x^3 - 1569312*x^2 + 19226560*x + 45652288)
     Kv.<v> = NumberField(p,embedding=CC(-0.5,0.86)) #This is QQ(v)
     u_interior = 123*v**5+64*v**4/13+15*v**3+1769*v**2+(1763*v+1255)/7
     u_alg = QQbar(u_interior).nth_root(cusp_width) #Arbitrary expression
     u_minpoly = u_alg.minpoly() #Using lindep([1,u1**6,u**12]) should be faster but we are prefering cleaner code here
     K.<u_K> = NumberField(u_minpoly,embedding=CC(u_alg)) #This numberfield contains both u and v, so we can use it for arithmetic
 
-    #v_K = K(v) #Maybe use lindep([CC(v),1,CC(u_K**6),CC(u_K**(6*2))])
+    #v_K = K(v) #Can be slow
     u_K_approx_pow = CC(u_K)**cusp_width
     lll_input = [CC(v)]
     for i in range(p.degree()):
@@ -125,12 +125,18 @@ def numberfield_example3():
     tmp /= u_K**3
     
     #We now want to recover tmp in terms of v
-    #res = Kv(tmp) #We could compute this efficiently through substitution of u but sage already seems to be quite fast
+    #res = Kv(tmp) #Can be slow
     x = var("x")
     coeffs = list(P(tmp.polynomial().subs(x=x**(1/cusp_width))))
     res = 0 #We could simply use .subs but the result would then be in QQbar
     for i in range(len(coeffs)):
         res += coeffs[i]*u_interior**i #Better to use Horner here
+
+    CC = ComplexField(64)
+    print("res: ", res)
+    print("CC(res): ", CC(res))
+    print("CC(54*v**3+15*v/2+7)", CC(54*v**3+15*v/2+7))
+
     assert(res == 54*v**3+15*v/2+7)
 
     return res
