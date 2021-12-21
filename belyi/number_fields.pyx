@@ -51,46 +51,6 @@ cpdef to_K(x, K):
     x_alg /= -LLL_res[0]
     return x_alg
 
-def convert_from_Kv_to_Ku(expression_in_Kv, v_Ku):
-    """
-    Given an expression in Kv, convert the expression efficiently to Ku by plugging in v(u).
-    """
-    if expression_in_Kv == 0:
-        return 0
-    coeffs = list(expression_in_Kv.polynomial())
-    res = coeffs[-1]
-    for i in range(len(coeffs)-2,-1,-1): #Horner's method
-        res = res*v_Ku+coeffs[i]
-    return res
-
-def is_u_minpoly_maximal_degree(u_minpoly, extension_field_degree, principal_cusp_width):
-    """
-    Detect if u_minpoly is of maximal degree (i.e., of degree extension_field_degree*principal_cusp_width).
-    If u_minpoly is of maximal degree, then its monomials are given by [x**(N*principal_cusp_width),x**((N-1)*principal_cusp_width),...]
-    which means that some operations can be simplified.
-    """
-    return u_minpoly.degree() == extension_field_degree*principal_cusp_width
-
-def factor_into_u_and_v(expression_in_Ku, u_interior_Kv, principal_cusp_width):
-    """
-    Factor expression in Ku into a factor in Kv and a power of u.
-    """
-    Ku, Kv = expression_in_Ku.parent(), u_interior_Kv.parent()
-    u = Ku.gen()
-    u_pow = expression_in_Ku.polynomial().valuation()
-    expression_shifted = expression_in_Ku/(u**u_pow) #This expression can be written as an element in v
-    if is_u_minpoly_maximal_degree(Ku.polynomial(),Kv.degree(),principal_cusp_width) == True: #We can efficiently factor expression by plugging in u_interior_Kv 
-        coeffs = list(expression_shifted)
-        res = coeffs[-1]
-        for i in range(len(coeffs)-2,-1,-1): #Horner's method
-            if coeffs[i] != 0:
-                if i%principal_cusp_width != 0:
-                    raise ArithmeticError("Unable to factor expression into u and v!")
-                res = res*u_interior_Kv+coeffs[i]
-    else: #We have to use Sage for this computation... Can we do it more efficiently?
-        res = Kv(expression_shifted)
-    return res, u_pow        
-
 def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=True):
     """
     Try to express x in a numberfield over QQbar with specified max_extension_field_degree.

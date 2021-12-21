@@ -23,6 +23,7 @@ from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
+from classes.factored_polynomial import get_factored_polynomial_in_u_v
 
 def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usually not slower than approx and one does not need to worry about conditioning
     """
@@ -102,11 +103,12 @@ class BelyiMap():
         
         G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
-        (p3, p2, pc), cusp_rep_values = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
+        (p3, p2, pc), cusp_rep_values, v_Ku, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
-        self.princial_cusp_width = G.cusp_width(Cusp(1,0))
+        self.principal_cusp_width = G.cusp_width(Cusp(1,0))
+        self._v_Ku, self._u_interior_Kv = v_Ku, u_interior_Kv
 
         self._e2_valuations = self._get_e2_fixed_point_valuations()
         self._e3_valuations = self._get_e3_fixed_point_valuations()
@@ -117,7 +119,9 @@ class BelyiMap():
         return self.__str__()
 
     def __str__(self):
-        return self.p3.__str__() + " / " + self.pc.__str__()
+        p3_u_v = get_factored_polynomial_in_u_v(self.p3,self._u_interior_Kv,self.principal_cusp_width)
+        pc_u_v = get_factored_polynomial_in_u_v(self.pc,self._u_interior_Kv,self.principal_cusp_width)
+        return p3_u_v.__str__() + " / " + pc_u_v.__str__()
     
     def _get_e2_fixed_point_valuations(self):
         """
@@ -177,7 +181,7 @@ class BelyiMap():
         p3_constructed, p2_constructed, pc_constructed = self.p3_constructed, self.p2_constructed, self.pc_constructed
         if p3_constructed-p2_constructed-1728*pc_constructed != 0: #Verify result
             raise ArithmeticError("Verification of polynomial_equation failed!")
-        if pc_constructed.degree()+self.princial_cusp_width != self.G.index():
+        if pc_constructed.degree()+self.principal_cusp_width != self.G.index():
             raise ArithmeticError("Wrong behavior at infinity!")
     
     def _get_B_elliptic_factored(self, weight):
@@ -355,10 +359,10 @@ class BelyiMap():
         parent = self.p2_constructed[0].parent()
         L = LaurentSeriesRing(parent,"x")
         x = L.gen()
-        princial_cusp_width = self.princial_cusp_width
-        s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.princial_cusp_width)
+        principal_cusp_width = self.principal_cusp_width
+        s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.principal_cusp_width)
         r = s.reverse().inverse()
-        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,princial_cusp_width)
+        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
         j_G = r.subs(x=n_sqrt_j_inverse)
         return j_G
 
@@ -386,10 +390,10 @@ class BelyiMap():
     #     CC = ComplexField(bit_prec)
     #     L = LaurentSeriesRing(CC,"x")
     #     x = L.gen()
-    #     princial_cusp_width = self.princial_cusp_width
-    #     s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.princial_cusp_width)
+    #     principal_cusp_width = self.principal_cusp_width
+    #     s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.principal_cusp_width)
     #     r = s.reverse().inverse()
-    #     n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,princial_cusp_width)
+    #     n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
     #     j_G = r.subs({x:n_sqrt_j_inverse})
     #     return j_G #Note that some of the higher coefficients might be wrong due to rounding errors
 
@@ -401,7 +405,7 @@ class BelyiMap():
         CBF = ComplexBallField(bit_prec)
         L = LaurentSeriesRing(CBF,"x")
         x = L.gen()
-        s = my_n_th_root(L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order),self.princial_cusp_width)
+        s = my_n_th_root(L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order),self.principal_cusp_width)
         s_prec = s.prec() #Exponent of the O-term
         s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         r = L(s_arb_reverted).O(s_prec).inverse()
@@ -415,8 +419,8 @@ class BelyiMap():
         If "try_to_overcome_ill_conditioning" == True, we try to detect these cases and increase the
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
         """
-        princial_cusp_width = self.princial_cusp_width
-        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,princial_cusp_width)
+        principal_cusp_width = self.principal_cusp_width
+        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent

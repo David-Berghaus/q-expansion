@@ -6,7 +6,8 @@ from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.number_field.number_field import NumberField
 from sage.arith.misc import factor, prime_factors
 
-from belyi.number_fields import to_K, get_numberfield_and_gen, is_effectively_zero, lindep, convert_from_Kv_to_Ku
+from belyi.number_fields import to_K, get_numberfield_and_gen, is_effectively_zero, lindep
+from belyi.expression_in_u_and_v import convert_from_Kv_to_Ku, factor_into_u_v
 from point_matching.point_matching_arb_wrap import bits_to_digits
 
 cpdef construct_poly_from_root_tuple(x, root_tuple):
@@ -241,6 +242,26 @@ def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
     for (prime,power) in numerator_factors:
         c *= prime**(power//principal_cusp_width)
     return c, x_alg
+
+def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, principal_cusp_width):
+    """
+    Given a factored polynomial that is defined over Ku, transform coefficients into expressions in u and v
+    (which are internally expressed as polynomials in Kv over u).
+    Although one can perform some arithmetic with these expressions, we mainly use them to print the results in a more convenient form.
+    """
+    coeff_tuples = []
+    polygen = None
+    for (p,order) in factored_polynomial_in_Ku.factors:
+        p_deg = p.degree()
+        coeffs_u_v = []
+        for i in range(0,p_deg+1):
+            u_pow = p_deg-i
+            coeff_u_v = factor_into_u_v(p[i],u_pow,u_interior_Kv,principal_cusp_width)
+            coeffs_u_v.append(coeff_u_v)
+            if polygen == None and u_pow != 0:
+                polygen = coeff_u_v.parent().gen()
+        coeff_tuples.append( (coeffs_u_v,order) )
+    return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples)
 
 class Factored_Polynomial():
     """

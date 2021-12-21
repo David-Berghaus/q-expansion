@@ -464,7 +464,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)
             if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
-                return alg_factored_polynomials
+                return alg_factored_polynomials, v_Ku, u_interior_Kv
     
     if stop_when_coeffs_are_recognized == True:
         raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
@@ -518,8 +518,10 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    factored_polynomials, v_Ku, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:
+        if stop_when_coeffs_are_recognized == True:
+            return factored_polynomials, cusp_rep_values, v_Ku, u_interior_Kv
         return factored_polynomials, cusp_rep_values
