@@ -6,6 +6,7 @@ from classes.belyi_map import BelyiMap
 def run_unit_tests_belyi_map():
     test_belyi_map()
     test_belyi_map2()
+    test_belyi_map3()
     
 def test_belyi_map():
     U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
@@ -34,7 +35,6 @@ def test_belyi_map2():
     #Now to another cusp
     assert (0.0001193725232434080170705685108977290047248894985521-C_rig[0].get_cusp_expansion(Cusp(0,1))[1]).abs() < 1e-44
     assert (0.004483167581161408321902149062642889803383630544025-C_rig[1].get_cusp_expansion(Cusp(0,1))[4]).abs() < 1e-44
-    print((0.0001193725232434080170705685108977290047248894985521-CF(C_approx[0].get_cusp_expansion(Cusp(0,1))[1])).abs())
     assert (0.0001193725232434080170705685108977290047248894985521-CF(C_approx[0].get_cusp_expansion(Cusp(0,1))[1])).abs() < 1e-44
     assert (0.004483167581161408321902149062642889803383630544025-CF(C_approx[1].get_cusp_expansion(Cusp(0,1))[4])).abs() < 1e-44
     M_rig = B.get_modforms(2,25,only_principal_cusp_expansion=False)
@@ -45,3 +45,19 @@ def test_belyi_map2():
     assert (M_sage[0][24]-CF(M_approx[0].get_cusp_expansion(Cusp(1,0))[24])).abs() == 0
     assert (M_sage[2][24]-CF(M_approx[2].get_cusp_expansion(Cusp(1,0))[24])).abs() == 0
     print("test_belyi_map2 ok")
+
+def test_belyi_map3():
+    U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
+    B = BelyiMap(U1) #Test degree two Ku example
+    C_rig = B.get_cuspforms(4,25,only_principal_cusp_expansion=True) #This is constructed through Ku-arithmetic
+    C_approx = B.get_cuspforms(4,25,50,only_principal_cusp_expansion=True)
+    CF = ComplexField(167)
+    correct_res = CF(-4.2933873728750574663589574362627879379968021749049681273915,-64.175078941013332742794027720411935007114227517392815852039)
+    assert (CF(C_rig[0].get_cusp_expansion(Cusp(1,0))[14])-correct_res).abs() < CF(10)**(-39)
+    assert (CF(C_approx[0].get_cusp_expansion(Cusp(1,0))[14])-correct_res).abs() < CF(10)**(-39)
+    C_rig = B.get_modforms(4,25,only_principal_cusp_expansion=True) #This is constructed through Ku-arithmetic
+    C_approx = B.get_modforms(4,25,50,only_principal_cusp_expansion=True)
+    correct_res = CF(-72.433016538957003294780826994583182363158868739244676993287,-224.75965449478140273855502676201462038401186709430507383978)
+    assert (CF(C_rig[1].get_cusp_expansion(Cusp(1,0))[11])-correct_res).abs() < CF(10)**(-39)
+    assert (CF(C_approx[1].get_cusp_expansion(Cusp(1,0))[11])-correct_res).abs() < CF(10)**(-39)
+
