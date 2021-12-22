@@ -262,12 +262,14 @@ class BelyiMap():
             j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
         else:
             j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        B = self._get_B(weight).change_ring(j_G.base_ring)
+        B = self._get_B(weight)
         p_list = self._get_p_list_cuspform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for modforms of the same weight
+
         cuspforms = []
+        base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         for p in p_list:
-            coeffs = list(p)
+            coeffs = list(p.change_ring(base_ring))
             prefactor = coeffs[-1]
             for i in range(len(coeffs)-2,-1,-1): #Horner's method
                 prefactor = j_G*prefactor+coeffs[i]
@@ -285,12 +287,14 @@ class BelyiMap():
             j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
         else:
             j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        B = self._get_B(weight).change_ring(j_G.base_ring)
+        B = self._get_B(weight)
         p_list = self._get_p_list_modform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for cuspforms of the same weight
+
         modforms = []
+        base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         for p in p_list:
-            coeffs = list(p)
+            coeffs = list(p.change_ring(base_ring))
             prefactor = coeffs[-1]
             for i in range(len(coeffs)-2,-1,-1): #Horner's method
                 prefactor = j_G*prefactor+coeffs[i]
@@ -522,10 +526,18 @@ class BelyiMap():
         weight_half = weight//2
         j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
         num = j_G_prime**weight_half
-        coeffs = list(B)
-        den = coeffs[-1]
-        for i in range(len(coeffs)-2,-1,-1): #Horner's method
-            den = j_G*den+coeffs[i]
-        print("B: ", B)
-        print("den.cusp_expansions[Cusp(0,1)]: ", den.cusp_expansions[Cusp(0,1)])
+        base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
+        if isinstance(base_ring,ComplexBallField) == True:
+            #When using Horner, we experienced some examples where the leading order coefficients are empty error balls (instead of zeros)
+            #which leads to NaN's in the remaining computations.
+            #For CBF's, we therefore build the product of the factors
+            den = j_G.__one__()
+            roots = B.roots(ring=QQbar) #Can this become slow?
+            for (root,multiplicity) in roots:
+                den *= (j_G-root)**multiplicity
+        else:
+            coeffs = list(B.change_ring(base_ring))
+            den = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                den = j_G*den+coeffs[i]
         return num/den
