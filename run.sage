@@ -23,6 +23,12 @@ u_H1 = (-7**3)**(1/5)/7**2
 # u_U1 = ((1763*z3 + 1255)*2**2*3/7**7)**(1/6)
 U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
 
+def test():
+    B = BelyiMap(Gamma0(6))
+    j_G = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=False)
+    B_fact = B._get_B(8)
+    return B._get_regularized_modular_form_q_expansion(8,j_G,B_fact)
+
 def numberfield_example1():
     """
     Let QQ(v) be an algebraic extension field with generator v.

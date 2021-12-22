@@ -183,7 +183,7 @@ class FourierExpansion():
     Class for storing Fourier expansions (q-expansions) of modular forms over general numberfields.
     We use the notation q_N = exp(2*pi*I*z/N).
     """
-    def __init__(self, G, weight, cusp_expansions, modform_type):
+    def __init__(self, G, weight, cusp_expansions, modform_type, only_principal_cusp_expansion=False):
         """
         Parameters
         ----------
@@ -191,6 +191,7 @@ class FourierExpansion():
         weight : weight
         cusp_expansions : dictionary with cusp representatives as keys and Laurent series as values
         modform_type: One of "CuspForm", "ModForm", "Hauptmodul"
+        only_principal_cusp_expansion: Boolean that lets one decide if only the expansion at infinity should be considered
         """
         self.G = G
         self.weight = weight
@@ -198,6 +199,8 @@ class FourierExpansion():
         if modform_type not in ("CuspForm","ModForm","Hauptmodul"):
             raise ArithmeticError("Invalid modform_type!")
         self.modform_type = modform_type
+        self.only_principal_cusp_expansion = only_principal_cusp_expansion
+        self.base_ring = cusp_expansions[Cusp(1,0)].base_ring()
 
     def __repr__(self):
         return self.__str__()

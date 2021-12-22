@@ -335,6 +335,11 @@ class Factored_Polynomial():
         if principal_cusp_width == None and u == None:
             raise ArithmeticError("Please provide either princial_cusp_width or u!")
         if len(self.factors) == 0:
+            if v_Ku == None:
+                raise NotImplementedError("We have not implemented this scenario yet.")
+            Ku = v_Ku.parent()
+            polynomial_ring = PolynomialRing(Ku,"x")
+            polygen = polynomial_ring.gen()
             return self #The empty class is already (somewhat) algebraic
         algebraic_factors = []
         for (p,order) in self.factors:

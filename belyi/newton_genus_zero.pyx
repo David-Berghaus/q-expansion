@@ -518,7 +518,10 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials, v_Ku, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    if stop_when_coeffs_are_recognized == True:
+        factored_polynomials, v_Ku, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    else:
+        factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:

@@ -10,6 +10,7 @@ from sage.rings.power_series_poly import PowerSeries_poly
 from sage.modular.modform.j_invariant import j_invariant_qexp
 from sage.rings.complex_field import ComplexField
 from sage.rings.laurent_series_ring import LaurentSeriesRing
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.real_mpfr import RealField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
@@ -66,15 +67,6 @@ def my_n_th_root(p, n):
             r = (r*((n+1)-p*r**n))/n
         return r.inverse()
 
-def get_B_factored_degree(B_factored):
-    """
-    Given B_factored, as returned by _get_B_factored(), return the degree in x (i.e. the sum of all orders).
-    """
-    degree = 0
-    for (_, order) in B_factored:
-        degree += order
-    return degree
-
 def identify_cusp_from_pc_root(pc_root, cusp_rep_values):
     """
     Given an algebraic expression of a root of pc, try to recognize the cusp corresponding to this root by 
@@ -109,10 +101,11 @@ class BelyiMap():
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
         self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self._v_Ku, self._u_interior_Kv = v_Ku, u_interior_Kv
+        self._Kv, self._Ku = u_interior_Kv.parent(), v_Ku.parent()
 
-        self._e2_valuations = self._get_e2_fixed_point_valuations()
-        self._e3_valuations = self._get_e3_fixed_point_valuations()
-        self._cusp_valuations = self._get_cusp_valuations(cusp_rep_values)
+        self._p2_fixed = self._get_e2_fixed_point_polynomial()
+        self._p3_fixed = self._get_e3_fixed_point_polynomial()
+        self._p_cusp_evaluations, self._cusp_evaluations = self._get_cusp_polynomial(cusp_rep_values)
         self.verify_polynomial_equation()
 
     def __repr__(self):
@@ -123,59 +116,52 @@ class BelyiMap():
         pc_u_v = get_factored_polynomial_in_u_v(self.pc,self._u_interior_Kv,self.principal_cusp_width)
         return p3_u_v.__str__() + " / " + pc_u_v.__str__()
     
-    def _get_e2_fixed_point_valuations(self):
+    def _get_e2_fixed_point_polynomial(self):
         """
-        Returns algebraic valuation of hauptmodul at elliptic fixed points of order two.
+        Returns a polynomial whose roots are the elliptic fixed points of order two.
         """
         for (p,multiplicity) in self.p2.factors:
             if multiplicity == 1: #We are only interested in the fixed points
-                e2_valuations = []
-                roots = p.roots(ring=QQbar)
-                for (root, order) in roots:
-                    if order != 1:
-                        raise ArithmeticError("Something went wrong, we need distinct roots here!")
-                    e2_valuations.append(root)
-                return e2_valuations
-        return []
+                return p
+        return self._Ku(1)
 
-    def _get_e3_fixed_point_valuations(self):
+    def _get_e3_fixed_point_polynomial(self):
         """
-        Returns algebraic valuation of hauptmodul at elliptic fixed points of order three.
+        Returns a polynomial whose roots are the elliptic fixed points of order three.
         """
         for (p,multiplicity) in self.p3.factors:
             if multiplicity == 1: #We are only interested in the fixed points
-                e3_valuations = []
-                roots = p.roots(ring=QQbar)
-                for (root, order) in roots:
-                    if order != 1:
-                        raise ArithmeticError("Something went wrong, we need distinct roots here!")
-                    e3_valuations.append(root)
-                return e3_valuations
-        return []
+                return p
+        return self._Ku(1)
     
-    def _get_cusp_valuations(self, cusp_rep_values):
+    def _get_cusp_polynomial(self, cusp_rep_values):
         """
-        Returns the cusp representatives and the algebraic valuations of hauptmodul attached to these.
+        Returns a polynomial whose roots are the evaluations at the cusps (with multiplicity one).
+        We also return the cusp representatives and the algebraic evaluations of the hauptmodul attached to these.
         The cusp at infinity gets treated separately.
         The parameter "cusp_rep_values" contains contains floating point approximations for each cusp which we try to use
         to attach each cusp to a root of pc.
         """
         G = self.G
-        cusp_valuations = dict()
+        Ku = self._Ku
+        cusp_evaluations = dict()
+        p_cusp = PolynomialRing(Ku,"x").one() #Polynomial with multiplicity one roots at the cusp evaluations
         for (p,multiplicity) in self.pc.factors:
-            roots = p.roots(ring=QQbar)
+            roots = p.roots(ring=Ku)
+            if len(roots) != p.degree():
+                raise ArithmeticError("We are missing a root here!")
             for (root, order) in roots:
                 if order != 1:
                     raise ArithmeticError("Something went wrong, we need distinct roots here!")
                 cusp = identify_cusp_from_pc_root(root,cusp_rep_values)
                 if G.cusp_width(cusp) != multiplicity:
                     raise ArithmeticError("This should not happen!")
-                cusp_valuations[cusp] = root
-
-        if len(cusp_valuations) != G.ncusps()-1: #Some cusps have multiple values attached to them which is invalid
+                cusp_evaluations[cusp] = root
+            p_cusp *= p
+        if len(cusp_evaluations) != G.ncusps()-1: #Some cusps have multiple values attached to them which is invalid
             raise ArithmeticError("This should not happen!")
 
-        return cusp_valuations
+        return p_cusp, cusp_evaluations
 
     def verify_polynomial_equation(self):
         p3_constructed, p2_constructed, pc_constructed = self.p3_constructed, self.p2_constructed, self.pc_constructed
@@ -183,174 +169,170 @@ class BelyiMap():
             raise ArithmeticError("Verification of polynomial_equation failed!")
         if pc_constructed.degree()+self.principal_cusp_width != self.G.index():
             raise ArithmeticError("Wrong behavior at infinity!")
+        #We also have to verify that the branching behavior is correct (i.e. that the roots of the polynomials are of correct multiplicity)
+        #We have already done this for pc inside _get_cusp_polynomial but should do it for p2 and p3 here
     
-    def _get_B_elliptic_factored(self, weight):
+    def _get_B_elliptic(self, weight):
         """
-        Returns factors (x-elliptic_evaluation)^beta_e for all elliptic fixed points.
+        Returns product of factors (x-elliptic_evaluation)^beta_e for all elliptic fixed points.
         beta_e is chosen to cancel the zeros of j_G'^weight_half.
         """
         weight_half = weight//2
-        x = self.p2_constructed.parent().gen()
-        B_elliptic_factors = []
-        e2_valuations, e3_valuations = self._e2_valuations, self._e3_valuations
-        for e2_valuation in e2_valuations:
-            beta_e = weight_half*(2-1)//2 #We need to divide because (x-j_G(e_2)) has a double zero
-            B_elliptic_factors.append([x-e2_valuation,beta_e])
-        for e3_valuation in e3_valuations:
-            beta_e = weight_half*(3-1)//3 #We need to divide because (x-j_G(e_3)) has a triple zero
-            B_elliptic_factors.append([x-e3_valuation,beta_e])
-        return B_elliptic_factors
+        p2_fixed, p3_fixed = self._p2_fixed, self._p3_fixed
+        beta_e2 = weight_half*(2-1)//2 #We need to divide because (x-j_G(e_2)) has a double zero
+        beta_e3 = weight_half*(3-1)//3 #We need to divide because (x-j_G(e_3)) has a triple zero
+        return (p2_fixed**beta_e2)*(p3_fixed**beta_e3)
 
-    def _get_B_cusp_factored(self, weight):
+    def _get_B_cusp(self, weight):
         """
-        Returns factors (x-cusp_evaluation)^alpha_c for all cusps not equal infinity.
+        Returns product of factors (x-cusp_evaluation)^alpha_c for all cusps not equal infinity.
         alpha_c is chosen to cancel the zeros of j_G'^weight_half.
         """
         weight_half = weight//2
-        B_cusp_factors = []
-        x = self.pc_constructed.parent().gen()
-        cusp_valuations = self._cusp_valuations
-        for (_,cusp_valuation) in cusp_valuations.items():
-            alpha_c = weight_half
-            B_cusp_factors.append([x-cusp_valuation,alpha_c])
-        return B_cusp_factors
-        
-    def _get_B_factored(self, weight):
+        p_cusp = self._p_cusp_evaluations
+        alpha_c = weight_half
+        return p_cusp**alpha_c
+   
+    def _get_B(self, weight):
         """
-        Returns B_cusp*B_elliptic in factored form.
+        Returns B_cusp*B_elliptic.
         """
-        B_cusp_factors = self._get_B_cusp_factored(weight)
-        B_elliptic_factors = self._get_B_elliptic_factored(weight)
-        B = B_cusp_factors+B_elliptic_factors #This is the syntax for merging lists in python
-        return B
+        B_cusp = self._get_B_cusp(weight)
+        B_elliptic = self._get_B_elliptic(weight)
+        return B_cusp*B_elliptic
 
-    def _get_p_list_cuspform(self, weight, B_factored):
+    def _get_p_list_cuspform(self, weight, B):
         """
         This function returns a list of polynomials p such that for each p in list, (j_G'^weight_half)*p/B corresponds to a cuspform.
-        p is written in factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
+        p is written as a product of factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
         We assume that p vanishes to degree 1 at all cusps not equal infinity.
         For the cusp at infinity we assume orders of vanishing up to the dimension of the space.
         """
         weight_half = weight//2
-        x = self.pc_constructed.parent().gen()
-        cusp_valuations = self._cusp_valuations
+        p_cusp = self._p_cusp_evaluations.change_ring(B.base_ring())
+        x = B.parent().gen()
         cuspform_dim = self.G.dimension_cusp_forms(weight)
         if cuspform_dim == 0:
             raise ArithmeticError("The dimension of cuspforms is zero for this space!")
-        B_factored_degree = get_B_factored_degree(B_factored)
-        p_list = [[] for _ in range(cuspform_dim)]
+        B_degree = B.degree()
+        p_list = [p_cusp for _ in range(cuspform_dim)]
 
         for n in range(1,cuspform_dim+1):
-            for (_,cusp_valuation) in cusp_valuations.items():
-                p_list[n-1].append([x-cusp_valuation,1]) #Prescribe zeros of order one at all cusps != infty
             #Now we need to get the correct order of vanishing at infinity
-            p_degree = -weight_half+B_factored_degree-n
-            power = p_degree-len(cusp_valuations) #Exponent of x s.t. cuspform vanishes to degree n at infty.
+            p_degree = -weight_half+B_degree-n
+            power = p_degree-(self.G.ncusps()-1) #Exponent of x s.t. cuspform vanishes to degree n at infty.
             if power < 0:
                 raise ArithmeticError("This should not happen...")
-            p_list[n-1].append([x,power])
+            p_list[n-1] *= x**power
         
         return p_list
     
-    def _get_p_list_modform(self, weight, B_factored):
+    def _get_p_list_modform(self, weight, B):
         """
         This function returns a list of polynomials p such that for each p in list, (j_G'^weight_half)*p/B corresponds to a holomorphic modform.
-        p is written in factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
+        p is written as a product of factors of (x-cusp_evaluation) which prescribe zeros of given order at the cusps.
         We assume that p is constant and non-zero at all cusps not equal infinity.
         For the cusp at infinity we assume orders of vanishing up to the dimension of the space.
         """
         weight_half = weight//2
-        x = self.pc_constructed.parent().gen()
+        p_cusp = self._p_cusp_evaluations
+        x = B.parent().gen()
         modform_dim = self.G.dimension_modular_forms(weight)
         if modform_dim == 0:
             raise ArithmeticError("The dimension of modforms is zero for this space!")
-        B_factored_degree = get_B_factored_degree(B_factored)
-        p_list = [[] for _ in range(modform_dim)]
+        B_degree = B.degree()
+        p_list = [x**0 for _ in range(modform_dim)]
 
         for n in range(1,modform_dim+1):
             #Now we need to get the correct order of vanishing at infinity
-            p_degree = -weight_half+B_factored_degree-n+1
+            p_degree = -weight_half+B_degree-n+1
             power = p_degree #Exponent of x s.t. modform vanishes to degree n-1 at infty.
             if power < 0:
                 raise ArithmeticError("This should not happen...")
-            p_list[n-1].append([x,power])
+            p_list[n-1] *= x**power
         
         return p_list
 
-    def get_cuspforms(self, weight, trunc_order, digit_prec=None):
+    def get_cuspforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec) #We could precompute this
-        B_factored = self._get_B_factored(weight)
-        p_list = self._get_p_list_cuspform(weight,B_factored)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for modforms of the same weight
+            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        B = self._get_B(weight).change_ring(j_G.base_ring)
+        p_list = self._get_p_list_cuspform(weight,B)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for modforms of the same weight
         cuspforms = []
         for p in p_list:
-            cuspform = F
-            for (factor, order) in p:
-                #We have not defined .subs() here so we have to do it the ugly way...
-                cusp_evaluation = factor.roots(ring=QQbar,multiplicities=False)[0]
-                cuspform *= (j_G-cusp_evaluation)**order
+            coeffs = list(p)
+            prefactor = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                prefactor = j_G*prefactor+coeffs[i]
+            cuspform = F*prefactor
             cuspform.modform_type = "CuspForm"
             cuspforms.append(cuspform)
         return to_reduced_row_echelon_form(cuspforms)
     
-    def get_modforms(self, weight, trunc_order, digit_prec=None):
+    def get_modforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
         if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order) #We could precompute this
+            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
         else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec) #We could precompute this
-        B_factored = self._get_B_factored(weight)
-        p_list = self._get_p_list_modform(weight,B_factored)
-        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B_factored) #We could re-use this for cuspforms of the same weight
+            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        B = self._get_B(weight).change_ring(j_G.base_ring)
+        p_list = self._get_p_list_modform(weight,B)
+        F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for cuspforms of the same weight
         modforms = []
         for p in p_list:
-            modform = F
-            for (factor, order) in p:
-                #We have not defined .subs() here so we have to do it the ugly way...
-                cusp_evaluation = factor.roots(ring=QQbar,multiplicities=False)[0]
-                modform *= (j_G-cusp_evaluation)**order
+            coeffs = list(p)
+            prefactor = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                prefactor = j_G*prefactor+coeffs[i]
+            modform = F*prefactor
             modform.modform_type = "ModForm"
             modforms.append(modform)
         return to_reduced_row_echelon_form(modforms)
 
-    def get_hauptmodul_q_expansion(self, trunc_order):
+    def get_hauptmodul_q_expansion(self, trunc_order, only_principal_cusp_expansion=True):
         """
         Return q-expansion of hauptmodul at all cusps using rigorous arithmetic.
         We return the result as an instance of FourierExpansion.
         """
         cusp_expansions = dict()
-        for cusp in self.G.cusps():
-            if cusp == Cusp(1,0):
-                cusp_expansion = self._get_hauptmodul_q_expansion_infinity(trunc_order)
-            else:
-                cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
-            cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul")
+        if only_principal_cusp_expansion == True:
+            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity(trunc_order)
+        else:
+            for cusp in self.G.cusps():
+                if cusp == Cusp(1,0):
+                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity(trunc_order).change_ring(QQbar) #We need to work with QQbar because of the other cusps
+                else:
+                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
+                cusp_expansions[cusp] = cusp_expansion
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion)
     
-    def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True):
+    def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True, only_principal_cusp_expansion=True):
         """
         Return q-expansion of hauptmodul at all cusps using ball arithmetic with rigorous error bounds.
         We return the result as an instance of FourierExpansion.
         Note that not all coefficients need to be correct up to the specified precision!
         """
         cusp_expansions = dict()
-        for cusp in self.G.cusps():
-            if cusp == Cusp(1,0):
-                cusp_expansion = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
-            else:
-                cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
-            cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul")
+        if only_principal_cusp_expansion == True:
+            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+        else:
+            for cusp in self.G.cusps():
+                if cusp == Cusp(1,0):
+                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+                else:
+                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+                cusp_expansions[cusp] = cusp_expansion
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion)
 
     def _get_hauptmodul_q_expansion_infinity(self, trunc_order):
         """
@@ -369,16 +351,19 @@ class BelyiMap():
     def _get_hauptmodul_q_expansion_non_infinity(self, cusp, trunc_order):
         """
         Computes the q-expansion at a non-principal cusp which is normalized to j_Gamma = c_0 + c_1*q_N + ...
+        Because these q-expansions are usually defined over a field Ku times another root of an element in Kv, which seems very tedious
+        to implement, we work over QQbar which can become very slow for large examples.
         """
-        cusp_evaluation = self._cusp_valuations[cusp]
+        cusp_evaluation = self._cusp_evaluations[cusp]
         cusp_width = self.G.cusp_width(cusp)
-        parent = self.p2_constructed[0].parent()
-        L = LaurentSeriesRing(parent,"x")
+        L = LaurentSeriesRing(self._Ku,"x")
         x = L.gen()
-        s = (L(self.pc_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)/L(self.p3_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)).power_series().nth_root(cusp_width)
+        s_no_nth_root = (L(self.pc_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)/L(self.p3_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)).power_series()
+        s = s_no_nth_root.change_ring(QQbar).nth_root(cusp_width) #This operation can get us out of Ku so we have to use QQbar...
+        print("Warning, computing q-expansions at other cusps explicitly can be very slow because we use the QQbar type!")
         r = s.reverse()
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width)
-        j_G = cusp_evaluation + r.subs(x=n_sqrt_j_inverse)
+        j_G = QQbar(cusp_evaluation) + r.subs(x=n_sqrt_j_inverse)
         return j_G
 
     # def _get_hauptmodul_q_expansion_infinity_approx_sage(self, trunc_order, digit_prec):
@@ -450,7 +435,7 @@ class BelyiMap():
         Get the reversed series of the reciprocal of the Belyi map expanded in x.
         We need to compute this for "get_hauptmodul_q_expansion_non_infinity_approx".
         """
-        cusp_evaluation = self._cusp_valuations[cusp]
+        cusp_evaluation = self._cusp_evaluations[cusp]
         cusp_width = self.G.cusp_width(cusp)
         CBF = ComplexBallField(bit_prec)
         L = LaurentSeriesRing(CBF,"x")
@@ -497,7 +482,7 @@ class BelyiMap():
 
         working_bit_prec = digits_to_bits(working_prec)
         CBF = ComplexBallField(working_bit_prec)
-        cusp_evaluation = self._cusp_valuations[cusp]
+        cusp_evaluation = self._cusp_evaluations[cusp]
         cusp_width = self.G.cusp_width(cusp)
         r = self._get_r_for_taylor_expansion(cusp,trunc_order,working_bit_prec)
 
@@ -515,7 +500,7 @@ class BelyiMap():
         If "rescale_coefficients == True", we rescale the coefficients at the other cusps in order to match the convention of the other functions.
         """
         cusp_expansions = dict()
-        for cusp in self.G.cusps():
+        for cusp in j_G.cusp_expansions.keys():
             cusp_expansion = j_G.get_cusp_expansion(cusp)
             q = cusp_expansion.parent().gen()
             cusp_expansion_prime = 0
@@ -529,7 +514,7 @@ class BelyiMap():
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
         return FourierExpansion(self.G,2,cusp_expansions,"ModForm")
 
-    def _get_regularized_modular_form_q_expansion(self, weight, j_G, B_factored):
+    def _get_regularized_modular_form_q_expansion(self, weight, j_G, B):
         """
         Returns a (non-holomorphic!) modular form of G that has no poles outside infinity and no zeros.
         This form is given by (j'_Gamma)^weight_half/B.
@@ -537,11 +522,10 @@ class BelyiMap():
         weight_half = weight//2
         j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
         num = j_G_prime**weight_half
-        #It is probably best to avoid divisions of PowerSeries so we first build the denominator through multiplication
-        den = j_G.__one__()
-        for (B_factor,order) in B_factored:
-            #We have not defined .subs() here so we have to do it the ugly way...
-            cusp_evaluation = B_factor.roots(ring=QQbar,multiplicities=False)[0]
-            factor_q_expansion = j_G-cusp_evaluation
-            den *= factor_q_expansion**order #Working with powers of these factors should generally be faster than constructing p(x) and substituting with Horner
+        coeffs = list(B)
+        den = coeffs[-1]
+        for i in range(len(coeffs)-2,-1,-1): #Horner's method
+            den = j_G*den+coeffs[i]
+        print("B: ", B)
+        print("den.cusp_expansions[Cusp(0,1)]: ", den.cusp_expansions[Cusp(0,1)])
         return num/den
