@@ -28,6 +28,8 @@ arblib_helpers/acb_poly_approx_helpers.c
 arblib_helpers/acb_poly_approx_helpers.h
 arblib_helpers/arb_wrap.h
 belyi/__init__.py
+belyi/expression_in_u_and_v.c
+belyi/expression_in_u_and_v.pyx
 belyi/newton_genus_zero.c
 belyi/newton_genus_zero.pyx
 belyi/number_fields.c

@@ -363,7 +363,7 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
     return coeff_tuples
 
-def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
+def get_simplest_non_zero_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
     """
     Tries to find a non-zero coefficient that is comparatively easy to identify which can be used to define the numberfield of the Belyi map.
     This is usually c_{N-1} (i.e., the second leading coefficient which is denoted by coeff_shift=-1) of the smallest factored polynomial (if it is unequal to zero).
@@ -389,15 +389,37 @@ def get_simplest_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
             elif tmp.degree() < p_smallest_deg.degree() and is_effectively_zero(c_tmp,digit_prec) == False:
                 p_smallest_deg = tmp
                 c = c_tmp
-    if is_effectively_zero(c,digit_prec) == True:
-        if coeff_shift == -1: #All second leading order coefficients are zero so we need to look at the third one
-            #This currently does not work because for example if the field is Q[sqrt(-1)] then this function would recognize it as Q...
-            #We therefore probably have to recognize the quotient of two coefficients raised to the n-th power.
-            #return get_simplest_coeff(p3,p2,pc,digit_prec,coeff_shift=-2)
-            raise ArithmeticError("We have not considered this case yet")
-        else:
-            raise ArithmeticError("We have not considered this case yet")
+    if is_effectively_zero(c,digit_prec) == True: #All coefficients with specified coeff_shift are zero
+        return None
     return c
+
+def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
+    """
+    Return an expression that is linear in u and easy to recognize. 
+    We usually choose the expression to be one of the second-leading order coefficients. 
+    If these are all zero, we choose u to be a quotient of coefficients.
+    """
+    res = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=-1)
+    if res != None:
+        return res
+    if cusp_width == 1: #u is in QQ(v) so we can choose any coefficient
+        for i in range(2,index):
+            coeff_shift = -i
+            res = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
+            if res != None:
+                return res
+        raise ArithmeticError("We should not get here!")
+    else: #We have to construct quotients of coefficients
+        for i in range(2,index):
+            coeff_shift = -i
+            den = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
+            if den != None:
+                num = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift-1)
+                if num == None:
+                    raise ArithmeticError("We have not considered this case yet!")
+                res = num/den
+                return res
+        raise ArithmeticError("We should not get here!")
 
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
     while curr_bit_prec < target_bit_prec:
@@ -426,21 +448,23 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             if max_extension_field_degree == None:
                 raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
             principal_cusp_width = G.cusp_width(Cusp(1,0))
-            c = get_simplest_coeff(p3,p2,pc,coeff_prec)
-            tmp = get_numberfield_of_coeff(c,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+            coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
+            tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == None: #Failed to recognize coeffs as alg numbers
                 continue
-            numberfield, gen = tmp
-            extension_field_degree = numberfield.degree()
+            Kv, Ku, v_Ku, u_interior_Kv = tmp
+            u = Ku.gen()
 
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(gen,extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+                #Which method is better for which scenario, dividing by a power of u or raising the coefficients to the n-th power?
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,u=u,v_Ku=v_Ku,estimated_bit_prec=coeff_bit_prec)
+                #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)
             if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
-                return alg_factored_polynomials
+                return alg_factored_polynomials, v_Ku, u_interior_Kv
     
     if stop_when_coeffs_are_recognized == True:
         raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
@@ -494,8 +518,13 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
-    factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    if stop_when_coeffs_are_recognized == True:
+        factored_polynomials, v_Ku, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+    else:
+        factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:
+        if stop_when_coeffs_are_recognized == True:
+            return factored_polynomials, cusp_rep_values, v_Ku, u_interior_Kv
         return factored_polynomials, cusp_rep_values

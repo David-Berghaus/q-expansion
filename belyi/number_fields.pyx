@@ -10,6 +10,7 @@ from sage.interfaces.gp import pari
 from sage.symbolic.constants import pi
 from sage.rings.integer_ring import ZZ
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
+from sage.rings.number_field.number_field import NumberField
 
 from point_matching.point_matching_arb_wrap import digits_to_bits, bits_to_digits
 
@@ -30,10 +31,12 @@ def is_effectively_zero(x, estimated_digit_prec):
     """
     return get_decimal_digit_prec(x.abs()) > estimated_digit_prec
 
-cpdef to_QQbar(x, gen, extension_field_degree):
+cpdef to_K(x, K):
     """
-    Try to express x as an algebraic number in terms of gen or return False.
+    Given a floating-point number x, try to express x as an element in K using LLL.
+    If this does not succeed, return None.
     """
+    gen, extension_field_degree = K.gen(), K.degree()
     gen_approx = x.parent(gen)
     LLL_basis = [x]
     for i in range(extension_field_degree):
@@ -46,14 +49,13 @@ cpdef to_QQbar(x, gen, extension_field_degree):
     for i in range(extension_field_degree):
         x_alg += LLL_res[i+1]*gen**i
     x_alg /= -LLL_res[0]
-    return x_alg   
+    return x_alg
 
 def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=True):
     """
     Try to express x in a numberfield over QQbar with specified max_extension_field_degree.
-    This function returns a polynomial over which the numberfield is defined as well as the generator (expressed as an algebraic number) or False.
-
-    If reduce_numberfield == True then try to reduce the numberfield and return the generator of this numberfield.
+    This function returns a Numberfield with specified embedding or False.
+    If reduce_numberfield == True then try to reduce the numberfield using pari.polredabs() and find the new generator.
     """
     LLL_basis = [x.parent().one(),x]
     LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
@@ -67,30 +69,33 @@ def get_numberfield_and_gen(x, max_extension_field_degree, reduce_numberfield=Tr
             return None
     
     P = PolynomialRing(ZZ,"x")
-    numberfield = P(LLL_res)
+    p = P(LLL_res)
     if reduce_numberfield == False:
         #Now we need to recognize to which root our expression corresponds. Is there a better way for this?
-        roots = numberfield.roots(ring=QQbar,multiplicities=False)
+        roots = p.roots(ring=QQbar,multiplicities=False)
         diffs = [(root-x).abs() for root in roots]
         root_index = diffs.index(min(diffs))
         gen = roots[root_index]
-        return numberfield, gen
+        K = NumberField(p,"v",embedding=gen)
+        return K
     else:
-        numberfield_red = P(pari.polredabs(numberfield))
-        print("Identified numberfield: ", numberfield_red)
-        if numberfield_red.degree() == 1:
-            return numberfield_red, QQbar(1)
+        p_red = P(pari.polredabs(p))
+        print("Identified numberfield: ", p_red)
+        if p_red.degree() == 1:
+            K = NumberField(p_red-1,"v")
+            return K
         else:
             #Now we need to recognize to which root our expression corresponds. Is there a better way for this?
-            roots = numberfield_red.roots(ring=QQbar,multiplicities=False)
+            roots = p_red.roots(ring=QQbar,multiplicities=False)
             for root in roots:
                 root_approx = x.parent(root)
                 LLL_basis = [x]
-                for i in range(numberfield_red.degree()):
+                for i in range(p_red.degree()):
                     LLL_basis.append(root_approx**i)
                 LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
                 if LLL_res != None: #This seems to be the correct generator
-                    return numberfield_red, root
+                    K = NumberField(p_red,"v",embedding=root)
+                    return K
             raise ArithmeticError("We should not get here!")
 
 def lindep(L, check_if_result_is_invalid=True):

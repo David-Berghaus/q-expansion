@@ -26,6 +26,7 @@ extensions = [
     Extension("iterative_solvers.iterative_refinement_arb_wrap", ["iterative_solvers/iterative_refinement_arb_wrap.pyx"]),
     Extension("belyi.newton_genus_zero", ["belyi/newton_genus_zero.pyx"]),
     Extension("belyi.number_fields", ["belyi/number_fields.pyx"]),
+    Extension("belyi.expression_in_u_and_v", ["belyi/expression_in_u_and_v.pyx"]),
 ]
 
 setup(
