@@ -318,7 +318,7 @@ class BelyiMap():
                 else:
                     cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
                 cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion)
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True, only_principal_cusp_expansion=True):
         """
@@ -516,7 +516,8 @@ class BelyiMap():
                 cusp_width = self.G.cusp_width(cusp)
                 cusp_expansion_prime /= cusp_width
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
-        return FourierExpansion(self.G,2,cusp_expansions,"ModForm")
+        return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",
+                only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Ku=j_G._Ku,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
 
     def _get_regularized_modular_form_q_expansion(self, weight, j_G, B):
         """

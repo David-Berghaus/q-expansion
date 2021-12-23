@@ -1,5 +1,5 @@
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
-from sage.structure.element import RingElement
+from sage.rings.laurent_series_ring import LaurentSeriesRing
 
 def convert_from_Kv_to_Ku(expression_in_Kv, v_Ku):
     """
@@ -51,3 +51,18 @@ def factor_into_u_v(expression_in_Ku, u_pow, u_interior_Kv, principal_cusp_width
     P = PolynomialRing(Kv,"u")
     u = P.gen()
     return expression_shifted_Kv*u**u_pow
+
+def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width):
+    """
+    Given a q_expansion that is represented as a Laurent series, factor coefficients into u and v.
+    """
+    Kv = u_interior_Kv.parent()
+    Pu = PolynomialRing(Kv,"u")
+    Pq = LaurentSeriesRing(Pu,q_expansion.variable())
+    q = Pq.gen()
+    leading_order_exponent = q_expansion.valuation()
+    res, u_pow = 0, 0
+    for i in range(leading_order_exponent,q_expansion.prec()):
+        res += factor_into_u_v(q_expansion[i],u_pow,u_interior_Kv,principal_cusp_width)*q**i
+        u_pow += 1
+    return res.O(q_expansion.prec())
