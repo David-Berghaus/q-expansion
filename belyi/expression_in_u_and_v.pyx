@@ -63,6 +63,10 @@ def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width
     leading_order_exponent = q_expansion.valuation()
     res, u_pow = 0, 0
     for i in range(leading_order_exponent,q_expansion.prec()):
-        res += factor_into_u_v(q_expansion[i],u_pow,u_interior_Kv,principal_cusp_width)*q**i
+        expression_in_Ku = q_expansion[i]
+        if expression_in_Ku.polynomial().degree() == 0: #This expression can be defined over QQ (and hence independently of u)
+            res += factor_into_u_v(expression_in_Ku,0,u_interior_Kv,principal_cusp_width)*q**i
+        else:
+            res += factor_into_u_v(expression_in_Ku,u_pow,u_interior_Kv,principal_cusp_width)*q**i
         u_pow += 1
     return res.O(q_expansion.prec())
