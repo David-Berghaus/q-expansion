@@ -211,7 +211,10 @@ class FourierExpansion():
 
     def __str__(self):
         trunc_order = min(10,self.cusp_expansions[Cusp(1,0)].prec())
-        c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
+        if self._u_interior_Kv != None: #The q-expansions are defined over numberfields
+            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
+        else: #We only know the numerical values of the q-expansions
+            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__()
         return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str 
 
     def get_cusp_expansion(self, c, trunc_order=None, digit_prec=None, factor_into_u_v=False):
