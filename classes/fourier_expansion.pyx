@@ -211,7 +211,7 @@ class FourierExpansion():
 
     def __str__(self):
         trunc_order = min(10,self.cusp_expansions[Cusp(1,0)].prec())
-        c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order).__str__()
+        c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
         return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str 
 
     def get_cusp_expansion(self, c, trunc_order=None, digit_prec=None, factor_into_u_v=False):
@@ -232,7 +232,7 @@ class FourierExpansion():
                 if self._u_interior_Kv == None:
                     raise ArithmeticError("Invalid construction")
                 cusp_width = self.G.cusp_width(c)
-                return factor_q_expansion_into_u_v(cusp_expansion,self._u_interior_Kv,cusp_width)
+                return factor_q_expansion_into_u_v(cusp_expansion,self._u_interior_Kv,cusp_width,trunc_order)
             return cusp_expansion.O(trunc_order)
         else:
             if isinstance(cusp_expansion.base_ring(),ComplexField): #Results are non-rigorous
