@@ -415,9 +415,15 @@ def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
             den = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
             if den != None:
                 num = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift-1)
-                if num == None:
-                    raise ArithmeticError("We have not considered this case yet!")
-                res = num/den
+                if num == None: #Consecutive coefficients are all zero which means that we cannot use a quotient to obtain an expression linear in u
+                    #Try to recognize a coefficient that depends on u^2, otherwise give up
+                    num = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=-2)
+                    if num != None:
+                        res = num.sqrt()
+                    else:
+                        raise ArithmeticError("We have not considered this case yet!")
+                else:
+                    res = num/den
                 return res
         raise ArithmeticError("We should not get here!")
 

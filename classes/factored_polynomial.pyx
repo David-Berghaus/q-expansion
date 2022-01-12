@@ -216,8 +216,17 @@ def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
     for i in range(1,len(LLL_res)):
         x_alg += LLL_res[i]*gen**(i-1)
     x_alg /= -LLL_res[0]
-    numerator_primes_pows = [list(factor(i)) for i in LLL_res[1:]] #Primes and powers
-    numerator_primes = [prime_factors(i) for i in LLL_res[1:]] #Only primes
+    numerator_primes_pows = [] #Primes and powers
+    numerator_primes = [] #Only primes
+    for i in LLL_res[1:]:
+        if i == 0: #Factorization of zero is not defined
+            numerator_primes_pows.append([(0,1)])
+            numerator_primes.append([0])
+        else:
+            i_primes_pows = list(factor(i))
+            i_primes = [prime for (prime,_) in i_primes_pows]
+            numerator_primes_pows.append(i_primes_pows)
+            numerator_primes.append(i_primes)
     print("numerator_primes_pows: ", numerator_primes_pows)
     print("denominator: ", factor(LLL_res[0]))
     numerator_factors = [] #Primes and powers of the numerator that can be factored out

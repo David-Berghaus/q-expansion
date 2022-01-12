@@ -147,7 +147,7 @@ class BelyiMap():
         cusp_evaluations = dict()
         p_cusp = PolynomialRing(Ku,"x").one() #Polynomial with multiplicity one roots at the cusp evaluations
         for (p,multiplicity) in self.pc.factors:
-            roots = p.roots(ring=Ku)
+            roots = p.roots(ring=QQbar)
             if len(roots) != p.degree():
                 raise ArithmeticError("We are missing a root here!")
             for (root, order) in roots:
@@ -358,12 +358,11 @@ class BelyiMap():
         Because these q-expansions are usually defined over a field Ku times another root of an element in Kv, which seems very tedious
         to implement, we work over QQbar which can become very slow for large examples.
         """
-        cusp_evaluation = self._cusp_evaluations[cusp]
+        cusp_evaluation = QQbar(self._cusp_evaluations[cusp])
         cusp_width = self.G.cusp_width(cusp)
-        L = LaurentSeriesRing(self._Ku,"x")
+        L = LaurentSeriesRing(QQbar,"x") #The expansions at other cusps can be defined over a different numberfield than Ku, so we have to use QQbar...
         x = L.gen()
-        s_no_nth_root = (L(self.pc_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)/L(self.p3_constructed.subs(x=x+cusp_evaluation)).O(trunc_order)).power_series()
-        s = s_no_nth_root.change_ring(QQbar).nth_root(cusp_width) #This operation can get us out of Ku so we have to use QQbar...
+        s = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(trunc_order)).power_series().nth_root(cusp_width)
         print("Warning, computing q-expansions at other cusps explicitly can be very slow because we use the QQbar type!")
         r = s.reverse()
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width)
