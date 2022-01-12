@@ -223,8 +223,10 @@ def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
             numerator_primes_pows.append([(0,1)])
             numerator_primes.append([0])
         else:
-            numerator_primes_pows.append(list(factor(i)))
-            numerator_primes.append(prime_factors(i))
+            i_primes_pows = list(factor(i))
+            i_primes = [prime for (prime,_) in i_primes_pows]
+            numerator_primes_pows.append(i_primes_pows)
+            numerator_primes.append(i_primes)
     print("numerator_primes_pows: ", numerator_primes_pows)
     print("denominator: ", factor(LLL_res[0]))
     numerator_factors = [] #Primes and powers of the numerator that can be factored out
