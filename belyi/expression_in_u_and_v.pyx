@@ -1,5 +1,6 @@
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
+from sage.rings.rational_field import QQ
 
 def convert_from_Kv_to_Kw(expression_in_Kv, v_Kw):
     """
@@ -56,7 +57,8 @@ def factor_into_u_v(expression_in_Kw, u_pow, u_interior_Kv, principal_cusp_width
     Kw, Kv = expression_in_Kw.parent(), u_interior_Kv.parent()
     w = Kw.gen()
     if principal_cusp_width == 1: #In this case Kw == Kv (up to different variable names)
-        expression_shifted = expression_in_Kw/(u_interior_Kv**u_pow) #This expression can be written as an element in v
+        u_interior_QQ = QQ(u_interior_Kv) #For cusp width one, u is only in QQ
+        expression_shifted = expression_in_Kw/(u_interior_QQ**u_pow) #This expression can be written as an element in v
     else:
         expression_shifted = expression_in_Kw/(w**u_pow) #This expression can be written as an element in v
     expression_shifted_Kv = convert_from_Kw_to_Kv(expression_shifted,u_interior_Kv,principal_cusp_width)
