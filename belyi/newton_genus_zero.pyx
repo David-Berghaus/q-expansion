@@ -13,6 +13,7 @@ from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
+from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
@@ -458,19 +459,22 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
             if tmp == None: #Failed to recognize coeffs as alg numbers
                 continue
-            Kv, Ku, v_Ku, u_interior_Kv = tmp
-            u = Ku.gen()
+            Kv, Kw, v_Kw, u_interior_Kv = tmp
+            if principal_cusp_width == 1:
+                u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+            else:
+                u = Kw.gen()
 
             alg_factored_polynomials = []
             for factored_polynomial in factored_polynomials:
                 #Which method is better for which scenario, dividing by a power of u or raising the coefficients to the n-th power?
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,u=u,v_Ku=v_Ku,estimated_bit_prec=coeff_bit_prec)
+                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,u=u,v_Kw=v_Kw,estimated_bit_prec=coeff_bit_prec)
                 #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
                     break
                 alg_factored_polynomials.append(alg_factored_polynomial)
             if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
-                return alg_factored_polynomials, v_Ku, u_interior_Kv
+                return alg_factored_polynomials, v_Kw, u_interior_Kv
     
     if stop_when_coeffs_are_recognized == True:
         raise ArithmeticError("target_bit_prec was not sufficient to recognize coefficients as algebraic numbers!")
@@ -525,12 +529,12 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_
     target_bit_prec = digits_to_bits(target_digit_prec)
 
     if stop_when_coeffs_are_recognized == True:
-        factored_polynomials, v_Ku, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
+        factored_polynomials, v_Kw, u_interior_Kv = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     else:
         factored_polynomials = newton(factored_polynomials,G,curr_bit_prec,target_bit_prec,stop_when_coeffs_are_recognized,max_extension_field_degree=max_extension_field_degree)
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:
         if stop_when_coeffs_are_recognized == True:
-            return factored_polynomials, cusp_rep_values, v_Ku, u_interior_Kv
+            return factored_polynomials, cusp_rep_values, v_Kw, u_interior_Kv
         return factored_polynomials, cusp_rep_values
