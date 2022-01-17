@@ -78,6 +78,9 @@ def test_belyi_map4():
     CF = ComplexField(tmp_approx.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #We work with CF here because otherwise the differences might be empty balls
     assert (tmp_rig.get_cusp_expansion(Cusp(1,0))[9]-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
     assert (CF(97.97658170916759497398537044515919396276246573035,-7.354816147385987288161433019146684584608985406791)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-31)
+    #Also test that u-v-factorization works correctly here
+    u = B._u_interior_Kv
+    assert (CF(97.97658170916759497398537044515919396276246573035,-7.354816147385987288161433019146684584608985406791)-CF(tmp_rig.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)[9](u=u))).abs() < CF(10)**(-31)
     #Test q-expansions at other cusp
     tmp_rig = B.get_hauptmodul_q_expansion(15,only_principal_cusp_expansion=False) #We recompute this here to make sure that both cases work
     tmp_approx = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=False)
