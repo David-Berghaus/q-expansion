@@ -7,14 +7,15 @@ def run_unit_tests_belyi_map():
     test_belyi_map()
     test_belyi_map2()
     test_belyi_map3()
+    test_belyi_map4()
     
 def test_belyi_map():
     U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
     B = BelyiMap(U1) #Test recognition of numberfield that is not QQ
-    #Test q-expansions at principal cusp
     tmp_rig = B.get_hauptmodul_q_expansion(10,only_principal_cusp_expansion=False)
     tmp_approx = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=False)
     CF = ComplexField(tmp_approx.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #We work with CF here because otherwise the differences might be empty balls
+    #Test q-expansions at principal cusp
     assert (tmp_rig.get_cusp_expansion(Cusp(1,0))[9]-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
     assert (CF(-11.18048794365418621081119907300687097510914273497,74.25239079134411962653170377372871107862679259671)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
     #Test q-expansion at other cusp
@@ -65,3 +66,23 @@ def test_belyi_map3():
     assert (CF(C_approx[1].get_cusp_expansion(Cusp(1,0))[11])-correct_res).abs() < CF(10)**(-39)
     assert QQbar(C_rig[1].get_cusp_expansion(Cusp(1,0))[11])-C_rig[1].get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)[11](u=u_alg,v=v_alg) == 0 #Test factorization into u and v
 
+def test_belyi_map4():
+    """
+    Unittest that tests the correct recognition and arithmetic of u when the cusp at infinity has width one.
+    """
+    U7 = MySubgroup(o2='(7 2)(3 4)(5)(6 1)',o3='(7)(2 3 5)(4 6 1)') #Group with cusp of width one at infinity
+    B = BelyiMap(U7) #Degree two numberfield
+    #Test q-expansions at principal cusp
+    tmp_rig = B.get_hauptmodul_q_expansion(10,only_principal_cusp_expansion=True)
+    tmp_approx = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=True)
+    CF = ComplexField(tmp_approx.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #We work with CF here because otherwise the differences might be empty balls
+    assert (tmp_rig.get_cusp_expansion(Cusp(1,0))[9]-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
+    assert (CF(97.97658170916759497398537044515919396276246573035,-7.354816147385987288161433019146684584608985406791)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-31)
+    #Test q-expansions at other cusp
+    tmp_rig = B.get_hauptmodul_q_expansion(15,only_principal_cusp_expansion=False) #We recompute this here to make sure that both cases work
+    tmp_approx = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=False)
+    CF = ComplexField(tmp_approx.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #We work with CF here because otherwise the differences might be empty balls
+    assert (tmp_rig.get_cusp_expansion(Cusp(0,1))[9]-CF(tmp_approx.get_cusp_expansion(Cusp(0,1))[9])).abs() < CF(10)**(-38)
+    print((CF(-409614.8283118484107493257393238180260932476735580,125.7860863354206940660961873374166208245937784693)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs())
+    assert (CF(-409614.8283118484107493257393238180260932476735580,125.7860863354206940660961873374166208245937784693)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
+    print("test_belyi_map4 ok")

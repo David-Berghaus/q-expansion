@@ -31,6 +31,12 @@ def oldform_example():
     G_prime = list(G.surgroups())[0] #This might not always initialize a correct group...
     #Todo: Check which modular/cusp forms correspond to oldforms and how to identify them.
 
+def has_subgroup_duplicate_cusps(G):
+    """
+    Check if subgroup has cusps with equal cusp-width.
+    """
+    cusp_widths = G.cusp_widths()
+    return len(cusp_widths) != len(set(cusp_widths))
 
 def numberfield_reduction_example():
     #Example how to reduce a numberfield and write an algebraic number in terms of powers of this reduced numberfield
