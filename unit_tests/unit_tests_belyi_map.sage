@@ -83,6 +83,5 @@ def test_belyi_map4():
     tmp_approx = B.get_hauptmodul_q_expansion_approx(25,50,only_principal_cusp_expansion=False)
     CF = ComplexField(tmp_approx.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #We work with CF here because otherwise the differences might be empty balls
     assert (tmp_rig.get_cusp_expansion(Cusp(0,1))[9]-CF(tmp_approx.get_cusp_expansion(Cusp(0,1))[9])).abs() < CF(10)**(-38)
-    print((CF(-409614.8283118484107493257393238180260932476735580,125.7860863354206940660961873374166208245937784693)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs())
-    assert (CF(-409614.8283118484107493257393238180260932476735580,125.7860863354206940660961873374166208245937784693)-CF(tmp_approx.get_cusp_expansion(Cusp(1,0))[9])).abs() < CF(10)**(-42)
+    assert (CF(-409614.8283118484107493257393238180260932476735580,125.7860863354206940660961873374166208245937784693)-CF(tmp_approx.get_cusp_expansion(Cusp(0,1))[9])).abs() < CF(10)**(-33)
     print("test_belyi_map4 ok")
