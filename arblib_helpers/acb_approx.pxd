@@ -6,9 +6,9 @@ from sage.libs.arb.types cimport *
 from sage.libs.arb.acb cimport *
 
 cdef extern from "arb_wrap.h":
-    #Functions provided by arb that are missing in sage.libs.arb.acb_mat
     void acb_root_ui(acb_t r, const acb_t z, long k, long prec)
 
+    #Functions provided by arb that are missing in sage.libs.arb.acb_mat
     void acb_mat_approx_solve_triu(acb_mat_t X, const acb_mat_t U, const acb_mat_t B, int unit, long prec)
     void acb_mat_approx_solve_tril(acb_mat_t X, const acb_mat_t L, const acb_mat_t B, int unit, long prec)
     int acb_mat_approx_lu(long *P, acb_mat_t LU, const acb_mat_t A, long prec)

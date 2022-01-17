@@ -1,34 +1,44 @@
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
+from sage.rings.rational_field import QQ
 
-def convert_from_Kv_to_Ku(expression_in_Kv, v_Ku):
+def convert_from_Kv_to_Kw(expression_in_Kv, v_Kw):
     """
-    Given an expression in Kv, convert the expression efficiently to Ku by plugging in v(u).
+    Given an expression in Kv, convert the expression efficiently to Kw by plugging in v(w).
     """
     if expression_in_Kv == 0:
         return 0
     coeffs = list(expression_in_Kv.polynomial())
     res = coeffs[-1]
     for i in range(len(coeffs)-2,-1,-1): #Horner's method
-        res = res*v_Ku+coeffs[i]
+        res = res*v_Kw+coeffs[i]
     return res
 
-def convert_from_Ku_to_Kv(expression_in_Ku, u_interior_Kv, principal_cusp_width):
+def convert_from_Kw_to_Kv(expression_in_Kw, u_interior_Kv, principal_cusp_width):
     """
-    Given an expression in Ku, convert the expression to Kv by plugging in u_interior_Kv if possible.
+    Given an expression in Kw, convert the expression to Kv.
+    For cusp_width one, this is done by replacing w with v.
+    For the general case, this is done by plugging in u_interior_Kv if possible.
     Otherwise use Sage to convert between the numberfields.
     """
-    Ku, Kv = expression_in_Ku.parent(), u_interior_Kv.parent()
-    if is_u_minpoly_maximal_degree(Ku.polynomial(),Kv.degree(),principal_cusp_width) == True: #We can efficiently factor expression by plugging in u_interior_Kv 
-        coeffs = list(expression_in_Ku)
-        res = coeffs[-1]
-        for i in range(len(coeffs)-2,-1,-1): #Horner's method
-            if coeffs[i] != 0:
-                if i%principal_cusp_width != 0:
-                    raise ArithmeticError("Unable to factor expression into u and v!")
-                res = res*u_interior_Kv+coeffs[i]
-    else: #We have to use Sage for this computation... Can we do it more efficiently?
-        res = Kv(expression_in_Ku)
+    Kw, Kv = expression_in_Kw.parent(), u_interior_Kv.parent()
+    if principal_cusp_width == 1: #In this case Kw == Kv (up to different variable names)
+        v = Kv.gen()
+        Kw_expr_poly = expression_in_Kw.polynomial()
+        res = 0
+        for i in range(Kw_expr_poly.degree()+1):
+            res += Kw_expr_poly[i]*v**i
+    else:
+        if is_u_minpoly_maximal_degree(Kw.polynomial(),Kv.degree(),principal_cusp_width) == True: #We can efficiently factor expression by plugging in u_interior_Kv 
+            coeffs = list(expression_in_Kw)
+            res = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                if coeffs[i] != 0:
+                    if i%principal_cusp_width != 0:
+                        raise ArithmeticError("Unable to factor expression into u and v!")
+                    res = res*u_interior_Kv+coeffs[i]
+        else: #We have to use Sage for this computation... Can we do it more efficiently?
+            res = Kv(expression_in_Kw)
     return res
 
 def is_u_minpoly_maximal_degree(u_minpoly, extension_field_degree, principal_cusp_width):
@@ -39,15 +49,19 @@ def is_u_minpoly_maximal_degree(u_minpoly, extension_field_degree, principal_cus
     """
     return u_minpoly.degree() == extension_field_degree*principal_cusp_width
 
-def factor_into_u_v(expression_in_Ku, u_pow, u_interior_Kv, principal_cusp_width):
+def factor_into_u_v(expression_in_Kw, u_pow, u_interior_Kv, principal_cusp_width):
     """
-    Given an expression in Ku that can be factored into (expression_in_Kv)*u**u_pow, perform this factorization.
+    Given an expression in Kw that can be factored into (expression_in_Kv)*u**u_pow, perform this factorization.
     The result will be represented as a polynomial over Kv in u.
     """
-    Ku, Kv = expression_in_Ku.parent(), u_interior_Kv.parent()
-    Ku_gen = Ku.gen()
-    expression_shifted = expression_in_Ku/(Ku_gen**u_pow) #This expression can be written as an element in v
-    expression_shifted_Kv = convert_from_Ku_to_Kv(expression_shifted,u_interior_Kv,principal_cusp_width)
+    Kw, Kv = expression_in_Kw.parent(), u_interior_Kv.parent()
+    w = Kw.gen()
+    if principal_cusp_width == 1: #In this case Kw == Kv (up to different variable names)
+        u_interior_QQ = QQ(u_interior_Kv) #For cusp width one, u is only in QQ
+        expression_shifted = expression_in_Kw/(u_interior_QQ**u_pow) #This expression can be written as an element in v
+    else:
+        expression_shifted = expression_in_Kw/(w**u_pow) #This expression can be written as an element in v
+    expression_shifted_Kv = convert_from_Kw_to_Kv(expression_shifted,u_interior_Kv,principal_cusp_width)
     P = PolynomialRing(Kv,"u")
     u = P.gen()
     return expression_shifted_Kv*u**u_pow

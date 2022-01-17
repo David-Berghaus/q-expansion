@@ -3,7 +3,7 @@ from math import ceil
 from sage.libs.arb.acb cimport *
 from sage.rings.complex_arb cimport *
 from sage.libs.arb.acb_poly cimport *
-from sage.rings.qqbar import QQbar
+from sage.rings.qqbar import QQbar, AlgebraicField
 from sage.modular.cusps import Cusp
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.power_series_poly import PowerSeries_poly
@@ -22,7 +22,7 @@ from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
-from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits
+from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits, get_pi_ball
 from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
 from classes.factored_polynomial import get_factored_polynomial_in_u_v
 
@@ -67,6 +67,49 @@ def my_n_th_root(p, n):
             r = (r*((n+1)-p*r**n))/n
         return r.inverse()
 
+def get_all_nth_roots_cbf(x, n):
+    """
+    Given a CBF x, compute all the nth roots of unity with rigorous error bounds.
+    """
+    cdef ComplexBall r
+    CBF = x.parent()
+    bit_prec = CBF.precision()
+    r = CBF(x.abs())
+    acb_root_ui(r.value,r.value,n,bit_prec) #because CBF.nth_root is not implemented...
+    phi = x.arg()
+    pi = get_pi_ball(bit_prec)
+    nth_roots = [r*(((phi+2*pi*l)*CBF(0,1)/n).exp()) for l in range(n)]
+    return nth_roots
+
+def my_n_th_root_with_correct_embedding(p, n, q_coefficient):
+    """
+    Given a Laurent series p for which the first n-1 coefficients are zero, compute the n-th root using division free newton iterations.
+    We also make sure that we choose the correct root by comparing the roots to the numerical value of the q^1 coefficient of the hauptmodul obtained from Hejhal's method.
+    """
+    if n == 1:
+        return p
+    else:
+        correct_embedding = 1/q_coefficient
+        if isinstance(p.parent().base_ring(),ComplexBallField):
+            CBF = p.parent().base_ring()
+            bit_prec = CBF.precision()
+            nth_roots = get_all_nth_roots_cbf(p[n],n)
+        elif isinstance(p.parent().base_ring(),AlgebraicField):
+            bit_prec = 1024 #This should be enough to identify the correct root...
+            nth_roots = p[n].nth_root(n,all=True)
+        else:
+            raise NotImplementedError("We have not considered this case yet!")
+        CC = ComplexField(bit_prec)
+        diffs = [(CC(nth_root)-correct_embedding).abs() for nth_root in nth_roots]
+        c = nth_roots[diffs.index(min(diffs))]
+
+        prec = p.prec()-n    
+        r = ((1/c)*p.parent().gen()**(-1)).O(0)
+        for i in newton_method_sizes(prec)[1:]:
+            r = r.lift_to_precision(i-1)
+            r = (r*((n+1)-p*r**n))/n
+        return r.inverse()
+
 def identify_cusp_from_pc_root(pc_root, cusp_rep_values):
     """
     Given an algebraic expression of a root of pc, try to recognize the cusp corresponding to this root by 
@@ -95,13 +138,14 @@ class BelyiMap():
         
         G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
-        (p3, p2, pc), cusp_rep_values, v_Ku, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
+        (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Ku, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
         self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self._v_Ku, self._u_interior_Kv = v_Ku, u_interior_Kv
         self._Kv, self._Ku = u_interior_Kv.parent(), v_Ku.parent()
+        self._j_G_hejhal = j_G_hejhal
 
         self._p2_fixed = self._get_e2_fixed_point_polynomial()
         self._p3_fixed = self._get_e3_fixed_point_polynomial()
@@ -358,11 +402,13 @@ class BelyiMap():
         Because these q-expansions are usually defined over a field Ku times another root of an element in Kv, which seems very tedious
         to implement, we work over QQbar which can become very slow for large examples.
         """
+        q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
         cusp_evaluation = QQbar(self._cusp_evaluations[cusp])
         cusp_width = self.G.cusp_width(cusp)
         L = LaurentSeriesRing(QQbar,"x") #The expansions at other cusps can be defined over a different numberfield than Ku, so we have to use QQbar...
         x = L.gen()
-        s = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(trunc_order)).power_series().nth_root(cusp_width)
+        s_no_nth_root = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(trunc_order))
+        s = my_n_th_root_with_correct_embedding(s_no_nth_root,cusp_width,q_coefficient).power_series()
         print("Warning, computing q-expansions at other cusps explicitly can be very slow because we use the QQbar type!")
         r = s.reverse()
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width)
@@ -433,7 +479,7 @@ class BelyiMap():
         j_G = one_over_x_term + P(tmp)
         return j_G
 
-    def _get_r_for_taylor_expansion(self, cusp, trunc_order, bit_prec):
+    def _get_r_for_taylor_expansion(self, cusp, trunc_order, q_coefficient, bit_prec):
         """
         Get the reversed series of the reciprocal of the Belyi map expanded in x.
         We need to compute this for "get_hauptmodul_q_expansion_non_infinity_approx".
@@ -456,7 +502,7 @@ class BelyiMap():
                 pc_shifted_coeffs.append(pc_shifted[i])
         pc_shifted = L(pc_shifted_coeffs).O(trunc_order)
 
-        s = my_n_th_root(pc_shifted/p3_shifted,cusp_width)
+        s = my_n_th_root_with_correct_embedding(pc_shifted/p3_shifted,cusp_width,q_coefficient)
         s_prec = s.prec() #Exponent of the O-term
         s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         s_arb_reverted_prec = s_arb_reverted.prec() #Exponent of the O-term
@@ -471,10 +517,11 @@ class BelyiMap():
         If "try_to_overcome_ill_conditioning" == True, we try to detect these cases and increase the
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
         """
+        q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
-            r_low_prec = self._get_r_for_taylor_expansion(cusp,trunc_order,64)
+            r_low_prec = self._get_r_for_taylor_expansion(cusp,trunc_order,q_coefficient,64)
             CC = ComplexField(64)
             required_prec = int(round(CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
@@ -487,7 +534,7 @@ class BelyiMap():
         CBF = ComplexBallField(working_bit_prec)
         cusp_evaluation = self._cusp_evaluations[cusp]
         cusp_width = self.G.cusp_width(cusp)
-        r = self._get_r_for_taylor_expansion(cusp,trunc_order,working_bit_prec)
+        r = self._get_r_for_taylor_expansion(cusp,trunc_order,q_coefficient,working_bit_prec)
 
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width).polynomial().change_ring(CBF)
         r_pos_degree = r.power_series().polynomial()

@@ -7,7 +7,7 @@ from sage.rings.number_field.number_field import NumberField
 from sage.arith.misc import factor, prime_factors
 
 from belyi.number_fields import to_K, get_numberfield_and_gen, is_effectively_zero, lindep
-from belyi.expression_in_u_and_v import convert_from_Kv_to_Ku, factor_into_u_v
+from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw, factor_into_u_v
 from point_matching.point_matching_arb_wrap import bits_to_digits
 
 cpdef construct_poly_from_root_tuple(x, root_tuple):
@@ -63,7 +63,7 @@ cpdef get_algebraic_poly_coeffs_nth_power(p, K, principal_cusp_width, estimated_
 
     return p_algebraic
 
-cpdef get_algebraic_poly_coeffs_u(p, Kv, u, v_Ku, estimated_bit_prec=None):
+cpdef get_algebraic_poly_coeffs_u(p, Kv, u, v_Kw, estimated_bit_prec=None):
     """
     Given a polynomial p, try to recognize coefficients as algebraic numbers by dividing them by a power of u.
     We assume that the numberfield and its embedding have already been identified.
@@ -79,7 +79,7 @@ cpdef get_algebraic_poly_coeffs_u(p, Kv, u, v_Ku, estimated_bit_prec=None):
     for i in range(p.degree()+1):
         coeff_floating_approx = CC(p[i]) #Because we cannot directly convert acbs to pari
         u_pow = p.degree()-i #Exponent of u for the given coefficient
-        expression_to_recognize = coeff_floating_approx/(u**u_pow)
+        expression_to_recognize = coeff_floating_approx/(CC(u)**u_pow)
         if expression_to_recognize.is_one() == True:
             recognized_expression = Kv(1)
         elif is_effectively_zero(expression_to_recognize,bits_to_digits(bit_prec)) == True:
@@ -90,58 +90,71 @@ cpdef get_algebraic_poly_coeffs_u(p, Kv, u, v_Ku, estimated_bit_prec=None):
         if recognized_expression == None: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
             return None
 
-        recognized_expression_Ku = convert_from_Kv_to_Ku(recognized_expression, v_Ku)
-        algebraic_expression = recognized_expression_Ku*(u**u_pow)
+        recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
+        algebraic_expression = recognized_expression_Kw*(u**u_pow)
         algebraic_coeffs.append(algebraic_expression)
     var_name = p.variable_name()
-    Ku = v_Ku.parent()
-    polynomial_ring = PolynomialRing(Ku,var_name)
+    Kw = v_Kw.parent()
+    polynomial_ring = PolynomialRing(Kw,var_name)
     p_algebraic = polynomial_ring(algebraic_coeffs)
 
     return p_algebraic
 
-def get_numberfield_of_coeff(x, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
+def get_numberfield_of_coeff(floating_expression_linear_in_u, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
     """
     Try to recognize the numberfield of one of the coefficients by trying to express it as an algebraic number.
     Note that we define the numberfield Kv to be the numberfield of x**principal_cusp_width.
-    If this succeeds, return the (potentially reduced) numberfield Kv with specified embedding and the numberfield of u 
-    (as well as expressions to convert between Ku and Kv).
+    If this succeeds, return the (potentially reduced) numberfield Kv with specified embedding and the numberfield of w 
+    (as well as expressions to convert between Kw and Kv).
     Otherwise return None.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
-        bit_prec = x.parent().precision()
+        bit_prec = floating_expression_linear_in_u.parent().precision()
     else:
         bit_prec = estimated_bit_prec
     CC = ComplexField(bit_prec)
-    coeff_floating_approx = CC(x)
+    coeff_floating_approx = CC(floating_expression_linear_in_u)
     expression_to_recognize = coeff_floating_approx**principal_cusp_width
     Kv = get_numberfield_and_gen(expression_to_recognize,max_extension_field_degree)
     if Kv == None:
         return None
-    tmp = get_u_factor(expression_to_recognize,Kv.gen(),principal_cusp_width,Kv.degree())
-    if tmp == None: #Although this should never happen because the same computation was done in get_numberfield_and_gen...
+    v = Kv.gen()
+    tmp = get_u(coeff_floating_approx,v,principal_cusp_width,Kv.degree())
+    if tmp == None:
         return None
-    c, recognized_expression = tmp
-    u_interior_Kv = recognized_expression/(c**principal_cusp_width) #This corresponds to u(v)**princial_cusp_width, i.e., u(v) = (u_interior_Kv)**(1/princial_cusp_width)
-    Ku = get_numberfield_of_u(c,u_interior_Kv,coeff_floating_approx,principal_cusp_width,Kv.degree())
-    v_Ku = get_v_Ku(Kv,Ku,principal_cusp_width,bit_prec)
+    u_interior_Kv, u_embedding = tmp
+    Kw = get_Kw(u_interior_Kv,u_embedding,principal_cusp_width,Kv.degree())
+    v_Kw = get_v_Kw(Kv,Kw,principal_cusp_width,bit_prec)
 
-    return Kv, Ku, v_Ku, u_interior_Kv
+    return Kv, Kw, v_Kw, u_interior_Kv
 
-def get_numberfield_of_u(c, u_interior_Kv, coeff_floating_approx, principal_cusp_width, extension_field_degree):
+def get_Kw(u_interior_Kv, u_embedding, principal_cusp_width, extension_field_degree):
+    """
+    Get Kw which we define to be a numberfield that contains all coefficients of the Belyi map.
+    We choose Kw to be equal to Kv iff the principal cusp width is equal to one.
+    Otherwise we choose Kw to be equivalent to Ku.
+    """
+    if principal_cusp_width == 1:
+        Kv = u_interior_Kv.parent()
+        CC = u_embedding.parent()
+        Kw = NumberField(Kv.polynomial(),"w",embedding=CC(Kv.gen()))
+    else:
+        Kw = get_numberfield_of_u(u_interior_Kv,u_embedding,principal_cusp_width,extension_field_degree,"w")
+    return Kw
+
+def get_numberfield_of_u(u_interior_Kv, u_embedding, principal_cusp_width, extension_field_degree, gen_str):
     """
     Let u be a principal_cusp_widths root of an expression in Kv.
     Return the NumberField containing u with specified embedding.
     """
-    u_floating_approx = coeff_floating_approx/c
     potential_algebraic_expressions = QQbar(u_interior_Kv).nth_root(principal_cusp_width,all=True)
-    diffs = [(potential_algebraic_expression-u_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
+    diffs = [(potential_algebraic_expression-u_embedding).abs() for potential_algebraic_expression in potential_algebraic_expressions]
     u_alg = potential_algebraic_expressions[diffs.index(min(diffs))]
-    u_minpoly = get_u_minpoly(u_alg,principal_cusp_width,extension_field_degree,coeff_floating_approx.prec())
-    Ku = NumberField(u_minpoly,"u",embedding=u_floating_approx) #Embedding with u_alg can apparently become very slow
+    u_minpoly = get_u_minpoly(u_alg,principal_cusp_width,extension_field_degree,u_embedding.prec())
+    Ku = NumberField(u_minpoly,gen_str,embedding=u_embedding) #Embedding with u_alg can apparently become very slow
     return Ku
 
-def get_u_minpoly(u, principal_cusp_width, extension_field_degree, starting_bit_prec):
+def get_u_minpoly(u_alg, principal_cusp_width, extension_field_degree, starting_bit_prec):
     """
     Return the minimal polynomial of u by using the LLL algorithm.
     We could of course simply use u.minpoly() which can however become very slow.
@@ -151,7 +164,7 @@ def get_u_minpoly(u, principal_cusp_width, extension_field_degree, starting_bit_
     while LLL_res == None:
         CC = ComplexField(bit_prec)
         LLL_basis = []
-        u_approx_pow = CC(u)**principal_cusp_width
+        u_approx_pow = CC(u_alg)**principal_cusp_width
         for i in range(extension_field_degree+1):
             LLL_basis.append(u_approx_pow**i)
         LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
@@ -164,7 +177,7 @@ def get_u_minpoly(u, principal_cusp_width, extension_field_degree, starting_bit_
     p = p.subs({x:x**principal_cusp_width})
     if p.is_irreducible() == False:
         CC = ComplexField(bit_prec)
-        u_approx = CC(u)
+        u_approx = CC(u_alg)
         factors = p.factor()
         min_factor_root_diffs = [] #Stores the minimal diff of root of factor
         for (factor,multiplicity) in factors:
@@ -175,46 +188,71 @@ def get_u_minpoly(u, principal_cusp_width, extension_field_degree, starting_bit_
         p = factors[factor_index][0]
     return p
 
-def get_v_Ku(Kv, Ku, principal_cusp_width, starting_bit_prec):
+def get_v_Kw(Kv, Kw, principal_cusp_width, starting_bit_prec):
     """
-    Express v as an element in Ku. This is in principle possible by using v_Ku = Ku(v) which can however compute for very long.
-    Instead we express v in terms of u by using the LLL algorithm.
+    Express v as an element in Kw. This is in principle possible by using v_Kw = Kw(v) which can however compute for very long.
+    Instead we express v in terms of w by using the LLL algorithm.
     """
-    v, u = Kv.gen(), Ku.gen()
+    v, w = Kv.gen(), Kw.gen()
+    if principal_cusp_width == 1: #In this case Kw == Kv (up to different variable names)
+        v_Kw = w #In this scenario it is trivial
+        return v_Kw
     LLL_res = None
     bit_prec = starting_bit_prec
     while LLL_res == None:
         CC = ComplexField(bit_prec)
         LLL_basis = [CC(v)]
-        u_approx_pow = CC(u)**principal_cusp_width
+        w_approx_pow = CC(w)**principal_cusp_width
         for i in range(Kv.degree()):
-            LLL_basis.append(u_approx_pow**i)
+            LLL_basis.append(w_approx_pow**i)
         LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
         bit_prec *= 2
         if LLL_res == None:
-            print("Unable to recognize v_Ku, maybe optimize bitprec further!")
-    v_Ku = 0
+            print("Unable to recognize v_Kw, maybe optimize bitprec further!")
+    v_Kw = 0
     for i in range(1,len(LLL_res)):
         power = (i-1)*principal_cusp_width
-        v_Ku += LLL_res[i]*u**power
-    v_Ku /= -LLL_res[0]
-    return v_Ku
+        v_Kw += LLL_res[i]*w**power
+    v_Kw /= -LLL_res[0]
+    return v_Kw
 
-def get_u_factor(x, gen, principal_cusp_width, extension_field_degree):
+def get_u(floating_expression_linear_in_u, v, principal_cusp_width, extension_field_degree):
     """
-    Given an expression x which can be written as x = (c*u)^principal_cusp_width, get an expression for c and QQbar(x).
+    Determine u which is a factor that should cancel out common factors in the coefficients.
+    This function returns u_interior_Kv which is an expression in Kv such that u = (u_interior_Kv)**(1/principal_cusp_width)
+    and the embedding of u into CC.
+    If principal_cusp_width == 1 we choose u to be in QQ (and hence independently of Kv).
+    """
+    if principal_cusp_width == 1:
+        print("ToDo: Optimize choice of u here!")
+        u_interior_Kv = QQ(1)*v**0
+        CC = floating_expression_linear_in_u.parent()
+        u_embedding = CC(u_interior_Kv)
+    else:
+        x = floating_expression_linear_in_u**principal_cusp_width
+        tmp = get_u_factor(x,v,principal_cusp_width,extension_field_degree)
+        if tmp == None:
+            return None
+        c, recognized_expression = tmp
+        u_interior_Kv = recognized_expression/(c**principal_cusp_width) #This corresponds to u(v)**princial_cusp_width, i.e., u(v) = (u_interior_Kv)**(1/princial_cusp_width)
+        u_embedding = floating_expression_linear_in_u/c
+    return u_interior_Kv, u_embedding
+
+def get_u_factor(x, v, principal_cusp_width, extension_field_degree):
+    """
+    Given a floating expression which can be written as x = (c*u)^principal_cusp_width, get an expression for c and QQbar(x).
     This is done by factoring out common primes whose power is larger than principal_cusp_width.
     """
     LLL_basis = [x]
-    gen_approx = x.parent()(gen)
+    v_approx = x.parent()(v)
     for i in range(extension_field_degree):
-        LLL_basis.append(gen_approx**i)
+        LLL_basis.append(v_approx**i)
     LLL_res = lindep(LLL_basis,check_if_result_is_invalid=True)
     if LLL_res == None:
         return None
     x_alg = 0
     for i in range(1,len(LLL_res)):
-        x_alg += LLL_res[i]*gen**(i-1)
+        x_alg += LLL_res[i]*v**(i-1)
     x_alg /= -LLL_res[0]
     numerator_primes_pows = [] #Primes and powers
     numerator_primes = [] #Only primes
@@ -333,7 +371,7 @@ class Factored_Polynomial():
         derivative = inner_derivative*outer_derivative #this multiplication by a monomial can certainly be optimized
         return derivative
     
-    def get_algebraic_expressions(self, K, principal_cusp_width=None, u=None, v_Ku=None, estimated_bit_prec=None):
+    def get_algebraic_expressions(self, K, principal_cusp_width=None, u=None, v_Kw=None, estimated_bit_prec=None):
         """
         Tries to recognize coefficients of factor polynomials as algebraic numbers defined over K.
         If principal_cusp_width != None, the coefficients are raised to the n-th power, where n denots the principal_cusp_width.
@@ -344,10 +382,10 @@ class Factored_Polynomial():
         if principal_cusp_width == None and u == None:
             raise ArithmeticError("Please provide either princial_cusp_width or u!")
         if len(self.factors) == 0:
-            if v_Ku == None:
+            if v_Kw == None:
                 raise NotImplementedError("We have not implemented this scenario yet.")
-            Ku = v_Ku.parent()
-            polynomial_ring = PolynomialRing(Ku,"x")
+            Kw = v_Kw.parent()
+            polynomial_ring = PolynomialRing(Kw,"x")
             polygen = polynomial_ring.gen()
             return self #The empty class is already (somewhat) algebraic
         algebraic_factors = []
@@ -355,7 +393,7 @@ class Factored_Polynomial():
             if u == None:
                 p_algebraic = get_algebraic_poly_coeffs_nth_power(p, K, principal_cusp_width, estimated_bit_prec=estimated_bit_prec)
             else:
-                p_algebraic = get_algebraic_poly_coeffs_u(p, K, u, v_Ku, estimated_bit_prec=estimated_bit_prec)
+                p_algebraic = get_algebraic_poly_coeffs_u(p, K, u, v_Kw, estimated_bit_prec=estimated_bit_prec)
             if p_algebraic == None:
                 return None
             else:
