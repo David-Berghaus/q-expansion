@@ -15,6 +15,7 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff
+from classes.fourier_expansion import get_hauptmodul_q_expansion_approx
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
 # Possible optimizations:
@@ -500,7 +501,8 @@ cpdef get_factored_polynomial_starting_values(S, digit_prec, return_cusp_rep_val
     if return_cusp_rep_values == False:
         return factored_polynomials
     else:
-        return factored_polynomials, cusp_rep_values
+        j_G_hejhal = get_hauptmodul_q_expansion_approx(S,digit_prec,M_0=M,c_vec=c)
+        return factored_polynomials, cusp_rep_values, j_G_hejhal
 
 cpdef get_coeff_min_precision(factored_polynomials, int N):
     """
@@ -524,7 +526,7 @@ cpdef get_coeff_min_precision(factored_polynomials, int N):
 
 cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_degree=None, stop_when_coeffs_are_recognized=True, return_cusp_rep_values=False):
     G = S.group()
-    factored_polynomials, cusp_rep_values = get_factored_polynomial_starting_values(S, starting_digit_prec, return_cusp_rep_values=True)
+    factored_polynomials, cusp_rep_values, j_G_hejhal = get_factored_polynomial_starting_values(S, starting_digit_prec, return_cusp_rep_values=True)
     curr_bit_prec = digits_to_bits(2*starting_digit_prec)
     target_bit_prec = digits_to_bits(target_digit_prec)
 
@@ -536,5 +538,5 @@ cpdef run_newton(S, starting_digit_prec, target_digit_prec, max_extension_field_
         return factored_polynomials
     else:
         if stop_when_coeffs_are_recognized == True:
-            return factored_polynomials, cusp_rep_values, v_Kw, u_interior_Kv
-        return factored_polynomials, cusp_rep_values
+            return factored_polynomials, cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv
+        return factored_polynomials, cusp_rep_values, j_G_hejhal
