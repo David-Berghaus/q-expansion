@@ -14,6 +14,8 @@ S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
 from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, to_reduced_row_echelon_form
 
+load("subgroups.sage")
+
 #These notations are part of the Fiori, Franc paper. Note that we do not get the same permT...
 G1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(4 6 7)')
 u_G1 = (-7)**(1/4)/7**2

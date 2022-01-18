@@ -489,9 +489,11 @@ class BelyiMap():
         cusp_width = self.G.cusp_width(cusp)
         CBF = ComplexBallField(bit_prec)
         L = LaurentSeriesRing(CBF,"x")
-        x = L.gen()
-        cusp_evaluation_CBF = CBF(cusp_evaluation)
-        pc_shifted, p3_shifted = L(self.pc_constructed).subs({x:x+cusp_evaluation_CBF}).O(trunc_order), L(self.p3_constructed).subs({x:x+cusp_evaluation_CBF}).O(trunc_order)
+        pc_shifted_QQbar, p3_shifted_QQbar = self.pc_constructed.change_ring(QQbar), self.p3_constructed.change_ring(QQbar)
+        x = pc_shifted_QQbar.parent().gen()
+        #We need to perform this shift in QQbar because with CBF we might get empty error balls
+        #In this case, performing the shift in QQbar also seems feasible performance wise
+        pc_shifted, p3_shifted = L(pc_shifted_QQbar.subs({x:x+cusp_evaluation})).O(trunc_order), L(p3_shifted_QQbar.subs({x:x+cusp_evaluation})).O(trunc_order)
         
         #It is very important that the leading order terms of pc_shifted are truely zero, otherwise we can get very large rounding errors
         #We therefore set the coefficients that are effectively zero to true zeros
