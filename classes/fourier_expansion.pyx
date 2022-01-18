@@ -3,6 +3,7 @@ from copy import copy, deepcopy
 from sage.modular.cusps import Cusp
 from sage.rings.complex_field import ComplexField
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.qqbar import AlgebraicField
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 from sage.rings.number_field.number_field import NumberField_generic
@@ -211,10 +212,11 @@ class FourierExpansion():
 
     def __str__(self):
         trunc_order = min(10,self.cusp_expansions[Cusp(1,0)].prec())
-        if self._u_interior_Kv != None: #The q-expansions are defined over numberfields
+        base_ring = self.cusp_expansions[Cusp(1,0)].base_ring()
+        if isinstance(base_ring,ComplexBallField) == True or isinstance(base_ring,AlgebraicField) == True: #Defined over CBF or QQbar
+            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__() #We only know the numerical values of the q-expansions
+        else: #q-expansion is defined over numberfield so we can factor it
             c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
-        else: #We only know the numerical values of the q-expansions
-            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__()
         return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str 
 
     def get_cusp_expansion(self, c, trunc_order=None, digit_prec=None, factor_into_u_v=False):
