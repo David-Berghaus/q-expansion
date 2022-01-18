@@ -405,15 +405,16 @@ class BelyiMap():
         q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
         cusp_evaluation = QQbar(self._cusp_evaluations[cusp])
         cusp_width = self.G.cusp_width(cusp)
+        working_trunc_order = trunc_order+cusp_width #Precision with which the arithmetic needs to be performed
         L = LaurentSeriesRing(QQbar,"x") #The expansions at other cusps can be defined over a different numberfield than Ku, so we have to use QQbar...
         x = L.gen()
-        s_no_nth_root = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(trunc_order))
+        s_no_nth_root = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(working_trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(working_trunc_order))
         s = my_n_th_root_with_correct_embedding(s_no_nth_root,cusp_width,q_coefficient).power_series()
         print("Warning, computing q-expansions at other cusps explicitly can be very slow because we use the QQbar type!")
         r = s.reverse()
-        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width)
+        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(working_trunc_order,cusp_width)
         j_G = QQbar(cusp_evaluation) + r.subs(x=n_sqrt_j_inverse)
-        return j_G
+        return j_G.O(trunc_order)
 
     # def _get_hauptmodul_q_expansion_infinity_approx_sage(self, trunc_order, digit_prec):
     #     """
@@ -518,10 +519,12 @@ class BelyiMap():
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
         """
         q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
+        cusp_width = self.G.cusp_width(cusp)
+        working_trunc_order = trunc_order+cusp_width #Precision with which the arithmetic needs to be performed
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
-            r_low_prec = self._get_r_for_taylor_expansion(cusp,trunc_order,q_coefficient,64)
+            r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
             CC = ComplexField(64)
             required_prec = int(round(CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
@@ -533,10 +536,9 @@ class BelyiMap():
         working_bit_prec = digits_to_bits(working_prec)
         CBF = ComplexBallField(working_bit_prec)
         cusp_evaluation = self._cusp_evaluations[cusp]
-        cusp_width = self.G.cusp_width(cusp)
-        r = self._get_r_for_taylor_expansion(cusp,trunc_order,q_coefficient,working_bit_prec)
+        r = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,working_bit_prec)
 
-        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,cusp_width).polynomial().change_ring(CBF)
+        n_sqrt_j_inverse = get_n_th_root_of_1_over_j(working_trunc_order,cusp_width).polynomial().change_ring(CBF)
         r_pos_degree = r.power_series().polynomial()
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse,r.degree()+1) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
