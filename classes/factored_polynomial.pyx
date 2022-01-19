@@ -3,7 +3,7 @@ from sage.rings.qqbar import QQbar
 from sage.rings.rational_field import QQ
 from sage.rings.complex_field import ComplexField
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
-from sage.rings.number_field.number_field import NumberField
+from sage.rings.number_field.number_field import NumberField, NumberField_generic
 from sage.arith.misc import factor, prime_factors
 
 from belyi.number_fields import to_K, get_numberfield_and_gen, is_effectively_zero, lindep
@@ -19,86 +19,48 @@ cpdef construct_poly_from_root_tuple(x, root_tuple):
 
 cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
     (coeffs, order) = coeff_tuple
-    if isinstance(x,Polynomial_complex_arb) == True: #We specifically work with acb_poly instead of polynomials over the acb-ring for performance and C-access
+    if isinstance(x,Polynomial_complex_arb) == True: #We specifically work with acb_poly instead of polynomials over the acb-ring for C-access
         p = Polynomial_complex_arb(x.parent(), coeffs)
     else:
-        polynomial_ring = PolynomialRing(x.parent(),"x")
+        polynomial_ring = x.parent()
         p = polynomial_ring(coeffs)
     return [p,order]
 
-cpdef get_algebraic_poly_coeffs_nth_power(p, K, principal_cusp_width, estimated_bit_prec=None):
+cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
     """
-    Given a polynomial p, try to recognize coefficients as algebraic numbers by raising them to the n-th power,
-    where n denots the principal_cusp_width.
+    Given a list of coefficients, try to recognize coefficients (those that are CBFs) as algebraic numbers by dividing them by a power of u.
     We assume that the numberfield and its embedding have already been identified.
-    Return None if this does not succeed.
-    Otherwise return polynomial over K.
+    This function replaces all CBF-coefficients that have been recognized with its corresponding numberfield expressions.
+    If all coeffs have been successfully recognized, the function also returns True, otherwise it returns False.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
-        bit_prec = p[0].parent().precision()
+        bit_prec = coeffs[0].parent().precision()
     else:
         bit_prec = estimated_bit_prec
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
-    for i in range(p.degree()+1):
-        coeff_floating_approx = CC(p[i]) #Because we cannot directly convert acbs to pari
-        expression_to_recognize = coeff_floating_approx**principal_cusp_width
-        if expression_to_recognize.is_one() == True:
-            recognized_expression = QQbar(1)
-        elif is_effectively_zero(expression_to_recognize,bits_to_digits(bit_prec)) == True:
-            recognized_expression = QQbar(0)
-        else:
-            recognized_expression = to_K(expression_to_recognize,K)
+    p_degree = len(coeffs)-1
+    for i in range(len(coeffs)):
+        if coeffs[i] == 1 or isinstance(coeffs[i].parent(),NumberField_generic) == False: #This coeff has not been recognized yet
+            coeff_floating_approx = CC(coeffs[i]) #Because we cannot directly convert acbs to pari
+            u_pow = p_degree-i #Exponent of u for the given coefficient
+            expression_to_recognize = coeff_floating_approx/(CC(u)**u_pow)
+            if expression_to_recognize.is_one() == True:
+                recognized_expression = Kv(1)
+            elif is_effectively_zero(expression_to_recognize,bits_to_digits(bit_prec)) == True:
+                recognized_expression = Kv(0)
+            else:
+                recognized_expression = to_K(expression_to_recognize,Kv)
 
-        if recognized_expression == None: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
-            return None
-        #We need to recognize the correct root. Is there a better way for this?
-        potential_algebraic_expressions = recognized_expression.nth_root(principal_cusp_width,all=True)
-        diffs = [(potential_algebraic_expression-coeff_floating_approx).abs() for potential_algebraic_expression in potential_algebraic_expressions]
-        algebraic_expression = potential_algebraic_expressions[diffs.index(min(diffs))]
-        algebraic_coeffs.append(algebraic_expression)
-    var_name = p.variable_name()
-    polynomial_ring = PolynomialRing(QQbar,var_name)
-    p_algebraic = polynomial_ring(algebraic_coeffs)
+            if recognized_expression == None: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
+                have_all_coeffs_been_recognized = False
+                return coeffs, have_all_coeffs_been_recognized #Return what have already been able to recognize so far
 
-    return p_algebraic
-
-cpdef get_algebraic_poly_coeffs_u(p, Kv, u, v_Kw, estimated_bit_prec=None):
-    """
-    Given a polynomial p, try to recognize coefficients as algebraic numbers by dividing them by a power of u.
-    We assume that the numberfield and its embedding have already been identified.
-    Return None if this does not succeed.
-    Otherwise return polynomial over QQbar.
-    """
-    if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
-        bit_prec = p[0].parent().precision()
-    else:
-        bit_prec = estimated_bit_prec
-    CC = ComplexField(bit_prec)
-    algebraic_coeffs = []
-    for i in range(p.degree()+1):
-        coeff_floating_approx = CC(p[i]) #Because we cannot directly convert acbs to pari
-        u_pow = p.degree()-i #Exponent of u for the given coefficient
-        expression_to_recognize = coeff_floating_approx/(CC(u)**u_pow)
-        if expression_to_recognize.is_one() == True:
-            recognized_expression = Kv(1)
-        elif is_effectively_zero(expression_to_recognize,bits_to_digits(bit_prec)) == True:
-            recognized_expression = Kv(0)
-        else:
-            recognized_expression = to_K(expression_to_recognize,Kv)
-
-        if recognized_expression == None: #Found an invalid example, therefore precision is insufficient to recognize alg numbers
-            return None
-
-        recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
-        algebraic_expression = recognized_expression_Kw*(u**u_pow)
-        algebraic_coeffs.append(algebraic_expression)
-    var_name = p.variable_name()
-    Kw = v_Kw.parent()
-    polynomial_ring = PolynomialRing(Kw,var_name)
-    p_algebraic = polynomial_ring(algebraic_coeffs)
-
-    return p_algebraic
+            recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
+            algebraic_expression = recognized_expression_Kw*(u**u_pow)
+            coeffs[i] = algebraic_expression #Update list with recognized algebraic expression
+    have_all_coeffs_been_recognized = True
+    return coeffs, have_all_coeffs_been_recognized
 
 def get_numberfield_of_coeff(floating_expression_linear_in_u, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
     """
@@ -306,7 +268,8 @@ def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, pri
             coeff_u_v = factor_into_u_v(p[i],u_pow,u_interior_Kv,principal_cusp_width)
             coeffs_u_v.append(coeff_u_v)
             if polygen == None and u_pow != 0:
-                polygen = coeff_u_v.parent().gen()
+                polynomial_ring = PolynomialRing(coeff_u_v.parent(),p.parent().variable_name())
+                polygen = polynomial_ring.gen()
         coeff_tuples.append( (coeffs_u_v,order) )
     return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples)
 
@@ -370,38 +333,6 @@ class Factored_Polynomial():
         inner_derivative = (factors[poly_index][1])*(self.polygen)**coeff_index
         derivative = inner_derivative*outer_derivative #this multiplication by a monomial can certainly be optimized
         return derivative
-    
-    def get_algebraic_expressions(self, K, principal_cusp_width=None, u=None, v_Kw=None, estimated_bit_prec=None):
-        """
-        Tries to recognize coefficients of factor polynomials as algebraic numbers defined over K.
-        If principal_cusp_width != None, the coefficients are raised to the n-th power, where n denots the principal_cusp_width.
-        If u != None, this is done by dividing the coefficients by a power of u.
-        If this succeeds (which we only verify empirically here), return instance of Factored_Polynomial over algebraic numbers.
-        Otherwise return None.
-        """
-        if principal_cusp_width == None and u == None:
-            raise ArithmeticError("Please provide either princial_cusp_width or u!")
-        if len(self.factors) == 0:
-            if v_Kw == None:
-                raise NotImplementedError("We have not implemented this scenario yet.")
-            Kw = v_Kw.parent()
-            polynomial_ring = PolynomialRing(Kw,"x")
-            polygen = polynomial_ring.gen()
-            return self #The empty class is already (somewhat) algebraic
-        algebraic_factors = []
-        for (p,order) in self.factors:
-            if u == None:
-                p_algebraic = get_algebraic_poly_coeffs_nth_power(p, K, principal_cusp_width, estimated_bit_prec=estimated_bit_prec)
-            else:
-                p_algebraic = get_algebraic_poly_coeffs_u(p, K, u, v_Kw, estimated_bit_prec=estimated_bit_prec)
-            if p_algebraic == None:
-                return None
-            else:
-                algebraic_factors.append([p_algebraic,order])
-
-        polygen = algebraic_factors[0][0][0].parent().gen()
-        algebraic_factored_polynomial = Factored_Polynomial(polygen,coeff_tuples=algebraic_factors)
-        return algebraic_factored_polynomial
     
     def get_smallest_degree_poly(self):
         """
