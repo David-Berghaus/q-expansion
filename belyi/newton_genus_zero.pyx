@@ -484,6 +484,9 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                     u = Kw.gen()
 
             #If we are here, u has been recognized
+            #To Do: only try to recognize terms linear in u first
+            #Afterwards use results to potentially improve u
+            #Then continue and try to recognize remaining terms
             have_all_coeffs_lists_been_recognized = True
             for coeff_tuples in coeff_tuples_list:
                 for (coeffs,_) in coeff_tuples:

@@ -26,12 +26,13 @@ cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
         p = polynomial_ring(coeffs)
     return [p,order]
 
-cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
+cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None, max_u_power=None):
     """
     Given a list of coefficients, try to recognize coefficients (those that are CBFs) as algebraic numbers by dividing them by a power of u.
     We assume that the numberfield and its embedding have already been identified.
     This function replaces all CBF-coefficients that have been recognized with its corresponding numberfield expressions.
     If all coeffs have been successfully recognized, the function also returns True, otherwise it returns False.
+    If "max_u_power" is specified, only try to recognize coefficients with up to (and including) max_u_power.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
         bit_prec = coeffs[0].parent().precision()
@@ -40,7 +41,11 @@ cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
     p_degree = len(coeffs)-1
-    for i in range(len(coeffs)):
+    if max_u_power == None:
+        i_limit = -1
+    else:
+        i_limit = len(coeffs)-2-max_u_power
+    for i in range(len(coeffs)-1,i_limit,-1): #Loop backwards through coefficients to get increasing powers of u
         if coeffs[i] == 1 or isinstance(coeffs[i].parent(),NumberField_generic) == False: #This coeff has not been recognized yet
             coeff_floating_approx = CC(coeffs[i]) #Because we cannot directly convert acbs to pari
             u_pow = p_degree-i #Exponent of u for the given coefficient
@@ -59,7 +64,10 @@ cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
             recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
             algebraic_expression = recognized_expression_Kw*(u**u_pow)
             coeffs[i] = algebraic_expression #Update list with recognized algebraic expression
-    have_all_coeffs_been_recognized = True
+    if max_u_power == None:
+        have_all_coeffs_been_recognized = True
+    else:
+        have_all_coeffs_been_recognized = False #Although we have been able to finish the above loop, there are still unknown coefficients remaining
     return coeffs, have_all_coeffs_been_recognized
 
 def get_numberfield_of_coeff(floating_expression_linear_in_u, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
