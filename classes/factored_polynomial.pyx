@@ -268,7 +268,8 @@ def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, pri
             coeff_u_v = factor_into_u_v(p[i],u_pow,u_interior_Kv,principal_cusp_width)
             coeffs_u_v.append(coeff_u_v)
             if polygen == None and u_pow != 0:
-                polygen = coeff_u_v.parent().gen()
+                polynomial_ring = PolynomialRing(coeff_u_v.parent(),p.parent().variable_name())
+                polygen = polynomial_ring.gen()
         coeff_tuples.append( (coeffs_u_v,order) )
     return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples)
 
