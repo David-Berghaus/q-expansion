@@ -7,6 +7,7 @@ from sage.rings.polynomial.polynomial_complex_arb cimport *
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.real_arb import RealBallField
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.modular.cusps import Cusp
 
 from arblib_helpers.acb_approx cimport *
@@ -14,7 +15,7 @@ from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff
+from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
@@ -302,41 +303,51 @@ cpdef get_unknown_coeff_column(factored_polynomials, int N):
                 i += 1
     return coeffs
 
-cdef get_coeff_tuples_from_coeff_column(acb_mat_t x, factored_polynomials, int bit_prec, swap=False):
+def get_empty_coeff_tuples_list(factored_polynomials):
+    """
+    For each factored polynomial, return a list that is of the form [([c_0,c_1,...],order)] and set all c_i to "None" (except for the last which is always 1).
+    """
+    coeff_tuples_list = []
+    for factored_polynomial in factored_polynomials:
+        coeff_tuples = []
+        for (poly_fact, order) in factored_polynomial.factors:
+            amount_of_unknowns = poly_fact.degree() #Note that the last monomial is of the form 1*x^n, so we got n unknowns
+            coeffs = [None for _ in range(amount_of_unknowns)]
+            coeffs.append(1) #The highest order coefficient is always 1
+            coeff_tuples.append( (coeffs,order) )
+        coeff_tuples_list.append(coeff_tuples)
+    return coeff_tuples_list
+
+cdef get_coeff_tuples_from_coeff_column(acb_mat_t x, factored_polynomials, int bit_prec, coeff_tuples_list, swap=False):
     """
     Convert column-vector x, containing all unknown coefficients, into coeff_tuples for each polynomial.
     """
     CBF = ComplexBallField(bit_prec)
     cdef ComplexBall cb_cast
-    cdef int i, j
-    i = 0
-    res = []
-    for factored_polynomial in factored_polynomials:
-        coeff_tuples = []
-        for (poly_fact, order) in factored_polynomial.factors:
-            amount_of_unknowns = poly_fact.degree() #Note that the last monomial is of the form 1*x^n, so we got n unknowns
-            poly_fact_coeff_list = get_CBF_list(CBF,amount_of_unknowns+1)
-            for j in range(amount_of_unknowns):
-                cb_cast = poly_fact_coeff_list[j]
-                #It is important that we use approximate functions here because otherwise
-                #the error-bounds would prevent us from casting to higher precision
-                if swap == False:
-                    acb_approx_set(cb_cast.value, acb_mat_entry(x,i,0))
-                else:
-                    acb_approx_swap(cb_cast.value, acb_mat_entry(x,i,0))
-                i += 1
-            #Now we set the remaining coeff which is 1 (i.e., the leading order term)
-            cb_cast = poly_fact_coeff_list[amount_of_unknowns]
-            acb_set_ui(cb_cast.value, 1)
-            coeff_tuples.append( (poly_fact_coeff_list, order) )
-        res.append(coeff_tuples)
-    return res
+    if coeff_tuples_list == None:
+        coeff_tuples_list = get_empty_coeff_tuples_list(factored_polynomials)
+    x_index = 0
+    for i in range(len(factored_polynomials)):
+        coeff_tuples = coeff_tuples_list[i]
+        for (coeffs, order) in coeff_tuples:
+            for j in range(len(coeffs)-1): #Recall that the last coeff is 1
+                if coeffs[j] == None or isinstance(coeffs[j].parent(),ComplexBallField) == True: #We need to update the value of this coefficient
+                    cb_cast = CBF(0)
+                    #It is important that we use approximate functions here because otherwise
+                    #the error-bounds would prevent us from casting to higher precision
+                    if swap == False:
+                        acb_approx_set(cb_cast.value, acb_mat_entry(x,x_index,0))
+                    else:
+                        acb_approx_swap(cb_cast.value, acb_mat_entry(x,x_index,0))
+                    coeffs[j] = cb_cast
+                x_index += 1
+    return coeff_tuples_list
 
-cdef newton_step(factored_polynomials, G, int bit_prec):
+cdef newton_step(factored_polynomials, G, int bit_prec, coeff_tuples_list=None):
     """
     Perform one step of the newton iteration.
     factored_polynomials is used to create a Jacobi matrix and to refine the precision of the coefficients.
-    Returns a a tuple consisting of the (refined) coeff_tuples of p_3, p_2, p_c. 
+    Returns a list consisting of the (refined) coeff_tuples of p_3, p_2, p_c. 
     """
     cdef Polynomial_complex_arb f = get_f(factored_polynomials)
     cdef Acb_Mat J = get_jacobian(factored_polynomials, G)
@@ -362,8 +373,8 @@ cdef newton_step(factored_polynomials, G, int bit_prec):
     cdef Acb_Mat update = Acb_Mat(N, 1)
     acb_mat_approx_solve(update.value, J.value, f_x.value, bit_prec)
     acb_mat_approx_sub(x.value, x.value, update.value, bit_prec)
-    coeff_tuples = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, swap=True)
-    return coeff_tuples
+    coeff_tuples_list = get_coeff_tuples_from_coeff_column(x.value, factored_polynomials, bit_prec, coeff_tuples_list, swap=True)
+    return coeff_tuples_list
 
 def get_simplest_non_zero_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
     """
@@ -430,22 +441,27 @@ def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
         raise ArithmeticError("We should not get here!")
 
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
+    coeff_tuples_list = None
+    u, Kv, Kw, v_Kw, u_interior_Kv = None, None, None, None, None #Variables that will be used if stop_when_coeffs_are_recognized == True
+
     while curr_bit_prec < target_bit_prec:
-        coeff_tuples = newton_step(factored_polynomials, G, curr_bit_prec)
+        coeff_tuples_list = newton_step(factored_polynomials, G, curr_bit_prec, coeff_tuples_list=coeff_tuples_list)
         if 2*curr_bit_prec < target_bit_prec:
             curr_bit_prec *= 2
             CBF = ComplexBallField(curr_bit_prec)
-            x = Polynomial_complex_arb(CBF['x'], is_gen=True)
-            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[0])
-            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[1])
-            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
+            polynomial_ring = PolynomialRing(CBF,"x")
+            x = polynomial_ring.gen()
+            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[0])
+            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[1])
+            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[2])
             factored_polynomials = (p3, p2, pc)
         else: #If we are at our last iteration we don't need to increase the precision again before constructing p
             CBF = ComplexBallField(curr_bit_prec)
-            x = Polynomial_complex_arb(CBF['x'], is_gen=True)
-            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[0])
-            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples[1])
-            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples[2])
+            polynomial_ring = PolynomialRing(CBF,"x")
+            x = polynomial_ring.gen()
+            p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[0])
+            p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[1])
+            pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[2])
             factored_polynomials = (p3, p2, pc)
             curr_bit_prec *= 2
         coeff_prec = get_coeff_min_precision(factored_polynomials,G.index()+1)
@@ -455,26 +471,33 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
         if stop_when_coeffs_are_recognized == True: #Try to recognize coefficients as algebraic numbers
             if max_extension_field_degree == None:
                 raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
-            principal_cusp_width = G.cusp_width(Cusp(1,0))
-            coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
-            tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
-            if tmp == None: #Failed to recognize coeffs as alg numbers
-                continue
-            Kv, Kw, v_Kw, u_interior_Kv = tmp
-            if principal_cusp_width == 1:
-                u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
-            else:
-                u = Kw.gen()
+            if u == None: #No algebraic coefficients have been recognized yet
+                principal_cusp_width = G.cusp_width(Cusp(1,0))
+                coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
+                tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
+                if tmp == None: #Failed to recognize coeffs as alg numbers
+                    continue
+                Kv, Kw, v_Kw, u_interior_Kv = tmp
+                if principal_cusp_width == 1:
+                    u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+                else:
+                    u = Kw.gen()
 
-            alg_factored_polynomials = []
-            for factored_polynomial in factored_polynomials:
-                #Which method is better for which scenario, dividing by a power of u or raising the coefficients to the n-th power?
-                alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,u=u,v_Kw=v_Kw,estimated_bit_prec=coeff_bit_prec)
-                #alg_factored_polynomial = factored_polynomial.get_algebraic_expressions(Kv,principal_cusp_width=principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
-                if alg_factored_polynomial == None: #Failed to recognize coeffs as alg numbers
-                    break
-                alg_factored_polynomials.append(alg_factored_polynomial)
-            if len(alg_factored_polynomials) == 3: #All polynomials have been successfully recognized
+            #If we are here, u has been recognized
+            have_all_coeffs_lists_been_recognized = True
+            for coeff_tuples in coeff_tuples_list:
+                for (coeffs,_) in coeff_tuples:
+                    coeffs, have_all_coeffs_been_recognized = recognize_coeffs_using_u(coeffs,Kv,u,v_Kw,estimated_bit_prec=coeff_bit_prec)
+                    if have_all_coeffs_been_recognized == False: #Found an invalid example so we need an additional newton iteration
+                        have_all_coeffs_lists_been_recognized = False
+
+            if have_all_coeffs_lists_been_recognized == True:
+                polynomial_ring = PolynomialRing(Kw,"x")
+                x = polynomial_ring.gen()
+                p3 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[0])
+                p2 = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[1])
+                pc = Factored_Polynomial(x,coeff_tuples=coeff_tuples_list[2])
+                alg_factored_polynomials = (p3, p2, pc)
                 return alg_factored_polynomials, v_Kw, u_interior_Kv
     
     if stop_when_coeffs_are_recognized == True:
