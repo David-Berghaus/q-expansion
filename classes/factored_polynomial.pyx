@@ -26,12 +26,13 @@ cpdef construct_poly_from_coeff_tuple(x, coeff_tuple):
         p = polynomial_ring(coeffs)
     return [p,order]
 
-cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
+cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None, max_u_power=None):
     """
     Given a list of coefficients, try to recognize coefficients (those that are CBFs) as algebraic numbers by dividing them by a power of u.
     We assume that the numberfield and its embedding have already been identified.
     This function replaces all CBF-coefficients that have been recognized with its corresponding numberfield expressions.
     If all coeffs have been successfully recognized, the function also returns True, otherwise it returns False.
+    If "max_u_power" is specified, only try to recognize coefficients with up to (and including) max_u_power.
     """
     if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
         bit_prec = coeffs[0].parent().precision()
@@ -40,7 +41,11 @@ cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None):
     CC = ComplexField(bit_prec)
     algebraic_coeffs = []
     p_degree = len(coeffs)-1
-    for i in range(len(coeffs)):
+    if max_u_power == None:
+        i_limit = -1
+    else:
+        i_limit = len(coeffs)-2-max_u_power
+    for i in range(len(coeffs)-1,i_limit,-1): #Loop backwards through coefficients to get increasing powers of u
         if coeffs[i] == 1 or isinstance(coeffs[i].parent(),NumberField_generic) == False: #This coeff has not been recognized yet
             coeff_floating_approx = CC(coeffs[i]) #Because we cannot directly convert acbs to pari
             u_pow = p_degree-i #Exponent of u for the given coefficient
@@ -186,7 +191,6 @@ def get_u(floating_expression_linear_in_u, v, principal_cusp_width, extension_fi
     If principal_cusp_width == 1 we choose u to be in QQ (and hence independently of Kv).
     """
     if principal_cusp_width == 1:
-        print("ToDo: Optimize choice of u here!")
         u_interior_Kv = QQ(1)*v**0
         CC = floating_expression_linear_in_u.parent()
         u_embedding = CC(u_interior_Kv)
@@ -251,6 +255,25 @@ def get_u_factor(x, v, principal_cusp_width, extension_field_degree):
     for (prime,power) in numerator_factors:
         c *= prime**(power//principal_cusp_width)
     return c, x_alg
+
+def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, princial_cusp_width):
+    """
+    Given a list of coefficients for which all coefficients that are linear in u have been recognized,
+    use these expressions to try to find an improved choice of u.
+    """
+    u_expressions = [] #list of all algebraic expressions that are linear in u
+    for coeff_tuples in coeff_tuples_list:
+        for (coeffs,_) in coeff_tuples:
+            if len(coeffs) > 1:
+                u_expressions.append(coeffs[-2])
+    if len(u_expressions) < 2:
+        return u_interior_Kv #Impossible to improve expressions
+    if princial_cusp_width == 1:
+        largest_denominator = max([factor.denominator() for coeff in u_expressions for factor in list(coeff)])
+        u_interior_Kv /= largest_denominator
+    else:
+        print("We have not implememted the case of updating u for cusp width larger than one yet!")
+    return u_interior_Kv
 
 def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, principal_cusp_width):
     """

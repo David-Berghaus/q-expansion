@@ -15,7 +15,7 @@ from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u
+from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u, get_improved_choice_of_u_interior_Kv
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
@@ -440,9 +440,24 @@ def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
                 return res
         raise ArithmeticError("We should not get here!")
 
+def recognize_coeff_tuples_list(coeff_tuples_list, Kv, u, v_Kw, estimated_bit_prec, max_u_power=None):
+    """
+    Tries to recognize algebraic expressions of coeff_tuples_list.
+    Note that the function is mutating the argument (i.e., the CBFs in coeff_tuples_list are replaced by the corresponding algebraic values).
+    This function returns True if all coefficients up to max_u_power have been recognized and False otherwise.
+    """
+    have_all_coeffs_lists_been_recognized = True
+    for coeff_tuples in coeff_tuples_list:
+        for (coeffs,_) in coeff_tuples:
+            coeffs, have_all_coeffs_been_recognized = recognize_coeffs_using_u(coeffs,Kv,u,v_Kw,estimated_bit_prec=estimated_bit_prec,max_u_power=max_u_power)
+            if have_all_coeffs_been_recognized == False: #Found an invalid example so we need an additional newton iteration
+                have_all_coeffs_lists_been_recognized = False
+    return have_all_coeffs_lists_been_recognized
+
 cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, stop_when_coeffs_are_recognized, max_extension_field_degree=None):
     coeff_tuples_list = None
     u, Kv, Kw, v_Kw, u_interior_Kv = None, None, None, None, None #Variables that will be used if stop_when_coeffs_are_recognized == True
+    has_u_been_improved = False
 
     while curr_bit_prec < target_bit_prec:
         coeff_tuples_list = newton_step(factored_polynomials, G, curr_bit_prec, coeff_tuples_list=coeff_tuples_list)
@@ -484,12 +499,19 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                     u = Kw.gen()
 
             #If we are here, u has been recognized
-            have_all_coeffs_lists_been_recognized = True
-            for coeff_tuples in coeff_tuples_list:
-                for (coeffs,_) in coeff_tuples:
-                    coeffs, have_all_coeffs_been_recognized = recognize_coeffs_using_u(coeffs,Kv,u,v_Kw,estimated_bit_prec=coeff_bit_prec)
-                    if have_all_coeffs_been_recognized == False: #Found an invalid example so we need an additional newton iteration
-                        have_all_coeffs_lists_been_recognized = False
+            #Only try to recognize terms linear in u first
+            have_all_coeffs_lists_been_recognized = recognize_coeff_tuples_list(coeff_tuples_list,Kv,u,v_Kw,coeff_bit_prec,max_u_power=1) #Note that this function might also mutate coeff_tuples_list
+            #Afterwards use results to potentially improve u
+            if have_all_coeffs_lists_been_recognized == True and has_u_been_improved == False:
+                u_interior_Kv = get_improved_choice_of_u_interior_Kv(coeff_tuples_list,u_interior_Kv,principal_cusp_width)
+                if principal_cusp_width == 1:
+                    u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+                else:
+                    u = Kw.gen()
+                    #!!! And additional updates
+                has_u_been_improved = True
+            #Then continue and try to recognize remaining terms
+            have_all_coeffs_lists_been_recognized = recognize_coeff_tuples_list(coeff_tuples_list,Kv,u,v_Kw,coeff_bit_prec) #Note that this function might also mutate coeff_tuples_list
 
             if have_all_coeffs_lists_been_recognized == True:
                 polynomial_ring = PolynomialRing(Kw,"x")
