@@ -64,10 +64,7 @@ cpdef recognize_coeffs_using_u(coeffs, Kv, u, v_Kw, estimated_bit_prec=None, max
             recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
             algebraic_expression = recognized_expression_Kw*(u**u_pow)
             coeffs[i] = algebraic_expression #Update list with recognized algebraic expression
-    if max_u_power == None:
-        have_all_coeffs_been_recognized = True
-    else:
-        have_all_coeffs_been_recognized = False #Although we have been able to finish the above loop, there are still unknown coefficients remaining
+    have_all_coeffs_been_recognized = True
     return coeffs, have_all_coeffs_been_recognized
 
 def get_numberfield_of_coeff(floating_expression_linear_in_u, max_extension_field_degree, principal_cusp_width, estimated_bit_prec=None):
@@ -194,7 +191,6 @@ def get_u(floating_expression_linear_in_u, v, principal_cusp_width, extension_fi
     If principal_cusp_width == 1 we choose u to be in QQ (and hence independently of Kv).
     """
     if principal_cusp_width == 1:
-        print("ToDo: Optimize choice of u here!")
         u_interior_Kv = QQ(1)*v**0
         CC = floating_expression_linear_in_u.parent()
         u_embedding = CC(u_interior_Kv)
@@ -259,6 +255,25 @@ def get_u_factor(x, v, principal_cusp_width, extension_field_degree):
     for (prime,power) in numerator_factors:
         c *= prime**(power//principal_cusp_width)
     return c, x_alg
+
+def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, princial_cusp_width):
+    """
+    Given a list of coefficients for which all coefficients that are linear in u have been recognized,
+    use these expressions to try to find an improved choice of u.
+    """
+    u_expressions = [] #list of all algebraic expressions that are linear in u
+    for coeff_tuples in coeff_tuples_list:
+        for (coeffs,_) in coeff_tuples:
+            if len(coeffs) > 1:
+                u_expressions.append(coeffs[-2])
+    if len(u_expressions) < 2:
+        return u_interior_Kv #Impossible to improve expressions
+    if princial_cusp_width == 1:
+        largest_denominator = max([factor.denominator() for coeff in u_expressions for factor in list(coeff)])
+        u_interior_Kv /= largest_denominator
+    else:
+        print("We have not implememted the case of updating u for cusp width larger than one yet!")
+    return u_interior_Kv
 
 def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, principal_cusp_width):
     """
