@@ -15,7 +15,7 @@ from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u, get_improved_choice_of_u_interior_Kv
+from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u, get_improved_choice_of_u_interior_Kv, get_updated_Kw_v_Kw, update_terms_linear_in_u_to_new_u
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 
@@ -503,12 +503,15 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
             have_all_coeffs_lists_been_recognized = recognize_coeff_tuples_list(coeff_tuples_list,Kv,u,v_Kw,coeff_bit_prec,max_u_power=1) #Note that this function might also mutate coeff_tuples_list
             #Afterwards use results to potentially improve u
             if have_all_coeffs_lists_been_recognized == True and has_u_been_improved == False:
-                u_interior_Kv = get_improved_choice_of_u_interior_Kv(coeff_tuples_list,u_interior_Kv,principal_cusp_width)
+                u_interior_Kv_updated = get_improved_choice_of_u_interior_Kv(coeff_tuples_list,u_interior_Kv,principal_cusp_width)
                 if principal_cusp_width == 1:
+                    u_interior_Kv = u_interior_Kv_updated
                     u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
                 else:
+                    Kw, v_Kw = get_updated_Kw_v_Kw(u_interior_Kv_updated,u_interior_Kv,Kw,v_Kw,principal_cusp_width)
+                    update_terms_linear_in_u_to_new_u(coeff_tuples_list,u_interior_Kv_updated,u_interior_Kv,Kw,principal_cusp_width)
+                    u_interior_Kv = u_interior_Kv_updated
                     u = Kw.gen()
-                    #!!! And additional updates
                 has_u_been_improved = True
             #Then continue and try to recognize remaining terms
             have_all_coeffs_lists_been_recognized = recognize_coeff_tuples_list(coeff_tuples_list,Kv,u,v_Kw,coeff_bit_prec) #Note that this function might also mutate coeff_tuples_list

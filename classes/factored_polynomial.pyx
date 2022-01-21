@@ -256,24 +256,59 @@ def get_u_factor(x, v, principal_cusp_width, extension_field_degree):
         c *= prime**(power//principal_cusp_width)
     return c, x_alg
 
-def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, princial_cusp_width):
+def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, principal_cusp_width):
     """
     Given a list of coefficients for which all coefficients that are linear in u have been recognized,
-    use these expressions to try to find an improved choice of u.
+    use these expressions to try to find an improved choice of u and mutate coeff_tuples_list with the updated choice of u.
     """
-    u_expressions = [] #list of all algebraic expressions that are linear in u
+    linear_u_expressions = [] #list of all algebraic expressions that are linear in u
     for coeff_tuples in coeff_tuples_list:
         for (coeffs,_) in coeff_tuples:
             if len(coeffs) > 1:
-                u_expressions.append(coeffs[-2])
-    if len(u_expressions) < 2:
+                linear_u_expressions.append(coeffs[-2])
+    if len(linear_u_expressions) < 2:
         return u_interior_Kv #Impossible to improve expressions
-    if princial_cusp_width == 1:
-        largest_denominator = max([factor.denominator() for coeff in u_expressions for factor in list(coeff)])
+    if principal_cusp_width == 1:
+        largest_denominator = max([factor.denominator() for coeff in linear_u_expressions for factor in list(coeff)])
         u_interior_Kv /= largest_denominator
     else:
-        print("We have not implememted the case of updating u for cusp width larger than one yet!")
+        u_expressions_with_u_factored_out = [factor_into_u_v(linear_u_expression,1,u_interior_Kv,principal_cusp_width)[1] for linear_u_expression in linear_u_expressions]
+        largest_denominator = max([factor.denominator() for coeff in u_expressions_with_u_factored_out for factor in list(coeff)])
+        u_interior_Kv /= largest_denominator**principal_cusp_width
+        #Should we also try to improvement the numerator here (for cusp-width one this does usually not seem to work)  
     return u_interior_Kv
+
+def get_updated_Kw_v_Kw(u_interior_Kv_updated, u_interior_Kv_old, Kw, v_Kw, principal_cusp_width):
+    """
+    Suppose we have changed u to the new form u_interior_Kv_updated = update_factor*u_interior_Kv where update_factor is in QQ.
+    This function returns the corresponding updates to Kw and v_Kw.
+    """
+    c = QQ(u_interior_Kv_updated/u_interior_Kv_old).nth_root(principal_cusp_width) #u_updated = c*u
+    Kw_old_poly_coeffs = list(Kw.polynomial())
+    Kw_new_coeffs = []
+    for (i,coeff_old) in enumerate(Kw_old_poly_coeffs):
+        Kw_new_coeffs.append(coeff_old*c**(len(Kw_old_poly_coeffs)-i-1))
+    CC = ComplexField(1024) #Because embedding with QQbar can be very slow
+    Kw_updated = NumberField(Kw.polynomial().parent()(Kw_new_coeffs),"w",embedding=CC(c*Kw.gen()))
+    w_updated = Kw_updated.gen()
+    v_Kw_updated = 0
+    for (i,coeff_old) in enumerate(list(v_Kw)):
+        v_Kw_updated += (coeff_old/(c**i))*w_updated**i
+    return Kw_updated, v_Kw_updated
+
+def update_terms_linear_in_u_to_new_u(coeff_tuples_list, u_interior_Kv_updated, u_interior_Kv_old, Kw_updated, principal_cusp_width):
+    """
+    Update all terms of coeff_tuples_list that are linear in u to the new choice of u (inplace).
+    """
+    c = QQ(u_interior_Kv_updated/u_interior_Kv_old).nth_root(principal_cusp_width) #u_updated = c*u
+    w_updated = Kw_updated.gen()
+    for coeff_tuples in coeff_tuples_list:
+        for (coeffs,_) in coeff_tuples:
+            if len(coeffs) > 1:
+                coeff_updated = 0
+                for (i,factor_old) in enumerate(list(coeffs[-2])):
+                    coeff_updated += (factor_old/(c**i))*w_updated**i
+                coeffs[-2] = coeff_updated
 
 def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, principal_cusp_width):
     """
