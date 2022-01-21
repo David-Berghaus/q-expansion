@@ -275,7 +275,9 @@ def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, princ
         u_expressions_with_u_factored_out = [factor_into_u_v(linear_u_expression,1,u_interior_Kv,principal_cusp_width)[1] for linear_u_expression in linear_u_expressions]
         largest_denominator = max([factor.denominator() for coeff in u_expressions_with_u_factored_out for factor in list(coeff)])
         u_interior_Kv /= largest_denominator**principal_cusp_width
-        #Should we also try to improvement the numerator here (for cusp-width one this does usually not seem to work)  
+        #Should we also try to improve the numerator here? (for cusp-width one this does usually not seem to work)
+        #Note also that for some single-cusp groups it seems like we also need to consider higher order u terms
+        #in order to get the best choice of the denominator (which we have not implemented yet)
     return u_interior_Kv
 
 def get_updated_Kw_v_Kw(u_interior_Kv_updated, u_interior_Kv_old, Kw, v_Kw, principal_cusp_width):

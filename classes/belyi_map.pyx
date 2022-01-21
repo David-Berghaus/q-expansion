@@ -138,13 +138,13 @@ class BelyiMap():
         
         G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
-        (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Ku, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
+        (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         self.G = G
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
         self.principal_cusp_width = G.cusp_width(Cusp(1,0))
-        self._v_Ku, self._u_interior_Kv = v_Ku, u_interior_Kv
-        self._Kv, self._Ku = u_interior_Kv.parent(), v_Ku.parent()
+        self._v_Kw, self._u_interior_Kv = v_Kw, u_interior_Kv
+        self._Kv, self._Kw = u_interior_Kv.parent(), v_Kw.parent()
         self._j_G_hejhal = j_G_hejhal
 
         self._p2_fixed = self._get_e2_fixed_point_polynomial()
@@ -167,7 +167,7 @@ class BelyiMap():
         for (p,multiplicity) in self.p2.factors:
             if multiplicity == 1: #We are only interested in the fixed points
                 return p
-        return self._Ku(1)
+        return self._Kw(1)
 
     def _get_e3_fixed_point_polynomial(self):
         """
@@ -176,7 +176,7 @@ class BelyiMap():
         for (p,multiplicity) in self.p3.factors:
             if multiplicity == 1: #We are only interested in the fixed points
                 return p
-        return self._Ku(1)
+        return self._Kw(1)
     
     def _get_cusp_polynomial(self, cusp_rep_values):
         """
@@ -187,9 +187,9 @@ class BelyiMap():
         to attach each cusp to a root of pc.
         """
         G = self.G
-        Ku = self._Ku
+        Kw = self._Kw
         cusp_evaluations = dict()
-        p_cusp = PolynomialRing(Ku,"x").one() #Polynomial with multiplicity one roots at the cusp evaluations
+        p_cusp = PolynomialRing(Kw,"x").one() #Polynomial with multiplicity one roots at the cusp evaluations
         for (p,multiplicity) in self.pc.factors:
             roots = p.roots(ring=QQbar)
             if len(roots) != p.degree():
@@ -362,7 +362,7 @@ class BelyiMap():
                 else:
                     cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
                 cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True, only_principal_cusp_expansion=True):
         """
@@ -399,14 +399,14 @@ class BelyiMap():
     def _get_hauptmodul_q_expansion_non_infinity(self, cusp, trunc_order):
         """
         Computes the q-expansion at a non-principal cusp which is normalized to j_Gamma = c_0 + c_1*q_N + ...
-        Because these q-expansions are usually defined over a field Ku times another root of an element in Kv, which seems very tedious
+        Because these q-expansions are usually defined over a field Kw times another root of an element in Kv, which seems very tedious
         to implement, we work over QQbar which can become very slow for large examples.
         """
         q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
         cusp_evaluation = QQbar(self._cusp_evaluations[cusp])
         cusp_width = self.G.cusp_width(cusp)
         working_trunc_order = trunc_order+cusp_width #Precision with which the arithmetic needs to be performed
-        L = LaurentSeriesRing(QQbar,"x") #The expansions at other cusps can be defined over a different numberfield than Ku, so we have to use QQbar...
+        L = LaurentSeriesRing(QQbar,"x") #The expansions at other cusps can be defined over a different numberfield than Kw, so we have to use QQbar...
         x = L.gen()
         s_no_nth_root = (L(self.pc_constructed).subs(x=x+cusp_evaluation).O(working_trunc_order)/L(self.p3_constructed).subs(x=x+cusp_evaluation).O(working_trunc_order))
         s = my_n_th_root_with_correct_embedding(s_no_nth_root,cusp_width,q_coefficient).power_series()
@@ -567,7 +567,7 @@ class BelyiMap():
                 cusp_expansion_prime /= cusp_width
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
         return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",
-                only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Ku=j_G._Ku,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
+                only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Kw=j_G._Kw,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
 
     def _get_regularized_modular_form_q_expansion(self, weight, j_G, B):
         """

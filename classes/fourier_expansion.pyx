@@ -186,7 +186,7 @@ class FourierExpansion():
     Class for storing Fourier expansions (q-expansions) of modular forms over general numberfields.
     We use the notation q_N = exp(2*pi*I*z/N).
     """
-    def __init__(self, G, weight, cusp_expansions, modform_type, only_principal_cusp_expansion=False, Ku=None, Kv=None, u_interior_Kv=None):
+    def __init__(self, G, weight, cusp_expansions, modform_type, only_principal_cusp_expansion=False, Kw=None, Kv=None, u_interior_Kv=None):
         """
         Parameters
         ----------
@@ -203,7 +203,7 @@ class FourierExpansion():
             raise ArithmeticError("Invalid modform_type!")
         self.modform_type = modform_type
         self.only_principal_cusp_expansion = only_principal_cusp_expansion
-        self._Ku = Ku
+        self._Kw = Kw
         self._Kv = Kv
         self._u_interior_Kv = u_interior_Kv
 
@@ -263,7 +263,7 @@ class FourierExpansion():
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]+a
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __sub__(self, a):
         """
@@ -281,7 +281,7 @@ class FourierExpansion():
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]-a
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __mul__(self, a):
         """
@@ -298,7 +298,7 @@ class FourierExpansion():
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]*a
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __div__(self, a):
         """
@@ -315,7 +315,7 @@ class FourierExpansion():
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]/a
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __pow__(self, n):
         """
@@ -327,7 +327,7 @@ class FourierExpansion():
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c]**n
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __one__(self):
         """
@@ -338,4 +338,4 @@ class FourierExpansion():
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c].parent().one()
         return FourierExpansion(self.G,0,cusp_expansions,self.modform_type,
-                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Ku=self._Ku,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+                only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
