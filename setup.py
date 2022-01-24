@@ -27,6 +27,7 @@ extensions = [
     Extension("belyi.newton_genus_zero", ["belyi/newton_genus_zero.pyx"]),
     Extension("belyi.number_fields", ["belyi/number_fields.pyx"]),
     Extension("belyi.expression_in_u_and_v", ["belyi/expression_in_u_and_v.pyx"]),
+    Extension("eisenstein.haberland", ["eisenstein/haberland.pyx"]),
 ]
 
 setup(

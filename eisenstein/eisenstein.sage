@@ -1,8 +1,4 @@
-import os.path
-if os.path.isfile("haberland.sage") == True: #Slightly inconvenient but we need to be able to import this function from both the unit-tests and main dir
-    load("haberland.sage")
-else:
-    load("../haberland.sage")
+from eisenstein.haberland import compute_petersson_product_haberland
 
 def compute_eisenstein_series(cuspforms,modforms,return_scaling_constants=False):
     """

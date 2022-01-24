@@ -59,6 +59,7 @@ classes/modform_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
+eisenstein/haberland.c
 iterative_solvers/__init__.py
 iterative_solvers/gmres_arb_wrap.c
 iterative_solvers/gmres_arb_wrap.pxd
