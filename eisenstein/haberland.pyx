@@ -1,5 +1,3 @@
-import functools
-
 from sage.functions.other import binomial
 from sage.misc.misc_c import prod
 from sage.all import cached_function
@@ -18,7 +16,7 @@ def memoized_prod(a, b):
     """
     Returns the product a*...*(b-1) and caches the result.
     """
-    return prod(range(a,b)) #We could probably also try to improve this by computing it recursively but have not done this yet
+    return prod(range(a,b)) #We could probably also try to optimize this by computing it recursively but have not done this yet
 
 @cached_function
 def memoized_pow(a, n):
@@ -147,7 +145,6 @@ def compute_period_integral_term(n,a,m,two_pi_i):
     We use the formula given in https://wstein.org/books/modform/modform/periods.html#approximating-period-integrals
     """
     res = 0
-    a_pow_n = memoized_pow(a,n) #a**(n-s) below now comes almost for free
     two_pi_i_m = two_pi_i*m
     for s in range(n+1):
         #res += ((-1)**s*a**(n-s)/(two_pi_i*m)**(s+1))*prod(range(n+1-s,n+1))
