@@ -247,6 +247,32 @@ class FourierExpansion():
             CBF = ComplexBallField(digits_to_bits(digit_prec))
             return cusp_expansion.O(trunc_order).change_ring(CBF)
     
+    def _convert_to_CC(self, bit_prec=None):
+        """
+        Return new instance of FourierExpansion with coefficients converted to a ComplexField.
+        """
+        if bit_prec == None:
+            bit_prec = self.cusp_expansions[Cusp(1,0)].base_ring().precision()
+        CC = ComplexField(bit_prec)
+        cusp_expansions_new = dict()
+        for c in self.cusp_expansions.keys():
+            cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC)
+        return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
+
+    def _set_constant_coefficients_to_zero_inplace(self):
+        """
+        When working with numerical expressions of cuspforms it might happen that the constant terms at the cusps outside infinity are
+        only effectively but not truely zero. This function sets these coefficients to zero as well (INPLACE!).
+        """
+        if self.modform_type != "CuspForm":
+            raise ArithmeticError("This function should only be used for cuspforms!")
+        for c in self.cusp_expansions.keys():
+            if c != Cusp(1,0) and self.cusp_expansions[c][0].is_zero() == False: #For some weird reason, self.cusp_expansions[c][0] != 0 does not work
+                P = self.cusp_expansions[c].parent()
+                cusp_expansions_list = list(self.cusp_expansions[c]) #We need to work with lists because power series are immutable
+                cusp_expansions_list[0] = 0 #Set this coefficient to be truely zero
+                self.cusp_expansions[c] = P(cusp_expansions_list).O(self.cusp_expansions[c].prec()) #update expression in class instance
+
     def __add__(self, a):
         """
         Return self+a where "a" is a constant factor or another instance of "FourierExpansion".

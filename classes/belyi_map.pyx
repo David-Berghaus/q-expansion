@@ -320,7 +320,11 @@ class BelyiMap():
             cuspform = F*prefactor
             cuspform.modform_type = "CuspForm"
             cuspforms.append(cuspform)
-        return to_reduced_row_echelon_form(cuspforms)
+        cuspforms_reduced_row_echelon_form = to_reduced_row_echelon_form(cuspforms)
+        if digit_prec != None:
+            for i in range(len(cuspforms_reduced_row_echelon_form)):
+                cuspforms_reduced_row_echelon_form[i]._set_constant_coefficients_to_zero_inplace()
+        return cuspforms_reduced_row_echelon_form
     
     def get_modforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
         """
@@ -579,13 +583,21 @@ class BelyiMap():
         num = j_G_prime**weight_half
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         if isinstance(base_ring,ComplexBallField) == True:
-            #When using Horner, we experienced some examples where the leading order coefficients are empty error balls (instead of zeros)
-            #which leads to NaN's in the remaining computations.
-            #For CBF's, we therefore build the product of the factors
-            den = j_G.__one__()
-            roots = B.roots(ring=QQbar) #Can this become slow?
-            for (root,multiplicity) in roots:
-                den *= (j_G-root)**multiplicity
+            coeffs = list(B.change_ring(base_ring))
+            den = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                den = j_G*den+coeffs[i]
+            #This part is really ugly:
+            #Because arb does not detect the true zeros and returns empty error bounds, we would get NaN's when dividing with "den"
+            #We therefore need to set the first weight_half coefficients at the cusps outside infinity to zero
+            #(It is obvious that these need to be zero because their constant term is equivalent to one of the cusp evaluations)
+            for c in den.cusp_expansions.keys():
+                if c != Cusp(1,0):
+                    P = den.cusp_expansions[c].parent()
+                    den_cusp_expansions_list = list(den.cusp_expansions[c]) #We need to work with lists because power series are immutable
+                    for i in range(weight_half):
+                        den_cusp_expansions_list[i] = 0 #Set these coefficients to be truely zero
+                    den.cusp_expansions[c] = P(den_cusp_expansions_list).O(den.cusp_expansions[c].prec()) #update expression in class instance
         else:
             coeffs = list(B.change_ring(base_ring))
             den = coeffs[-1]

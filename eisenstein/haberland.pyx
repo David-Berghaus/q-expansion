@@ -22,6 +22,8 @@ def memoized_prod(a, b):
 def memoized_pow(a, n):
     """
     Compute a**n recursively to cache intermediate results.
+    Warning: Note that the default maximum recursion depth in python is 1000 (and by increasing it one risks stackoverflows).
+    This function should therefore only be used for relatively small powers.
     """
     if n == 0:
         return 1
@@ -48,7 +50,7 @@ def get_cusp_width_from_var_name(var_name):
     """
     return int(var_name[2:])
 
-def get_m(cusp_normalizer,coset_representative):
+def get_m(cusp_normalizer, coset_representative):
     """
     Determine the shift m s.t. \gamma_j = \gamma_c*T**m
     """
@@ -91,30 +93,59 @@ def get_coset_expansions(F):
     
     return coset_expansions
 
-def compute_petersson_product_haberland(F,G):
+def get_exp_two_pi_i_a_m_dict(a_values, f, g, CC):
+    """
+    Precompute exp(2*pi*I*a*m) where m = i/cusp_width for i in range(trunc_order) efficiently through recursive multiplications.
+    We do not use "memoized_pow" for this task because it might exceed the max_recursion_depth.
+    Additionally, storing the values like this should require less memory usage.
+    """
+    G = f.G #The subgroup
+    exp_two_pi_i_a_m_dict = dict()
+    for a in a_values:
+        exp_two_pi_i_a_m_dict[a] = dict()
+        exp_two_pi_i_a_m_dict[a][QQ(0)] = 1 #The zeroth power is trivial
+        for ci in range(G.ncusps()):
+            cusp_width = G._vertex_data[ci]['width']
+            c = G.cusps()[ci]
+            f_deg, g_deg = f.get_cusp_expansion(c).degree(), g.get_cusp_expansion(c).degree()
+            exp_two_pi_i_a_div_cusp_width = (CC(0,2*pi)*(a/cusp_width)).exp()
+            tmp = 1
+            for i in range(1,max(f_deg,g_deg)+1):
+                m = QQ(i)/cusp_width
+                tmp *= exp_two_pi_i_a_div_cusp_width
+                exp_two_pi_i_a_m_dict[a][m] = tmp #Some of these will already be defined but it does not seem worth it to check whether they exist...
+    return exp_two_pi_i_a_m_dict
+
+def get_exp_two_pi_i_a_m(a, m, exp_two_pi_i_a_m_dict):
+    return exp_two_pi_i_a_m_dict[a][m]
+
+def compute_petersson_product_haberland(f, g):
     """
     Compute Petersson product by using the Haberland-type formula as described in https://arxiv.org/abs/1809.10908
-    It is important that F is a cuspform (G can be either cuspidal or non-cuspidal).
+    It is important that f is a cuspform (g can be either cuspidal or non-cuspidal).
     """
-    weight = F.weight
-    index = F.G.index()
-    F_coset_exp, G_coset_exp = get_coset_expansions(F), get_coset_expansions(G)
-    CC = F_coset_exp[0][0].parent()
+    weight = f.weight
+    index = f.G.index()
+    f, g = f._convert_to_CC(), g._convert_to_CC() #Working with CBFs seems to cause problems with the hashing
+    f_coset_exp, g_coset_exp = get_coset_expansions(f), get_coset_expansions(g)
+    CC = f_coset_exp[0][0].parent()
     two_pi_i = CC(0,2*pi)
     rho = (two_pi_i/3).exp()
+    a_values = [rho+1,CC(0,1),CC(1,1)]
+    exp_two_pi_i_a_m_dict = get_exp_two_pi_i_a_m_dict(a_values,f,g,CC)
     scale_fact = 1/(index*(CC(0,2))**(weight-1))
     res = 0
     for j in range(index):
-        f_j, g_j = F_coset_exp[j], G_coset_exp[j]
+        f_j, g_j = f_coset_exp[j], g_coset_exp[j]
         width = get_cusp_width_from_var_name(f_j.variable())
         for n in range(weight-2+1):
             # term = (-1)**n*binomial(weight-2,n)*I(weight-2-n,rho+1,"ioo",f_j,width,two_pi_i)*conjugate(I(n,CC(0,1),CC(1,1),g_j,width,two_pi_i))
-            term = get_minus_one_pow(n)*memoized_binomial(weight-2,n)*I(weight-2-n,rho+1,"ioo",f_j,width,two_pi_i)*(I(n,CC(0,1),CC(1,1),g_j,width,two_pi_i).conjugate())
+            term = get_minus_one_pow(n)*memoized_binomial(weight-2,n)*I(weight-2-n,rho+1,"ioo",f_j,width,two_pi_i,exp_two_pi_i_a_m_dict)*(I(n,CC(0,1),CC(1,1),g_j,width,two_pi_i,exp_two_pi_i_a_m_dict).conjugate())
             res += term
     res *= scale_fact
     return res
 
-def I(n,a,b,coset_expansion,width,two_pi_i):
+def I(n, a, b, coset_expansion, width, two_pi_i, exp_two_pi_i_a_m_dict):
     """
     Compute I as defined in https://arxiv.org/abs/1809.10908
     We assume that 'a' is a point in the upper half plane and b is either i*infinity or also in H.
@@ -122,24 +153,23 @@ def I(n,a,b,coset_expansion,width,two_pi_i):
     if b == "ioo": #This corresponds to infinity
         if coset_expansion[0] != 0:
             raise ArithmeticError("We have only implemented the case where F is a cuspform!")
-        return compute_period_integral(n,a,coset_expansion,width,two_pi_i)
+        return compute_period_integral(n,a,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)
     else:
         m_zero_term = -compute_m_zero_period_integral_summand(n,a,b,coset_expansion) #WHY DO WE NEED THE MINUS?!
-        m_larger_zero_sum = compute_period_integral(n,a,coset_expansion,width,two_pi_i)-compute_period_integral(n,b,coset_expansion,width,two_pi_i)
+        m_larger_zero_sum = compute_period_integral(n,a,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)-compute_period_integral(n,b,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)
         return m_zero_term+m_larger_zero_sum
 
-def compute_period_integral(n,a,coset_expansion,width,two_pi_i):
+def compute_period_integral(n, a, coset_expansion, width, two_pi_i, exp_two_pi_i_a_m_dict):
     """
     Evaluate int_a^(i*infinity) tau^n F(tau) dtau. We only conside the terms m>0 and need to treat the m=0 case separately.
     """
     res = 0
     for i in range(1,coset_expansion.degree()+1):
         m = QQ(i)/width
-        res += coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i)
+        res += coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i,exp_two_pi_i_a_m_dict)
     return res
 
-@cached_function #This function can be used for all cosets in a cusp so it makes sense to re-use it
-def compute_period_integral_term(n,a,m,two_pi_i):
+def compute_period_integral_term(n, a, m, two_pi_i, exp_two_pi_i_a_m_dict):
     """
     Evaluate int_a^(i*infinity) tau^n exp(2*pi*I*m*tau) dtau.
     We use the formula given in https://wstein.org/books/modform/modform/periods.html#approximating-period-integrals
@@ -149,10 +179,11 @@ def compute_period_integral_term(n,a,m,two_pi_i):
     for s in range(n+1):
         #res += ((-1)**s*a**(n-s)/(two_pi_i*m)**(s+1))*prod(range(n+1-s,n+1))
         res += (get_minus_one_pow(s)*memoized_pow(a,n-s)/memoized_pow(two_pi_i_m,s+1))*memoized_prod(n+1-s,n+1)
-    res *= memoized_pow(memoized_exp_two_pi_i_a_div_width(two_pi_i*a,m.denominator()),m.numerator())
+    #res *= exp(two_pi_i*m*a)
+    res *= get_exp_two_pi_i_a_m(a,m,exp_two_pi_i_a_m_dict)
     return res
 
-def compute_m_zero_period_integral_summand(n,a,b,coset_expansion):
+def compute_m_zero_period_integral_summand(n, a, b, coset_expansion):
     """
     Compute a_0 * int_a^b t^n dt where a,b are in H.
     """
