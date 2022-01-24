@@ -582,11 +582,11 @@ class BelyiMap():
         j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
         num = j_G_prime**weight_half
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
+        coeffs = list(B.change_ring(base_ring))
+        den = coeffs[-1]
+        for i in range(len(coeffs)-2,-1,-1): #Horner's method
+            den = j_G*den+coeffs[i]
         if isinstance(base_ring,ComplexBallField) == True:
-            coeffs = list(B.change_ring(base_ring))
-            den = coeffs[-1]
-            for i in range(len(coeffs)-2,-1,-1): #Horner's method
-                den = j_G*den+coeffs[i]
             #This part is really ugly:
             #Because arb does not detect the true zeros and returns empty error bounds, we would get NaN's when dividing with "den"
             #We therefore need to set the first weight_half coefficients at the cusps outside infinity to zero
@@ -598,9 +598,4 @@ class BelyiMap():
                     for i in range(weight_half):
                         den_cusp_expansions_list[i] = 0 #Set these coefficients to be truely zero
                     den.cusp_expansions[c] = P(den_cusp_expansions_list).O(den.cusp_expansions[c].prec()) #update expression in class instance
-        else:
-            coeffs = list(B.change_ring(base_ring))
-            den = coeffs[-1]
-            for i in range(len(coeffs)-2,-1,-1): #Horner's method
-                den = j_G*den+coeffs[i]
         return num/den
