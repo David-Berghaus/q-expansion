@@ -460,29 +460,33 @@ class BelyiMap():
         """
         principal_cusp_width = self.principal_cusp_width
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
+        working_trunc_order = trunc_order
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
-            r_low_prec = self._get_r_for_laurent_expansion(trunc_order,64)
+            r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
             CC = ComplexField(64)
-            required_prec = int(round(1.1*CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/10+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         else:
             working_prec = digit_prec
 
         working_bit_prec = digits_to_bits(working_prec)
         CBF = ComplexBallField(working_bit_prec)
-        r = self._get_r_for_laurent_expansion(trunc_order,working_bit_prec)
+        r = self._get_r_for_laurent_expansion(working_trunc_order,working_bit_prec)
 
         n_sqrt_j_inverse_CBF = n_sqrt_j_inverse.polynomial().change_ring(CBF)
         r_pos_degree = r[0:r.degree()+1].power_series().polynomial() #We treat the 1/x term later because arb only supports polynomials
-        tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,trunc_order) #Perform composition in arb because it is expensive
+        tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,working_trunc_order) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse_CBF.variable_name())
         one_over_x_term = n_sqrt_j_inverse.inverse() #Treat 1/x term separately because it is not supported by arb
         j_G = one_over_x_term + P(tmp)
-        return j_G
+        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
+        return j_G.change_ring(CBF_res).O(trunc_order)
 
     def _get_r_for_taylor_expansion(self, cusp, trunc_order, q_coefficient, bit_prec):
         """
@@ -532,10 +536,12 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
             CC = ComplexField(64)
-            required_prec = int(round(CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/10+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         else:
             working_prec = digit_prec
 
@@ -548,8 +554,9 @@ class BelyiMap():
         r_pos_degree = r.power_series().polynomial()
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse,r.degree()+1) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
-        j_G = CBF(cusp_evaluation) + P(tmp).O(trunc_order)
-        return j_G
+        j_G = CBF(cusp_evaluation) + P(tmp)
+        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
+        return j_G.change_ring(CBF_res).O(trunc_order)
 
     def _get_hauptmodul_q_expansion_derivative(self, j_G, rescale_coefficients):
         """

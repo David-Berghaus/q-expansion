@@ -251,11 +251,14 @@ class FourierExpansion():
         """
         Return new instance of FourierExpansion with coefficients converted to a ComplexField.
         """
+        base_ring = self.cusp_expansions[Cusp(1,0)].base_ring()
         if bit_prec == None:
-            bit_prec = self.cusp_expansions[Cusp(1,0)].base_ring().precision()
+            bit_prec = base_ring.precision()
         CC = ComplexField(bit_prec)
         cusp_expansions_new = dict()
         for c in self.cusp_expansions.keys():
+            if isinstance(base_ring,ComplexBallField) and self.cusp_expansions[c][self.cusp_expansions[c].prec()-1].rad() > 0:
+                raise ArithmeticError("The q-expansion contains empty error balls which cannot be rounded do ComplexFields.")
             cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC)
         return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
 
