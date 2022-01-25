@@ -9,6 +9,7 @@ from classes.gamma_2_subgroup import Gamma_2_Subgroup
 from classes.modform_class import ModForm
 from classes.belyi_map import BelyiMap
 from point_matching.fft_test import test_fft
+from eisenstein.haberland import compute_petersson_product_haberland
 
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
