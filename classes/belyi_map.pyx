@@ -297,15 +297,16 @@ class BelyiMap():
         
         return p_list
 
-    def get_cuspforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
+    def get_cuspforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True, j_G=None):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
-        if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        if j_G == None:
+            if digit_prec == None:
+                j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion)
+            else:
+                j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion)
         B = self._get_B(weight)
         p_list = self._get_p_list_cuspform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for modforms of the same weight
@@ -326,15 +327,16 @@ class BelyiMap():
                 cuspforms_reduced_row_echelon_form[i]._set_constant_coefficients_to_zero_inplace()
         return cuspforms_reduced_row_echelon_form
     
-    def get_modforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
+    def get_modforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True, j_G=None):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
         """
-        if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        if j_G == None:
+            if digit_prec == None:
+                j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion)
+            else:
+                j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion)
         B = self._get_B(weight)
         p_list = self._get_p_list_modform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for cuspforms of the same weight
@@ -466,7 +468,7 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
             CC = ComplexField(64)
-            required_prec = int(round(trunc_order/8+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -536,7 +538,7 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
             CC = ComplexField(64)
-            required_prec = int(round(trunc_order/8+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)

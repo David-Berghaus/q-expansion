@@ -209,10 +209,10 @@ class FourierExpansion():
     def __str__(self):
         trunc_order = min(10,self.cusp_expansions[Cusp(1,0)].prec())
         base_ring = self.cusp_expansions[Cusp(1,0)].base_ring()
-        if isinstance(base_ring,ComplexBallField) == True or isinstance(base_ring,AlgebraicField) == True: #Defined over CBF or QQbar
-            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__() #We only know the numerical values of the q-expansions
-        else: #q-expansion is defined over numberfield so we can factor it
+        if isinstance(base_ring,NumberField_generic) == True: #q-expansion is defined over numberfield so we can factor it
             c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
+        else: #We only know the numerical values of the q-expansions
+            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__() #We only know the numerical values of the q-expansions
         return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str 
 
     def get_cusp_expansion(self, c, trunc_order=None, digit_prec=None, factor_into_u_v=False):
@@ -256,7 +256,7 @@ class FourierExpansion():
             trunc_order = self.cusp_expansions[c].prec()
             new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
             if isinstance(base_ring,ComplexBallField) and -self.cusp_expansions[c][trunc_order-1].rad().log10() < 0:
-                print("Warning: The q-expansion contains empty error balls which cannot be rounded do ComplexFields. We therefore need to truncate to a lower order")
+                print("Warning: The q-expansion contains empty error balls which cannot be rounded to ComplexFields. We therefore need to truncate to a lower order")
                 for i in range(1,trunc_order):
                     if -self.cusp_expansions[c][trunc_order-i].rad().log10() < 0:
                         new_trunc_order -= 1
