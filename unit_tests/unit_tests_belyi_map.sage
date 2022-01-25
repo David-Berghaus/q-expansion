@@ -34,10 +34,10 @@ def test_belyi_map2():
     assert (C_sage[0][24]-CF(C_approx[0].get_cusp_expansion(Cusp(1,0))[24])).abs() == 0
     assert (C_sage[4][24]-CF(C_approx[4].get_cusp_expansion(Cusp(1,0))[24])).abs() == 0
     #Now to another cusp
-    assert (0.0001193725232434080170705685108977290047248894985521-C_rig[0].get_cusp_expansion(Cusp(0,1))[1]).abs() < 1e-44
-    assert (0.004483167581161408321902149062642889803383630544025-C_rig[1].get_cusp_expansion(Cusp(0,1))[4]).abs() < 1e-44
-    assert (0.0001193725232434080170705685108977290047248894985521-CF(C_approx[0].get_cusp_expansion(Cusp(0,1))[1])).abs() < 1e-44
-    assert (0.004483167581161408321902149062642889803383630544025-CF(C_approx[1].get_cusp_expansion(Cusp(0,1))[4])).abs() < 1e-44
+    assert (0.1547067901234567901234567901234567901234567901053-C_rig[0].get_cusp_expansion(Cusp(0,1))[1]).abs() < 1e-43
+    assert (5.810185185185185185185185185185185185185185205736-C_rig[1].get_cusp_expansion(Cusp(0,1))[4]).abs() < 1e-43
+    assert (0.1547067901234567901234567901234567901234567901053-CF(C_approx[0].get_cusp_expansion(Cusp(0,1))[1])).abs() < 1e-43
+    assert (5.810185185185185185185185185185185185185185205736-CF(C_approx[1].get_cusp_expansion(Cusp(0,1))[4])).abs() < 1e-43
     M_rig = B.get_modforms(2,25,only_principal_cusp_expansion=False)
     M_approx = B.get_modforms(2,25,50,only_principal_cusp_expansion=False) #We also test that a higher precision is used for the series reversion
     M_sage = ModularForms(6,2).q_echelon_basis(25)

@@ -79,8 +79,7 @@ def get_coset_expansions(F):
         width = G._vertex_data[ci]['width']
         R = cusp_expansion.parent()
         q = R.gen()
-        if ci == 0:
-            cusp_expansion *= width**(-weight/2)
+        cusp_expansion *= width**(-weight/2) #We follow the convention of Cohen's paper who uses different cusp-normalizers
         roots_of_unity = [(2*CF(0,pi)*i/width).exp() for i in range(width)]
         cusp_normalizer = G.cusp_normalizer(c)
         for coset_i in G._vertex_data[ci]['coset']:

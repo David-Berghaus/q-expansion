@@ -28,7 +28,7 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
     bit_prec = digits_to_bits(digit_prec)
     c_vec_mcbd = c_vec._get_mcbd(bit_prec)
-    cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0,True)
+    cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
     return FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm")
 
 def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
@@ -44,7 +44,7 @@ def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=Non
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
     bit_prec = digits_to_bits(digit_prec)
     c_vec_mcbd = c_vec._get_mcbd(bit_prec)
-    cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0,True)
+    cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
     return FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm")
 
 def get_hauptmodul_q_expansion_approx(S, digit_prec, Y=0, M_0=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
@@ -73,7 +73,7 @@ def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None)
     for i in range(len(c_vecs)):
         normalization = _get_normalization_cuspforms(S,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
-        cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0,True)
+        cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm"))
     return basis
 
@@ -89,15 +89,13 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
     for i in range(len(c_vecs)):
         normalization = _get_normalization_modforms(S,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
-        cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0,True)
+        cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm"))
     return basis
 
-def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0, rescale_hejhal_coefficients):
+def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0):
     """
     Given a c_vec of coefficients as a acb-matrix in Sage, convert expression to a dictionary with cusps as keys and Laurent series as values.
-    If rescale_hejhal_coefficients == True, we multiply expansions at non-inf cusps by cusp_width**(-weight_half) because
-    our implementation of Hejhal's method uses special cusp-normalizers that absorb the cusp width.
     """
     cusp_expansions = dict()
     weight = S.weight()
@@ -117,8 +115,6 @@ def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0, 
                 f += normalization[cii][i]*q**(starting_order+i)
         for i in range(M_0):
             f += CF(c_vec_mcbd[i+cii*M_0][0])*q**(i+starting_order+normalization_len)
-        if rescale_hejhal_coefficients == True and Cusp(ci) != Cusp(1,0):
-            f /= cusp_width**(weight//2)
         cusp_expansions[Cusp(ci)] = f.O(M_0)
     return cusp_expansions
 
@@ -257,9 +253,14 @@ class FourierExpansion():
         CC = ComplexField(bit_prec)
         cusp_expansions_new = dict()
         for c in self.cusp_expansions.keys():
-            if isinstance(base_ring,ComplexBallField) and self.cusp_expansions[c][self.cusp_expansions[c].prec()-1].rad() > 0:
-                raise ArithmeticError("The q-expansion contains empty error balls which cannot be rounded do ComplexFields.")
-            cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC)
+            trunc_order = self.cusp_expansions[c].prec()
+            new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
+            if isinstance(base_ring,ComplexBallField) and -self.cusp_expansions[c][trunc_order-1].rad().log10() < 0:
+                print("Warning: The q-expansion contains empty error balls which cannot be rounded do ComplexFields. We therefore need to truncate to a lower order")
+                for i in range(1,trunc_order):
+                    if -self.cusp_expansions[c][trunc_order-i].rad().log10() < 0:
+                        new_trunc_order -= 1
+            cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC).O(new_trunc_order)
         return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
 
     def _set_constant_coefficients_to_zero_inplace(self):

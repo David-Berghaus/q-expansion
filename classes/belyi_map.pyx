@@ -466,7 +466,7 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
             CC = ComplexField(64)
-            required_prec = int(round(trunc_order/10+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/8+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -536,7 +536,7 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
             CC = ComplexField(64)
-            required_prec = int(round(trunc_order/10+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/8+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -558,11 +558,10 @@ class BelyiMap():
         CBF_res = ComplexBallField(digits_to_bits(digit_prec))
         return j_G.change_ring(CBF_res).O(trunc_order)
 
-    def _get_hauptmodul_q_expansion_derivative(self, j_G, rescale_coefficients):
+    def _get_hauptmodul_q_expansion_derivative(self, j_G):
         """
         Returns 1/(2*pi*i) * d/dtau j_G(tau) where j_G is an instance of "FourierExpansion".
         This function works for both rigorous and floating arithmetic.
-        If "rescale_coefficients == True", we rescale the coefficients at the other cusps in order to match the convention of the other functions.
         """
         cusp_expansions = dict()
         for cusp in j_G.cusp_expansions.keys():
@@ -573,9 +572,6 @@ class BelyiMap():
                 cusp_expansion_prime += n*cusp_expansion[n]*q**n
             if cusp_expansion[-1] != 0: #cusp_expansion starts with 1/q instead of a constant term
                 cusp_expansion_prime += -1/q #Derivative of q^-1
-            if rescale_coefficients == True and cusp != Cusp(1,0):
-                cusp_width = self.G.cusp_width(cusp)
-                cusp_expansion_prime /= cusp_width
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
         return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",
                 only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Kw=j_G._Kw,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
@@ -586,7 +582,7 @@ class BelyiMap():
         This form is given by (j'_Gamma)^weight_half/B.
         """
         weight_half = weight//2
-        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
+        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
         num = j_G_prime**weight_half
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         coeffs = list(B.change_ring(base_ring))
