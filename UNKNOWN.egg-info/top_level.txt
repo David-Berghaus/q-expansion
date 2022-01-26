@@ -1,5 +1,6 @@
 belyi
 classes
+eisenstein
 iterative_solvers
 point_matching
 pullback

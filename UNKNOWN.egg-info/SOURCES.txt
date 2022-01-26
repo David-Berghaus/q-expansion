@@ -1,8 +1,5 @@
 .gitignore
 README.md
-eisenstein.sage
-haberland.sage
-nelson_collins.sage
 noncong_reps.sobj
 run.sage
 setup.py
@@ -59,6 +56,11 @@ classes/modform_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
+eisenstein/__init__.py
+eisenstein/eisenstein_computation.c
+eisenstein/haberland.c
+eisenstein/haberland.pyx
+eisenstein/nelson_collins.sage
 iterative_solvers/__init__.py
 iterative_solvers/gmres_arb_wrap.c
 iterative_solvers/gmres_arb_wrap.pxd

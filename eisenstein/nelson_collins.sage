@@ -41,9 +41,6 @@ def compute_petersson_product_nelson_collins(F, G):
         cusp_res = 0
         f, g = F.get_cusp_expansion(c), G.get_cusp_expansion(c)
         cusp_width = get_cusp_width_from_var_name(f.variable())
-        if c != Cusp(1,0): #Collins uses cusp-normalizers which absorb the cusp-width so we have to rescale again in order to keep notation...
-            f /= RF(cusp_width)**(-weight//2)
-            g /= RF(cusp_width)**(-weight//2)
         for n in range(1,min(f.prec(),g.prec())): #We always assume that at least one of f, g is a cuspform (i.e. has c_0 = 0)
             x = 4*PI*sqrt(RF(n)/cusp_width)
             cusp_res += f[n] * conjugate(g[n]) * W(weight, x, epsilon) / n**(weight-1)

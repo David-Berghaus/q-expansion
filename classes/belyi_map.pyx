@@ -15,10 +15,13 @@ from sage.rings.real_mpfr import RealField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.integer import Integer
 from sage.misc.misc import newton_method_sizes
+from sage.functions.other import ceil
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.modform.arithgroup.mysubgroup import MySubgroup
+from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
@@ -297,15 +300,19 @@ class BelyiMap():
         
         return p_list
 
-    def get_cuspforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
+    def get_cuspforms(self, weight, trunc_orders, digit_prec=None, j_G=None):
         """
         Use Hauptmodul to return a basis of cuspforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
+
+        trunc_orders can either be an int in which case only the expansion at infinity will be returned or a dict
+        containing the cusps as well as the expansion orders at these cusps.
         """
-        if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        if j_G == None:
+            if digit_prec == None:
+                j_G = self.get_hauptmodul_q_expansion(trunc_orders)
+            else:
+                j_G = self.get_hauptmodul_q_expansion_approx(trunc_orders,digit_prec)
         B = self._get_B(weight)
         p_list = self._get_p_list_cuspform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for modforms of the same weight
@@ -320,17 +327,25 @@ class BelyiMap():
             cuspform = F*prefactor
             cuspform.modform_type = "CuspForm"
             cuspforms.append(cuspform)
-        return to_reduced_row_echelon_form(cuspforms)
+        cuspforms_reduced_row_echelon_form = to_reduced_row_echelon_form(cuspforms)
+        if digit_prec != None:
+            for i in range(len(cuspforms_reduced_row_echelon_form)):
+                cuspforms_reduced_row_echelon_form[i]._set_constant_coefficients_to_zero_inplace()
+        return cuspforms_reduced_row_echelon_form
     
-    def get_modforms(self, weight, trunc_order, digit_prec=None, only_principal_cusp_expansion=True):
+    def get_modforms(self, weight, trunc_orders, digit_prec=None, j_G=None):
         """
         Use Hauptmodul to return a basis of modforms with specified weight in reduced row-echelon form.
         If "digit_prec" is given, use approximate ball arithmetic with rigorous error bounds.
+
+        trunc_orders can either be an int in which case only the expansion at infinity will be returned or a dict
+        containing the cusps as well as the expansion orders at these cusps.
         """
-        if digit_prec == None:
-            j_G = self.get_hauptmodul_q_expansion(trunc_order,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
-        else:
-            j_G = self.get_hauptmodul_q_expansion_approx(trunc_order,digit_prec,only_principal_cusp_expansion=only_principal_cusp_expansion) #We could precompute this
+        if j_G == None:
+            if digit_prec == None:
+                j_G = self.get_hauptmodul_q_expansion(trunc_orders)
+            else:
+                j_G = self.get_hauptmodul_q_expansion_approx(trunc_orders,digit_prec)
         B = self._get_B(weight)
         p_list = self._get_p_list_modform(weight,B)
         F = self._get_regularized_modular_form_q_expansion(weight,j_G,B) #We could re-use this for cuspforms of the same weight
@@ -347,38 +362,47 @@ class BelyiMap():
             modforms.append(modform)
         return to_reduced_row_echelon_form(modforms)
 
-    def get_hauptmodul_q_expansion(self, trunc_order, only_principal_cusp_expansion=True):
+    def get_hauptmodul_q_expansion(self, trunc_orders):
         """
         Return q-expansion of hauptmodul at all cusps using rigorous arithmetic.
         We return the result as an instance of FourierExpansion.
+
+        trunc_orders can either be an int in which case only the expansion at infinity will be returned or a dict
+        containing the cusps as well as the expansion orders at these cusps.
         """
         cusp_expansions = dict()
-        if only_principal_cusp_expansion == True:
-            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity(trunc_order)
+        if isinstance(trunc_orders,int) == True or isinstance(trunc_orders,Integer): #We are only considering the expansion at infinity
+            only_principal_cusp_expansion = True
+            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity(trunc_orders)
         else:
+            only_principal_cusp_expansion = False
             for cusp in self.G.cusps():
                 if cusp == Cusp(1,0):
-                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity(trunc_order).change_ring(QQbar) #We need to work with QQbar because of the other cusps
+                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity(trunc_orders[cusp]).change_ring(QQbar) #We need to work with QQbar because of the other cusps
                 else:
-                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_order)
+                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_orders[cusp])
                 cusp_expansions[cusp] = cusp_expansion
         return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
-    def get_hauptmodul_q_expansion_approx(self, trunc_order, digit_prec, try_to_overcome_ill_conditioning=True, only_principal_cusp_expansion=True):
+    def get_hauptmodul_q_expansion_approx(self, trunc_orders, digit_prec, try_to_overcome_ill_conditioning=True, only_principal_cusp_expansion=True):
         """
         Return q-expansion of hauptmodul at all cusps using ball arithmetic with rigorous error bounds.
         We return the result as an instance of FourierExpansion.
         Note that not all coefficients need to be correct up to the specified precision!
+
+        trunc_orders can either be an int in which case only the expansion at infinity will be returned or a dict
+        containing the cusps as well as the expansion orders at these cusps.
         """
         cusp_expansions = dict()
-        if only_principal_cusp_expansion == True:
-            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+        if isinstance(trunc_orders,int) == True or isinstance(trunc_orders,Integer): #We are only considering the expansion at infinity
+            only_principal_cusp_expansion = True
+            cusp_expansions[Cusp(1,0)] = self._get_hauptmodul_q_expansion_infinity_approx(trunc_orders,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
         else:
             for cusp in self.G.cusps():
                 if cusp == Cusp(1,0):
-                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity_approx(trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+                    cusp_expansion = self._get_hauptmodul_q_expansion_infinity_approx(trunc_orders[cusp],digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
                 else:
-                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_order,digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
+                    cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_orders[cusp],digit_prec,try_to_overcome_ill_conditioning=try_to_overcome_ill_conditioning)
                 cusp_expansions[cusp] = cusp_expansion
         return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion)
 
@@ -456,29 +480,33 @@ class BelyiMap():
         """
         principal_cusp_width = self.principal_cusp_width
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
+        working_trunc_order = trunc_order
         if try_to_overcome_ill_conditioning == True:
             #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
             #We do this by constructing "r" to low precision to get the size of its largest exponent
-            r_low_prec = self._get_r_for_laurent_expansion(trunc_order,64)
+            r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
             CC = ComplexField(64)
-            required_prec = int(round(1.1*CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         else:
             working_prec = digit_prec
 
         working_bit_prec = digits_to_bits(working_prec)
         CBF = ComplexBallField(working_bit_prec)
-        r = self._get_r_for_laurent_expansion(trunc_order,working_bit_prec)
+        r = self._get_r_for_laurent_expansion(working_trunc_order,working_bit_prec)
 
         n_sqrt_j_inverse_CBF = n_sqrt_j_inverse.polynomial().change_ring(CBF)
         r_pos_degree = r[0:r.degree()+1].power_series().polynomial() #We treat the 1/x term later because arb only supports polynomials
-        tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,trunc_order) #Perform composition in arb because it is expensive
+        tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,working_trunc_order) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse_CBF.variable_name())
         one_over_x_term = n_sqrt_j_inverse.inverse() #Treat 1/x term separately because it is not supported by arb
         j_G = one_over_x_term + P(tmp)
-        return j_G
+        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
+        return j_G.change_ring(CBF_res).O(trunc_order)
 
     def _get_r_for_taylor_expansion(self, cusp, trunc_order, q_coefficient, bit_prec):
         """
@@ -528,10 +556,12 @@ class BelyiMap():
             #We do this by constructing "r" to low precision to get the size of its largest exponent
             r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
             CC = ComplexField(64)
-            required_prec = int(round(CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+            required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
             working_prec = max(digit_prec,required_prec)
             if working_prec > digit_prec:
                 print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         else:
             working_prec = digit_prec
 
@@ -544,14 +574,14 @@ class BelyiMap():
         r_pos_degree = r.power_series().polynomial()
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse,r.degree()+1) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
-        j_G = CBF(cusp_evaluation) + P(tmp).O(trunc_order)
-        return j_G
+        j_G = CBF(cusp_evaluation) + P(tmp)
+        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
+        return j_G.change_ring(CBF_res).O(trunc_order)
 
-    def _get_hauptmodul_q_expansion_derivative(self, j_G, rescale_coefficients):
+    def _get_hauptmodul_q_expansion_derivative(self, j_G):
         """
         Returns 1/(2*pi*i) * d/dtau j_G(tau) where j_G is an instance of "FourierExpansion".
         This function works for both rigorous and floating arithmetic.
-        If "rescale_coefficients == True", we rescale the coefficients at the other cusps in order to match the convention of the other functions.
         """
         cusp_expansions = dict()
         for cusp in j_G.cusp_expansions.keys():
@@ -562,9 +592,6 @@ class BelyiMap():
                 cusp_expansion_prime += n*cusp_expansion[n]*q**n
             if cusp_expansion[-1] != 0: #cusp_expansion starts with 1/q instead of a constant term
                 cusp_expansion_prime += -1/q #Derivative of q^-1
-            if rescale_coefficients == True and cusp != Cusp(1,0):
-                cusp_width = self.G.cusp_width(cusp)
-                cusp_expansion_prime /= cusp_width
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
         return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",
                 only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Kw=j_G._Kw,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
@@ -575,20 +602,47 @@ class BelyiMap():
         This form is given by (j'_Gamma)^weight_half/B.
         """
         weight_half = weight//2
-        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G,True)
+        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
         num = j_G_prime**weight_half
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
+        coeffs = list(B.change_ring(base_ring))
+        den = coeffs[-1]
+        for i in range(len(coeffs)-2,-1,-1): #Horner's method
+            den = j_G*den+coeffs[i]
         if isinstance(base_ring,ComplexBallField) == True:
-            #When using Horner, we experienced some examples where the leading order coefficients are empty error balls (instead of zeros)
-            #which leads to NaN's in the remaining computations.
-            #For CBF's, we therefore build the product of the factors
-            den = j_G.__one__()
-            roots = B.roots(ring=QQbar) #Can this become slow?
-            for (root,multiplicity) in roots:
-                den *= (j_G-root)**multiplicity
-        else:
-            coeffs = list(B.change_ring(base_ring))
-            den = coeffs[-1]
-            for i in range(len(coeffs)-2,-1,-1): #Horner's method
-                den = j_G*den+coeffs[i]
+            #This part is really ugly:
+            #Because arb does not detect the true zeros and returns empty error bounds, we would get NaN's when dividing with "den"
+            #We therefore need to set the first weight_half coefficients at the cusps outside infinity to zero
+            #(It is obvious that these need to be zero because their constant term is equivalent to one of the cusp evaluations)
+            for c in den.cusp_expansions.keys():
+                if c != Cusp(1,0):
+                    P = den.cusp_expansions[c].parent()
+                    den_cusp_expansions_list = list(den.cusp_expansions[c]) #We need to work with lists because power series are immutable
+                    for i in range(weight_half):
+                        den_cusp_expansions_list[i] = 0 #Set these coefficients to be truely zero
+                    den.cusp_expansions[c] = P(den_cusp_expansions_list).O(den.cusp_expansions[c].prec()) #update expression in class instance
         return num/den
+    
+    def _get_trunc_orders_equal_sized(self, trunc_order):
+        """
+        Returns a dictionary with cusps of self.G as keys and trunc_order as values.
+        """
+        trunc_orders = dict()
+        for c in self.G.cusps():
+            trunc_orders[c] = trunc_order
+        return trunc_orders
+    
+    def _get_trunc_orders_convergence(self, weight, digit_prec):
+        """
+        Returns a dictionary with cusps of self.G as keys and trunc_orders as values.
+        We choose the trunc_order for each cusp in a way that the expansion of f(z) (approximately) converges inside the fundamental domain.
+        Where f(z) is a modular form of specified weight k for which we assume that the coefficients grow like O(n^k)
+        """
+        trunc_orders = dict()
+        G = self.G
+        Y_0 = 0.866025403784439 #height of fundamental domain of SL2Z
+        for c in G.cusps():
+            Y = Y_0/G.cusp_width(c)
+            trunc_order = ceil(get_M_for_holom(Y,2*weight,digit_prec))
+            trunc_orders[c] = trunc_order
+        return trunc_orders
