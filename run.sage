@@ -17,6 +17,26 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 
 load("subgroups.sage")
 
+def test(trunc_order, digit_prec):
+    bit_prec = round(3.33*digit_prec)
+    CBF = ComplexBallField(bit_prec)
+    P.<x> = PowerSeriesRing(CBF)
+    s = P(x).O(trunc_order)/P((x-16)**3).O(trunc_order)
+    print("s[s.degree()]: ", s[s.degree()])
+    r = s.reverse()
+    print("r[r.degree()]: ", r[r.degree()])
+    res = r.subs({x:1/j_invariant_qexp(trunc_order)})
+    return res
+
+def test2(G):
+    B = BelyiMap(G)
+    trunc_orders = B._get_trunc_orders_convergence(6,100)
+    cs = B.get_cuspforms(6,trunc_orders,digit_prec=100)
+    ms = B.get_modforms(6,trunc_orders,digit_prec=100)
+    from eisenstein.eisenstein_computation import compute_eisenstein_series
+    es, sc = compute_eisenstein_series(cs,ms,return_scaling_constants=True)
+    return es, sc
+
 #These notations are part of the Fiori, Franc paper. Note that we do not get the same permT...
 G1 = MySubgroup(o2='(1 2)(3 4)(5 6)(7)',o3='(1)(2 3 5)(4 6 7)')
 u_G1 = (-7)**(1/4)/7**2

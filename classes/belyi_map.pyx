@@ -632,7 +632,7 @@ class BelyiMap():
             trunc_orders[c] = trunc_order
         return trunc_orders
     
-    def _get_trunc_orders_convergence(self, digit_prec, weight):
+    def _get_trunc_orders_convergence(self, weight, digit_prec):
         """
         Returns a dictionary with cusps of self.G as keys and trunc_orders as values.
         We choose the trunc_order for each cusp in a way that the expansion of f(z) (approximately) converges inside the fundamental domain.

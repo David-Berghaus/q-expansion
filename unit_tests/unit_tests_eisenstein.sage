@@ -2,8 +2,8 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
 from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 from eisenstein.haberland import compute_petersson_product_haberland
+from eisenstein.eisenstein_computation import compute_eisenstein_series
 
-load("../eisenstein/eisenstein.sage")
 load("../eisenstein/nelson_collins.sage")
 
 def run_unit_tests_eisenstein():
