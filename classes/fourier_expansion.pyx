@@ -256,6 +256,7 @@ class FourierExpansion():
             trunc_order = self.cusp_expansions[c].prec()
             new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
             if isinstance(base_ring,ComplexBallField) and -self.cusp_expansions[c][trunc_order-1].rad().log10() < 0:
+                raise ArithmeticError("This error is used for testing")
                 print("Warning: The q-expansion contains empty error balls which cannot be rounded to ComplexFields. We therefore need to truncate to a lower order")
                 for i in range(1,trunc_order):
                     if -self.cusp_expansions[c][trunc_order-i].rad().log10() < 0:

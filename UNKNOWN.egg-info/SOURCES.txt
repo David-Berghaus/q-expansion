@@ -58,6 +58,7 @@ classes/plu_class.pxd
 classes/plu_class.pyx
 eisenstein/__init__.py
 eisenstein/eisenstein_computation.c
+eisenstein/eisenstein_computation.pyx
 eisenstein/haberland.c
 eisenstein/haberland.pyx
 eisenstein/nelson_collins.sage

@@ -477,6 +477,7 @@ class BelyiMap():
         Because of the large coefficients involved, the arithmetic might become ill-conditioned. 
         If "try_to_overcome_ill_conditioning" == True, we try to detect these cases and increase the
         working precision if required (still, the higher coefficients will in general not have the full displayed precision).
+        The result will be returned in the highest possible precision (which can potentially be higher than the specified "digit_prec").
         """
         principal_cusp_width = self.principal_cusp_width
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
@@ -504,9 +505,8 @@ class BelyiMap():
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse_CBF,working_trunc_order) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse_CBF.variable_name())
         one_over_x_term = n_sqrt_j_inverse.inverse() #Treat 1/x term separately because it is not supported by arb
-        j_G = one_over_x_term + P(tmp)
-        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
-        return j_G.change_ring(CBF_res).O(trunc_order)
+        j_G = one_over_x_term + P(tmp))
+        return j_G.O(trunc_order)
 
     def _get_r_for_taylor_expansion(self, cusp, trunc_order, q_coefficient, bit_prec):
         """
@@ -575,8 +575,7 @@ class BelyiMap():
         tmp = r_pos_degree.compose_trunc(n_sqrt_j_inverse,r.degree()+1) #Perform composition in arb because it is expensive
         P = PowerSeriesRing(CBF,n_sqrt_j_inverse.variable_name())
         j_G = CBF(cusp_evaluation) + P(tmp)
-        CBF_res = ComplexBallField(digits_to_bits(digit_prec))
-        return j_G.change_ring(CBF_res).O(trunc_order)
+        return j_G.O(trunc_order)
 
     def _get_hauptmodul_q_expansion_derivative(self, j_G):
         """
