@@ -257,7 +257,7 @@ class BelyiMap():
         For the cusp at infinity we assume orders of vanishing up to the dimension of the space.
         """
         weight_half = weight//2
-        p_cusp = self._p_cusp_evaluations.change_ring(B.base_ring())
+        p_cusp = self._p_cusp_evaluations
         x = B.parent().gen()
         cuspform_dim = self.G.dimension_cusp_forms(weight)
         if cuspform_dim == 0:
@@ -321,7 +321,7 @@ class BelyiMap():
         cuspforms = []
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         for p in p_list:
-            coeffs = list(p.change_ring(base_ring))
+            coeffs = list(p)
             prefactor = coeffs[-1]
             for i in range(len(coeffs)-2,-1,-1): #Horner's method
                 prefactor = j_G*prefactor+coeffs[i]
@@ -354,7 +354,7 @@ class BelyiMap():
         modforms = []
         base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
         for p in p_list:
-            coeffs = list(p.change_ring(base_ring))
+            coeffs = list(p)
             prefactor = coeffs[-1]
             for i in range(len(coeffs)-2,-1,-1): #Horner's method
                 prefactor = j_G*prefactor+coeffs[i]
@@ -383,7 +383,7 @@ class BelyiMap():
                 else:
                     cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity(cusp,trunc_orders[cusp])
                 cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",self._Kw,only_principal_cusp_expansion=only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def get_hauptmodul_q_expansion_approx(self, trunc_orders, digit_prec, min_digits_last_coeff=1, only_principal_cusp_expansion=True):
         """
@@ -404,7 +404,8 @@ class BelyiMap():
                 else:
                     cusp_expansion = self._get_hauptmodul_q_expansion_non_infinity_approx(cusp,trunc_orders[cusp],digit_prec,min_digits_last_coeff=min_digits_last_coeff)
                 cusp_expansions[cusp] = cusp_expansion
-        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",only_principal_cusp_expansion=only_principal_cusp_expansion)
+        base_ring = ComplexBallField(digits_to_bits(digit_prec))
+        return FourierExpansion(self.G,0,cusp_expansions,"Hauptmodul",base_ring,only_principal_cusp_expansion=only_principal_cusp_expansion)
 
     def _get_hauptmodul_q_expansion_infinity(self, trunc_order):
         """
@@ -590,7 +591,7 @@ class BelyiMap():
             if cusp_expansion[-1] != 0: #cusp_expansion starts with 1/q instead of a constant term
                 cusp_expansion_prime += -1/q #Derivative of q^-1
             cusp_expansions[cusp] = cusp_expansion_prime.O(cusp_expansion.prec())
-        return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",
+        return FourierExpansion(j_G.G,2,cusp_expansions,"ModForm",j_G.base_ring,
                 only_principal_cusp_expansion=j_G.only_principal_cusp_expansion,Kw=j_G._Kw,Kv=j_G._Kv,u_interior_Kv=j_G._u_interior_Kv)
 
     def _get_regularized_modular_form_q_expansion(self, weight, j_G, B):
@@ -601,8 +602,8 @@ class BelyiMap():
         weight_half = weight//2
         j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
         num = j_G_prime**weight_half
-        base_ring = j_G.cusp_expansions[Cusp(1,0)].base_ring()
-        coeffs = list(B.change_ring(base_ring))
+        base_ring = j_G.base_ring
+        coeffs = list(B)
         den = coeffs[-1]
         for i in range(len(coeffs)-2,-1,-1): #Horner's method
             den = j_G*den+coeffs[i]

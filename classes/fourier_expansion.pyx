@@ -14,6 +14,7 @@ from point_matching.point_matching_arb_wrap import (
     _get_normalization_modforms, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
 )
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v
+from belyi.number_fields import get_decimal_digit_prec
 
 def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
     """
@@ -29,7 +30,8 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
     bit_prec = digits_to_bits(digit_prec)
     c_vec_mcbd = c_vec._get_mcbd(bit_prec)
     cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
-    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm")
+    base_ring = cusp_expansions[Cusp(1,0)].base_ring()
+    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm",base_ring)
 
 def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
     """
@@ -45,7 +47,8 @@ def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=Non
     bit_prec = digits_to_bits(digit_prec)
     c_vec_mcbd = c_vec._get_mcbd(bit_prec)
     cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
-    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm")
+    base_ring = cusp_expansions[Cusp(1,0)].base_ring()
+    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm",base_ring)
 
 def get_hauptmodul_q_expansion_approx(S, digit_prec, Y=0, M_0=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
     """
@@ -59,7 +62,8 @@ def get_hauptmodul_q_expansion_approx(S, digit_prec, Y=0, M_0=0, c_vec=None, pre
     bit_prec = digits_to_bits(digit_prec)
     c_vec_mcbd = c_vec._get_mcbd(bit_prec)
     cusp_expansions = c_vec_to_cusp_expansions_hauptmodul(c_vec_mcbd,S,M_0)
-    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"Hauptmodul")
+    base_ring = cusp_expansions[Cusp(1,0)].base_ring()
+    return FourierExpansion(S.group(),S.weight(),cusp_expansions,"Hauptmodul",base_ring)
 
 def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
     """
@@ -74,7 +78,8 @@ def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None)
         normalization = _get_normalization_cuspforms(S,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
-        basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm"))
+        base_ring = cusp_expansions[Cusp(1,0)].base_ring()
+        basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm",base_ring))
     return basis
 
 def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
@@ -90,7 +95,8 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
         normalization = _get_normalization_modforms(S,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
-        basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm"))
+        base_ring = cusp_expansions[Cusp(1,0)].base_ring()
+        basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm",base_ring))
     return basis
 
 def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0):
@@ -182,7 +188,7 @@ class FourierExpansion():
     Class for storing Fourier expansions (q-expansions) of modular forms over general numberfields.
     We use the notation q_N = exp(2*pi*I*z/N).
     """
-    def __init__(self, G, weight, cusp_expansions, modform_type, only_principal_cusp_expansion=False, Kw=None, Kv=None, u_interior_Kv=None):
+    def __init__(self, G, weight, cusp_expansions, modform_type, base_ring, only_principal_cusp_expansion=False, Kw=None, Kv=None, u_interior_Kv=None):
         """
         Parameters
         ----------
@@ -190,6 +196,7 @@ class FourierExpansion():
         weight : weight
         cusp_expansions : dictionary with cusp representatives as keys and Laurent series as values
         modform_type: One of "CuspForm", "ModForm", "Hauptmodul"
+        base_ring: Specifies the base_ring over which the q-expansions are defined. Note that for CBFs the precision might be higher for different cusps.
         only_principal_cusp_expansion: Boolean that lets one decide if only the expansion at infinity should be considered
         """
         self.G = G
@@ -198,6 +205,7 @@ class FourierExpansion():
         if modform_type not in ("CuspForm","ModForm","Hauptmodul"):
             raise ArithmeticError("Invalid modform_type!")
         self.modform_type = modform_type
+        self.base_ring = base_ring
         self.only_principal_cusp_expansion = only_principal_cusp_expansion
         self._Kw = Kw
         self._Kv = Kv
@@ -247,7 +255,7 @@ class FourierExpansion():
         """
         Return new instance of FourierExpansion with coefficients converted to a ComplexField.
         """
-        base_ring = self.cusp_expansions[Cusp(1,0)].base_ring()
+        base_ring = self.base_ring
         if bit_prec == None:
             bit_prec = base_ring.precision()
         CC = ComplexField(bit_prec)
@@ -255,14 +263,13 @@ class FourierExpansion():
         for c in self.cusp_expansions.keys():
             trunc_order = self.cusp_expansions[c].prec()
             new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
-            if isinstance(base_ring,ComplexBallField) and -self.cusp_expansions[c][trunc_order-1].rad().log10() < 0:
-                raise ArithmeticError("This error is used for testing")
+            if isinstance(base_ring,ComplexBallField) and get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-1].rad()) < 0:
                 print("Warning: The q-expansion contains empty error balls which cannot be rounded to ComplexFields. We therefore need to truncate to a lower order")
                 for i in range(1,trunc_order):
-                    if -self.cusp_expansions[c][trunc_order-i].rad().log10() < 0:
+                    if get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-i].rad()) < 0:
                         new_trunc_order -= 1
             cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC).O(new_trunc_order)
-        return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
+        return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,self.base_ring,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
 
     def _set_constant_coefficients_to_zero_inplace(self):
         """
@@ -292,8 +299,10 @@ class FourierExpansion():
                 raise ArithmeticError("Please only add forms of equal weight!")
         else: #Scalar addition
             for c in cusp_expansions_self.keys():
-                cusp_expansions[c] = cusp_expansions_self[c]+a
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
+                cusp_expansion_base_ring = cusp_expansions_self[c].base_ring()
+                a_converted = cusp_expansion_base_ring(a) #This is useful if a is a numberfield element and cusp_expansions are defined over CBFs of different prec
+                cusp_expansions[c] = cusp_expansions_self[c]+a_converted
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __sub__(self, a):
@@ -310,8 +319,10 @@ class FourierExpansion():
                 raise ArithmeticError("Please only subtract forms of equal weight!")
         else: #Scalar subtraction
             for c in cusp_expansions_self.keys():
-                cusp_expansions[c] = cusp_expansions_self[c]-a
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
+                cusp_expansion_base_ring = cusp_expansions_self[c].base_ring()
+                a_converted = cusp_expansion_base_ring(a) #This is useful if a is a numberfield element and cusp_expansions are defined over CBFs of different prec
+                cusp_expansions[c] = cusp_expansions_self[c]-a_converted
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __mul__(self, a):
@@ -327,8 +338,10 @@ class FourierExpansion():
             weight += a.weight
         else: #Scalar multiplication
             for c in cusp_expansions_self.keys():
-                cusp_expansions[c] = cusp_expansions_self[c]*a
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
+                cusp_expansion_base_ring = cusp_expansions_self[c].base_ring()
+                a_converted = cusp_expansion_base_ring(a) #This is useful if a is a numberfield element and cusp_expansions are defined over CBFs of different prec
+                cusp_expansions[c] = cusp_expansions_self[c]*a_converted
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __div__(self, a):
@@ -344,8 +357,10 @@ class FourierExpansion():
             weight -= a.weight
         else: #Scalar division
             for c in cusp_expansions_self.keys():
-                cusp_expansions[c] = cusp_expansions_self[c]/a
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
+                cusp_expansion_base_ring = cusp_expansions_self[c].base_ring()
+                a_converted = cusp_expansion_base_ring(a) #This is useful if a is a numberfield element and cusp_expansions are defined over CBFs of different prec
+                cusp_expansions[c] = cusp_expansions_self[c]/a_converted
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __pow__(self, n):
@@ -357,7 +372,7 @@ class FourierExpansion():
         weight = n*self.weight
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c]**n
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,
+        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __one__(self):
@@ -368,5 +383,5 @@ class FourierExpansion():
         cusp_expansions_self = self.cusp_expansions
         for c in cusp_expansions_self.keys():
             cusp_expansions[c] = cusp_expansions_self[c].parent().one()
-        return FourierExpansion(self.G,0,cusp_expansions,self.modform_type,
+        return FourierExpansion(self.G,0,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
