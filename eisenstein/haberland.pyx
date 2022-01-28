@@ -168,6 +168,7 @@ def compute_period_integral(n, a, coset_expansion, width, two_pi_i, exp_two_pi_i
         res += coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i,exp_two_pi_i_a_m_dict)
     return res
 
+#We could in principle memoize this function as well because it gets reused for different cosets, however "exp_two_pi_i_a_m_dict" is non-hashable...
 def compute_period_integral_term(n, a, m, two_pi_i, exp_two_pi_i_a_m_dict):
     """
     Evaluate int_a^(i*infinity) tau^n exp(2*pi*I*m*tau) dtau.
