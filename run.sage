@@ -17,6 +17,37 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 
 load("subgroups.sage")
 
+def haberland_precision_test():
+    """
+    Test precision of Petersson product evaluation for several examples.
+    """
+    passports = get_list_of_all_passports(11,0)
+    for i in range(len(passports)):
+        G = passports[i][0]
+        B = BelyiMap(G)
+        digit_prec1 = 150
+        digit_prec2 = 170
+        trunc_orders1 = B._get_trunc_orders_convergence(4,digit_prec1)
+        trunc_orders2 = B._get_trunc_orders_convergence(4,digit_prec2)
+        jG1 = B.get_hauptmodul_q_expansion_approx(trunc_orders1,digit_prec1)
+        jG2 = B.get_hauptmodul_q_expansion_approx(trunc_orders2,digit_prec2)
+        cs1 = B.get_cuspforms(4,trunc_orders1,j_G=jG1)
+        cs2 = B.get_cuspforms(4,trunc_orders2,j_G=jG2)
+        ms1 = B.get_modforms(4,trunc_orders1,j_G=jG1)
+        ms2 = B.get_modforms(4,trunc_orders2,j_G=jG2)
+        for ic in range(len(cs1)):
+            cs1[ic]._set_constant_coefficients_to_zero_inplace()
+            cs2[ic]._set_constant_coefficients_to_zero_inplace()
+            c1 = cs1[ic]
+            c2 = cs2[ic]
+            for im in range(len(ms1)):
+                m1 = ms1[im]
+                m2 = ms2[im]
+                p1 = compute_petersson_product_haberland(c1,m1)
+                p2 = compute_petersson_product_haberland(c2,m2)
+                print((p2-p1).abs())
+
+
 def test(trunc_order, digit_prec):
     bit_prec = round(3.33*digit_prec)
     CBF = ComplexBallField(bit_prec)
