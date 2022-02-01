@@ -306,12 +306,12 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
         max_inner = restrt
     else:
         max_outer = 1
-        if maxiter > dimen:
+        if maxiter is None:
+            maxiter = min(dimen, 40)
+	elif maxiter > dimen:
             print('Setting number of inner iterations (maxiter) to maximum\
                   allowed, which is A.shape[0] ')
             maxiter = dimen
-        elif maxiter is None:
-            maxiter = min(dimen, 40)
         max_inner = maxiter
 
     # Prep for method
