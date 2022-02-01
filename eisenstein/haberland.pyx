@@ -35,6 +35,12 @@ def memoized_pow(a, n):
 def memoized_exp_two_pi_i_a_div_width(two_pi_i_a, width): #We want to avoid computing this exponential for all m so we precompute this result
     return (two_pi_i_a/width).exp()
 
+def clear_memoized_caches(): #Clear caches to decrease memory usage and avoid interference with additional computations
+    memoized_binomial.clear_cache()
+    memoized_prod.clear_cache()
+    memoized_pow.clear_cache()
+    memoized_exp_two_pi_i_a_div_width.clear_cache()
+
 def get_minus_one_pow(n):
     """
     Return (-1)**n without actually performing the multiplications.
@@ -79,7 +85,7 @@ def get_coset_expansions(F):
         width = G._vertex_data[ci]['width']
         R = cusp_expansion.parent()
         q = R.gen()
-        cusp_expansion *= width**(-weight/2) #We follow the convention of Cohen's paper who uses different cusp-normalizers
+        cusp_expansion /= width**(weight//2) #We follow the convention of Cohen's paper who uses different cusp-normalizers
         roots_of_unity = [(2*CF(0,pi)*i/width).exp() for i in range(width)]
         cusp_normalizer = G.cusp_normalizer(c)
         for coset_i in G._vertex_data[ci]['coset']:
@@ -142,6 +148,7 @@ def compute_petersson_product_haberland(f, g):
             term = get_minus_one_pow(n)*memoized_binomial(weight-2,n)*I(weight-2-n,rho+1,"ioo",f_j,width,two_pi_i,exp_two_pi_i_a_m_dict)*(I(n,CC(0,1),CC(1,1),g_j,width,two_pi_i,exp_two_pi_i_a_m_dict).conjugate())
             res += term
     res *= scale_fact
+    clear_memoized_caches()
     return res
 
 def I(n, a, b, coset_expansion, width, two_pi_i, exp_two_pi_i_a_m_dict):

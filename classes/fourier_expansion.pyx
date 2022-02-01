@@ -254,6 +254,7 @@ class FourierExpansion():
     def _convert_to_CC(self, bit_prec=None):
         """
         Return new instance of FourierExpansion with coefficients converted to a ComplexField.
+        Note that this function also sets the precision of the expansions at all cusps to be the same.
         """
         base_ring = self.base_ring
         if bit_prec == None:
@@ -264,12 +265,12 @@ class FourierExpansion():
             trunc_order = self.cusp_expansions[c].prec()
             new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
             if isinstance(base_ring,ComplexBallField) and get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-1].rad()) < 0:
-                print("Warning: The q-expansion contains empty error balls which cannot be rounded to ComplexFields. We therefore need to truncate to a lower order")
+                raise ArithmeticError("The q-expansion contains empty error balls which cannot be rounded to ComplexFields. This might effect future results so we decide to stop here.")
                 for i in range(1,trunc_order):
                     if get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-i].rad()) < 0:
                         new_trunc_order -= 1
             cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC).O(new_trunc_order)
-        return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,self.base_ring,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
+        return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,CC,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
 
     def _set_constant_coefficients_to_zero_inplace(self):
         """
