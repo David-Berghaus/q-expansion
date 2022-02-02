@@ -40,6 +40,7 @@ def clear_memoized_caches(): #Clear caches to decrease memory usage and avoid in
     memoized_prod.clear_cache()
     memoized_pow.clear_cache()
     memoized_exp_two_pi_i_a_div_width.clear_cache()
+    compute_period_integral_term.clear_cache()
 
 def get_minus_one_pow(n):
     """
@@ -98,6 +99,13 @@ def get_coset_expansions(F):
     
     return coset_expansions
 
+class Hashabledict(dict): #See: https://stackoverflow.com/a/16162138
+    """
+    Note that after using this class the dictionaries should not be mutated!
+    """
+    def __hash__(self):
+        return hash(frozenset(self))
+
 def get_exp_two_pi_i_a_m_dict(a_values, f, g, CC):
     """
     Precompute exp(2*pi*I*a*m) where m = i/cusp_width for i in range(trunc_order) efficiently through recursive multiplications.
@@ -119,12 +127,12 @@ def get_exp_two_pi_i_a_m_dict(a_values, f, g, CC):
                 m = QQ(i)/cusp_width
                 tmp *= exp_two_pi_i_a_div_cusp_width
                 exp_two_pi_i_a_m_dict[a][m] = tmp #Some of these will already be defined but it does not seem worth it to check whether they exist...
-    return exp_two_pi_i_a_m_dict
+    return Hashabledict(exp_two_pi_i_a_m_dict) #We need our dict to be hashable in order to use it as input for memoized functions
 
 def get_exp_two_pi_i_a_m(a, m, exp_two_pi_i_a_m_dict):
     return exp_two_pi_i_a_m_dict[a][m]
 
-def compute_petersson_product_haberland(f, g):
+def compute_petersson_product_haberland(f, g, clear_memoized_caches_bool=True, exp_two_pi_i_a_m_dict=None):
     """
     Compute Petersson product by using the Haberland-type formula as described in https://arxiv.org/abs/1809.10908
     It is important that f is a cuspform (g can be either cuspidal or non-cuspidal).
@@ -137,7 +145,8 @@ def compute_petersson_product_haberland(f, g):
     two_pi_i = CC(0,2*pi)
     rho = (two_pi_i/3).exp()
     a_values = [rho+1,CC(0,1),CC(1,1)]
-    exp_two_pi_i_a_m_dict = get_exp_two_pi_i_a_m_dict(a_values,f,g,CC)
+    if exp_two_pi_i_a_m_dict == None:
+        exp_two_pi_i_a_m_dict = get_exp_two_pi_i_a_m_dict(a_values,f,g,CC)
     scale_fact = 1/(index*(CC(0,2))**(weight-1))
     res = 0
     for j in range(index):
@@ -148,7 +157,8 @@ def compute_petersson_product_haberland(f, g):
             term = get_minus_one_pow(n)*memoized_binomial(weight-2,n)*I(weight-2-n,rho+1,"ioo",f_j,width,two_pi_i,exp_two_pi_i_a_m_dict)*(I(n,CC(0,1),CC(1,1),g_j,width,two_pi_i,exp_two_pi_i_a_m_dict).conjugate())
             res += term
     res *= scale_fact
-    clear_memoized_caches()
+    if clear_memoized_caches_bool == True:
+        clear_memoized_caches()
     return res
 
 def I(n, a, b, coset_expansion, width, two_pi_i, exp_two_pi_i_a_m_dict):
@@ -175,7 +185,7 @@ def compute_period_integral(n, a, coset_expansion, width, two_pi_i, exp_two_pi_i
         res += coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i,exp_two_pi_i_a_m_dict)
     return res
 
-#We could in principle memoize this function as well because it gets reused for different cosets, however "exp_two_pi_i_a_m_dict" is non-hashable...
+@cached_function
 def compute_period_integral_term(n, a, m, two_pi_i, exp_two_pi_i_a_m_dict):
     """
     Evaluate int_a^(i*infinity) tau^n exp(2*pi*I*m*tau) dtau.

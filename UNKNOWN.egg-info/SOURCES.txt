@@ -7,8 +7,6 @@ setup.py
 ss.sage
 subgroups.sage
 UNKNOWN.egg-info/PKG-INFO
-UNKNOWN.egg-info/PKG-INFO (1)
-UNKNOWN.egg-info/SOURCES (1).txt
 UNKNOWN.egg-info/SOURCES.txt
 UNKNOWN.egg-info/dependency_links.txt
 UNKNOWN.egg-info/not-zip-safe
