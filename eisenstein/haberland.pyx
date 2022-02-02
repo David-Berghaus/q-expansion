@@ -64,7 +64,7 @@ def get_m(cusp_normalizer, coset_representative):
         m = (coset_representative[1]-cusp_normalizer[1])/cusp_normalizer[0]
     else:
         m = (coset_representative[3]-cusp_normalizer[3])/cusp_normalizer[2]
-    if isinstance(m,int) or m.is_integer==True:
+    if isinstance(m,int) or m.is_integer() == True:
         m = int(m)
     else:
         raise ArithmeticError("Cannot represent m as integer!")

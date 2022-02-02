@@ -1,6 +1,7 @@
 .gitignore
 README.md
 noncong_reps.sobj
+passports.sage
 run.sage
 setup.py
 ss.sage

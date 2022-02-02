@@ -345,7 +345,7 @@ class FourierExpansion():
         return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
-    def __div__(self, a):
+    def __truediv__(self, a):
         """
         Return self/a where "a" is a constant factor or another instance of "FourierExpansion".
         """

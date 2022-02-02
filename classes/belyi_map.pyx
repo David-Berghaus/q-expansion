@@ -485,7 +485,7 @@ class BelyiMap():
         #We do this by constructing "r" to low precision to get the size of its largest exponent
         r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
         CC = ComplexField(64)
-        required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+        required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
         working_prec = max(digit_prec,required_prec)
         if working_prec > digit_prec:
             print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
@@ -554,7 +554,7 @@ class BelyiMap():
         #We do this by constructing "r" to low precision to get the size of its largest exponent
         r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
         CC = ComplexField(64)
-        required_prec = int(round(trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10())) #Because log10 is not defined for arb...
+        required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
         working_prec = max(digit_prec,required_prec)
         if working_prec > digit_prec:
             print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)

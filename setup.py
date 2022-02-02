@@ -5,7 +5,9 @@ from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
 
-Cython.Compiler.Options.annotate=False #Set to "True" if html should be created that highlights python parts
+from sage.env import cython_aliases
+
+Cython.Compiler.Options.annotate = False #Set to "True" if html should be created that highlights python parts
 
 extensions = [
     Extension("classes.acb_mat_class", ["classes/acb_mat_class.pyx"]),
@@ -32,6 +34,6 @@ extensions = [
 ]
 
 setup(
-    ext_modules=cythonize(extensions),
-    zip_safe=False,
+    ext_modules = cythonize(extensions,aliases=cython_aliases()),
+    zip_safe = False,
 )
