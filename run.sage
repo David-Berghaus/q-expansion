@@ -10,6 +10,7 @@ from classes.modform_class import ModForm
 from classes.belyi_map import BelyiMap
 from point_matching.fft_test import test_fft
 from eisenstein.haberland import compute_petersson_product_haberland
+from eisenstein.eisenstein_computation import compute_eisenstein_series
 
 S = AutomorphicFormSpace(Gamma0(1),weight=12)
 
