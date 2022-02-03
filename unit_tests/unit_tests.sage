@@ -6,6 +6,7 @@ load("unit_tests_newton_genus_zero.sage")
 load("unit_tests_fourier_expansion.sage")
 load("unit_tests_eisenstein.sage")
 load("unit_tests_belyi_map.sage")
+load("unit_tests_passports.sage")
 
 def run_unit_tests():
     run_unit_tests_point_matching_dp()
@@ -16,3 +17,4 @@ def run_unit_tests():
     run_unit_tests_fourier_expansion()
     run_unit_tests_eisenstein()
     run_unit_tests_belyi_map()
+    run_unit_tests_passports()

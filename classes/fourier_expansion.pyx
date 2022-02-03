@@ -265,10 +265,8 @@ class FourierExpansion():
             trunc_order = self.cusp_expansions[c].prec()
             new_trunc_order = trunc_order #new_trunc_order denotes the amount of terms that have non-empty error balls
             if isinstance(base_ring,ComplexBallField) and get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-1].rad()) < 0:
-                raise ArithmeticError("The q-expansion contains empty error balls which cannot be rounded to ComplexFields. This might effect future results so we decide to stop here.")
-                for i in range(1,trunc_order):
-                    if get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-i].rad()) < 0:
-                        new_trunc_order -= 1
+                if abs(get_decimal_digit_prec(abs(self.cusp_expansions[c][trunc_order-1]))) > abs(get_decimal_digit_prec(self.cusp_expansions[c][trunc_order-1].rad())):
+                    raise ArithmeticError("The q-expansion contains empty error balls which cannot be rounded to ComplexFields. This might effect future results so we decide to stop here.")
             cusp_expansions_new[c] = self.cusp_expansions[c].change_ring(CC).O(new_trunc_order)
         return FourierExpansion(self.G,self.weight,cusp_expansions_new,self.modform_type,CC,only_principal_cusp_expansion=self.only_principal_cusp_expansion)
 
