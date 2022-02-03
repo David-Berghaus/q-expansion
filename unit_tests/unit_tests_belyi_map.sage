@@ -58,7 +58,7 @@ def test_belyi_map3():
     CF = ComplexField(167)
     correct_res = CF(-4.2933873728750574663589574362627879379968021749049681273915,-64.175078941013332742794027720411935007114227517392815852039)
     assert (CF(C_rig[0].get_cusp_expansion(Cusp(1,0))[14])-correct_res).abs() < CF(10)**(-39)
-    assert (CF(C_approx[0].get_cusp_expansion(Cusp(1,0))[14])-correct_res).abs() < CF(10)**(-39)
+    assert (CF(C_approx[0].get_cusp_expansion(Cusp(1,0))[14])-correct_res).abs() < CF(10)**(-38)
     assert QQbar(C_rig[0].get_cusp_expansion(Cusp(1,0))[14])-C_rig[0].get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)[14](u=u_alg,v=v_alg) == 0 #Test factorization into u and v
     C_rig = B.get_modforms(4,25) #This is constructed through Kw-arithmetic
     C_approx = B.get_modforms(4,25,50)
