@@ -41,8 +41,7 @@ def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usu
     var_name = "q_" + str(n)
     L = PowerSeriesRing(j[0].parent(),var_name)
     q_n = L.gen()
-    #.subs() seems quite slow, maybe try to write faster cython code
-    tmp = L(j_inv.subs(q=q_n**n)) #Because we currently cannot work with Puiseux series in Sage.
+    tmp = L(j_inv.V(n).subs(q=q_n)) #Because we currently cannot work with Puiseux series in Sage.
     res = tmp.nth_root(n)
     return res
 
@@ -415,7 +414,7 @@ class BelyiMap():
         L = LaurentSeriesRing(parent,"x")
         x = L.gen()
         principal_cusp_width = self.principal_cusp_width
-        s = (L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order)).power_series().nth_root(self.principal_cusp_width)
+        s = (L(self.pc_constructed).V(-1).O(trunc_order)/L(self.p3_constructed).V(-1).O(trunc_order)).power_series().nth_root(self.principal_cusp_width)
         r = s.reverse().inverse()
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(trunc_order,principal_cusp_width)
         j_G = r.subs(x=n_sqrt_j_inverse)
@@ -465,7 +464,7 @@ class BelyiMap():
         CBF = ComplexBallField(bit_prec)
         L = LaurentSeriesRing(CBF,"x")
         x = L.gen()
-        s = my_n_th_root(L(self.pc_constructed).subs({x:1/x}).O(trunc_order)/L(self.p3_constructed).subs({x:1/x}).O(trunc_order),self.principal_cusp_width)
+        s = my_n_th_root(L(self.pc_constructed).V(-1).O(trunc_order)/L(self.p3_constructed).V(-1).O(trunc_order),self.principal_cusp_width)
         s_prec = s.prec() #Exponent of the O-term
         s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         r = L(s_arb_reverted).O(s_prec).inverse()
