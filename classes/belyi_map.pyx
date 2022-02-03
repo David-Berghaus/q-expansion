@@ -148,6 +148,11 @@ class BelyiMap():
         self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self._v_Kw, self._u_interior_Kv = v_Kw, u_interior_Kv
         self._Kv, self._Kw = u_interior_Kv.parent(), v_Kw.parent()
+        self.v_QQbar = QQbar(self._Kv.gen())
+        if self.principal_cusp_width == 1:
+            self.u_QQbar = QQbar(self._u_interior_Kv)
+        else:
+            self.u_QQbar = QQbar(self._Kw.gen())
         self._j_G_hejhal = j_G_hejhal
 
         self._p2_fixed = self._get_e2_fixed_point_polynomial()
@@ -162,6 +167,24 @@ class BelyiMap():
         p3_u_v = get_factored_polynomial_in_u_v(self.p3,self._u_interior_Kv,self.principal_cusp_width)
         pc_u_v = get_factored_polynomial_in_u_v(self.pc,self._u_interior_Kv,self.principal_cusp_width)
         return p3_u_v.__str__() + " / " + pc_u_v.__str__()
+    
+    def print_u(self):
+        """
+        Prints symbolic expression and embedding of u.
+        """
+        if self.principal_cusp_width == 1:
+            print("u = " + self._u_interior_Kv.__str__())
+        else:
+            CC = ComplexField(53)
+            print("u = (" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")")
+            print("with embedding: " + CC(self.u_QQbar).__str__())
+    
+    def print_v(self):
+        """
+        Prints numberfield and embedding of v.
+        """
+        CC = ComplexField(53)
+        print("v is a root of " + self._Kv.polynomial().__str__() + " with embedding: " + CC(self.v_QQbar).__str__())
     
     def _get_e2_fixed_point_polynomial(self):
         """
