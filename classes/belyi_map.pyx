@@ -26,7 +26,7 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
 from belyi.number_fields import get_decimal_digit_prec
-from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits, get_pi_ball
+from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits, bits_to_digits, get_pi_ball
 from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
 from classes.factored_polynomial import get_factored_polynomial_in_u_v
 
@@ -493,7 +493,7 @@ class BelyiMap():
         r = L(s_arb_reverted).O(s_prec).inverse()
         return r
 
-    def _get_hauptmodul_q_expansion_infinity_approx(self, trunc_order, digit_prec, min_digits_last_coeff=1):
+    def _get_hauptmodul_q_expansion_infinity_approx(self, trunc_order, digit_prec, min_digits_last_coeff=1, guess_minimal_working_precision=True):
         """
         Compute approximation of the coefficients of the q-expansion of the hauptmodul truncated to "trunc_order" and with "digit_prec"
         working precision. We make use of fast Arb implementations for performance and rigorous error bounds.
@@ -503,16 +503,18 @@ class BelyiMap():
         """
         principal_cusp_width = self.principal_cusp_width
         working_trunc_order = trunc_order
-        #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
-        #We do this by constructing "r" to low precision to get the size of its largest exponent
-        r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
-        CC = ComplexField(64)
-        required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
-        working_prec = max(digit_prec,required_prec)
-        if working_prec > digit_prec:
-            print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
-        if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
-            working_trunc_order += trunc_order-r_low_prec.prec()+5
+        working_prec = digit_prec
+        if guess_minimal_working_precision == True:
+            #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
+            #We do this by constructing "r" to low precision to get the size of its largest exponent
+            r_low_prec = self._get_r_for_laurent_expansion(working_trunc_order,64)
+            CC = ComplexField(64)
+            required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
+            working_prec = max(digit_prec,required_prec)
+            if working_prec > digit_prec:
+                print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(working_trunc_order,principal_cusp_width)
         working_bit_prec = digits_to_bits(working_prec)
         while True:
@@ -561,7 +563,7 @@ class BelyiMap():
         r = L(s_arb_reverted).O(s_arb_reverted_prec)
         return r
 
-    def _get_hauptmodul_q_expansion_non_infinity_approx(self, cusp, trunc_order, digit_prec, min_digits_last_coeff=1):
+    def _get_hauptmodul_q_expansion_non_infinity_approx(self, cusp, trunc_order, digit_prec, min_digits_last_coeff=1, guess_minimal_working_precision=True):
         """
         Compute approximation of the coefficients of the q-expansion of the hauptmodul at a non-principal cusp truncated to "trunc_order" 
         and with "digit_prec" working precision. We make use of fast Arb implementations for performance and rigorous error bounds.
@@ -572,16 +574,18 @@ class BelyiMap():
         q_coefficient = self._j_G_hejhal.get_cusp_expansion(cusp)[1] #Coefficient of the q^1 term of the hauptmodul which we will need to identify the correct nth root
         cusp_width = self.G.cusp_width(cusp)
         working_trunc_order = trunc_order+cusp_width #Precision with which the arithmetic needs to be performed
-        #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
-        #We do this by constructing "r" to low precision to get the size of its largest exponent
-        r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
-        CC = ComplexField(64)
-        required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
-        working_prec = max(digit_prec,required_prec)
-        if working_prec > digit_prec:
-            print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
-        if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
-            working_trunc_order += trunc_order-r_low_prec.prec()+5
+        working_prec = digit_prec
+        if guess_minimal_working_precision == True:
+            #Now guess the minimal precision required to get the correct order of magnitude of the last coefficient
+            #We do this by constructing "r" to low precision to get the size of its largest exponent
+            r_low_prec = self._get_r_for_taylor_expansion(cusp,working_trunc_order,q_coefficient,64)
+            CC = ComplexField(64)
+            required_prec = int((trunc_order/4+CC(r_low_prec[r_low_prec.degree()]).abs().log10()).round()) #Because log10 is not defined for arb...
+            working_prec = max(digit_prec,required_prec)
+            if working_prec > digit_prec:
+                print("Used higher digit precision during Hauptmodul q-expansion computation: ", working_prec)
+            if r_low_prec.prec() < trunc_order: #It somehow sometimes happens for large orders that r is only computed to fewer terms
+                working_trunc_order += trunc_order-r_low_prec.prec()+5
         n_sqrt_j_inverse = get_n_th_root_of_1_over_j(working_trunc_order,cusp_width)
         working_bit_prec = digits_to_bits(working_prec)
         cusp_evaluation = self._cusp_evaluations[cusp]
@@ -620,28 +624,50 @@ class BelyiMap():
         """
         Returns a (non-holomorphic!) modular form of G that has no poles outside infinity and no zeros.
         This form is given by (j'_Gamma)^weight_half/B.
+
+        Note:
+        Inside this function we have to compute quotients of power series which can be ill-conditioned.
+        If the coefficients have too low precision, we therefore mutate j_G to a higher precision and redo the computations until
+        a sufficient precision is reached.
         """
         weight_half = weight//2
-        j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
-        num = j_G_prime**weight_half
-        base_ring = j_G.base_ring
-        coeffs = list(B)
-        den = coeffs[-1]
-        for i in range(len(coeffs)-2,-1,-1): #Horner's method
-            den = j_G*den+coeffs[i]
-        if isinstance(base_ring,ComplexBallField) == True:
-            #This part is really ugly:
-            #Because arb does not detect the true zeros and returns empty error bounds, we would get NaN's when dividing with "den"
-            #We therefore need to set the first weight_half coefficients at the cusps outside infinity to zero
-            #(It is obvious that these need to be zero because their constant term is equivalent to one of the cusp evaluations)
-            for c in den.cusp_expansions.keys():
-                if c != Cusp(1,0):
-                    P = den.cusp_expansions[c].parent()
-                    den_cusp_expansions_list = list(den.cusp_expansions[c]) #We need to work with lists because power series are immutable
-                    for i in range(weight_half):
-                        den_cusp_expansions_list[i] = 0 #Set these coefficients to be truely zero
-                    den.cusp_expansions[c] = P(den_cusp_expansions_list).O(den.cusp_expansions[c].prec()) #update expression in class instance
-        return num/den
+        restart_computation = True
+        while restart_computation == True:
+            restart_computation = False
+            j_G_prime = self._get_hauptmodul_q_expansion_derivative(j_G)
+            num = j_G_prime**weight_half
+            base_ring = j_G.base_ring
+            coeffs = list(B)
+            den = coeffs[-1]
+            for i in range(len(coeffs)-2,-1,-1): #Horner's method
+                den = j_G*den+coeffs[i]
+            if isinstance(base_ring,ComplexBallField) == True:
+                #This part is really ugly:
+                #Because arb does not detect the true zeros and returns empty error bounds, we would get NaN's when dividing with "den"
+                #We therefore need to set the first weight_half coefficients at the cusps outside infinity to zero
+                #(It is obvious that these need to be zero because their constant term is equivalent to one of the cusp evaluations)
+                for c in den.cusp_expansions.keys():
+                    if c != Cusp(1,0):
+                        P = den.cusp_expansions[c].parent()
+                        den_cusp_expansions_list = list(den.cusp_expansions[c]) #We need to work with lists because power series are immutable
+                        for i in range(weight_half):
+                            den_cusp_expansions_list[i] = 0 #Set these coefficients to be truely zero
+                        den.cusp_expansions[c] = P(den_cusp_expansions_list).O(den.cusp_expansions[c].prec()) #update expression in class instance
+            F = num/den
+
+            if isinstance(base_ring,ComplexBallField) == True: #We need to check that the last coefficient has enough precision for the modforms to be valid
+                for c in F.cusp_expansions.keys():
+                    F_cusp_expansion = F.cusp_expansions[c]
+                    if get_decimal_digit_prec(F_cusp_expansion[F_cusp_expansion.degree()].rad()) < 0.05*F_cusp_expansion.degree(): #The construction of modforms or cuspforms might produce empty error balls
+                        restart_computation = True
+                        current_digit_prec = bits_to_digits(F_cusp_expansion.base_ring().precision())
+                        j_G_cusp_expansion = j_G.cusp_expansions[c]
+                        new_digit_prec = int(round(1.2*current_digit_prec)) #Obviously we could try to come up with a more sophisticated choice
+                        if c == Cusp(1,0):
+                            j_G.cusp_expansions[c] = self._get_hauptmodul_q_expansion_infinity_approx(j_G_cusp_expansion.prec(),new_digit_prec,guess_minimal_working_precision=False)
+                        else:
+                            j_G.cusp_expansions[c] = self._get_hauptmodul_q_expansion_non_infinity_approx(c,j_G_cusp_expansion.prec(),new_digit_prec,guess_minimal_working_precision=False)
+        return F
     
     def _get_trunc_orders_equal_sized(self, trunc_order):
         """
