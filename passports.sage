@@ -5,7 +5,7 @@ from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, numerics_digit_prec=25, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -83,12 +83,12 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
     """
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
-            modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=14)
+            modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=10)
             for i in range(len(modforms_num)):
                 if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
                     raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
-                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=14)
+                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=10)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
