@@ -5,7 +5,7 @@ from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=True, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -14,6 +14,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     rigorous_trunc_order: Amount of terms in the rigorous computation of the q-expansion at infinity
     eisenstein_digit_prec: Digit precision of the numerical approximation of the Eisenstein series
     max_weight: The maximum weight of the computed modular forms
+    return_newton_res: If true, return object that allows for an efficient reconstruction of a new Belyi map instance
     compare_result_to_numerics: Boolean that decides if the results that have been computed through the Belyi map should be compared to the numerical values
     numerics_digit_prec: The precision at which the numerical computation that we use to compare the results is performed
     tol: Maximum difference between q-expansion coefficients compared to the numerical results
@@ -65,7 +66,6 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
 
     #Should we also specify the embeddings of v into CC for different passport elements?
 
-    #We currently don't return the arb-results because sage does not support saving these...
     res = dict()
     res["G"] = B.G.as_permutation_group()
     res["Kv"] = B._Kv
@@ -91,6 +91,8 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CIF) for cuspform in cuspforms_fl[weight]]
+    if return_newton_res == True:
+        return res, B._return_newton_res()
     return res
 
 def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_scaling_constants, u_QQbar, numerics_digit_prec, tol):
