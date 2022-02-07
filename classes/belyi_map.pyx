@@ -139,13 +139,14 @@ class BelyiMap():
             print("We are using the index as max_extension_field_degree which is not correct in general!")
             max_extension_field_degree = G.index()
         
-        G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
+        G = S.group() #In case the input has been a sage-subgroup, we now make sure to get a psage-subgroup
         (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         self.G = G
+        self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
-        self.principal_cusp_width = G.cusp_width(Cusp(1,0))
+        self.p3_u_v, self.p2_u_v, self.pc_u_v = get_factored_polynomial_in_u_v(p3,u_interior_Kv,self.principal_cusp_width), get_factored_polynomial_in_u_v(p2,u_interior_Kv,self.principal_cusp_width), get_factored_polynomial_in_u_v(pc,u_interior_Kv,self.principal_cusp_width)
         self._v_Kw, self._u_interior_Kv = v_Kw, u_interior_Kv
         self._Kv, self._Kw = u_interior_Kv.parent(), v_Kw.parent()
         self.v_QQbar = QQbar(self._Kv.gen())
@@ -164,20 +165,41 @@ class BelyiMap():
         return self.__str__()
 
     def __str__(self):
-        p3_u_v = get_factored_polynomial_in_u_v(self.p3,self._u_interior_Kv,self.principal_cusp_width)
-        pc_u_v = get_factored_polynomial_in_u_v(self.pc,self._u_interior_Kv,self.principal_cusp_width)
-        return p3_u_v.__str__() + " / " + pc_u_v.__str__()
+        return self.p3_u_v.__str__() + " / " + self.pc_u_v.__str__()
     
+    def _return_res_as_dict(self):
+        """
+        Returns most important results as a dictionary.
+        The requirements on this function are that the output should be readable from sage only without requiring psage to be installed.
+        """
+        res = dict()
+        res["p2_factored_raw"] = self.p2.factors
+        res["p3_factored_raw"] = self.p3.factors
+        res["pc_factored_raw"] = self.pc.factors
+        res["p2_factored_pretty"] = self.p2_u_v.factors
+        res["p3_factored_pretty"] = self.p3_u_v.factors
+        res["pc_factored_pretty"] = self.pc_u_v.factors
+        return res
+
     def print_u(self):
         """
         Prints symbolic expression and embedding of u.
         """
         if self.principal_cusp_width == 1:
-            print("u = " + self._u_interior_Kv.__str__())
+            print("u = " + self.get_u_str())
         else:
             CC = ComplexField(53)
-            print("u = (" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")")
+            print("u = " + self.get_u_str())
             print("with embedding: " + CC(self.u_QQbar).__str__())
+
+    def get_u_str(self):
+        """
+        Returns string of symbolic expression of u.
+        """
+        if self.principal_cusp_width == 1:
+            return self._u_interior_Kv.__str__() #u is just a rational
+        else:
+            return "(" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")"
     
     def print_v(self):
         """
