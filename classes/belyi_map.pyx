@@ -9,6 +9,7 @@ from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.power_series_poly import PowerSeries_poly
 from sage.modular.modform.j_invariant import j_invariant_qexp
 from sage.rings.complex_field import ComplexField
+from sage.rings.complex_interval_field import ComplexIntervalField
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.real_mpfr import RealField
@@ -128,7 +129,7 @@ class BelyiMap():
     """
     Class for working with Belyi maps that are expressed in terms of Factored_Polynomials with algebraic coefficients.
     """
-    def __init__(self, G, starting_digit_prec=42, target_digit_prec=50000, max_extension_field_degree=None):
+    def __init__(self, G, newton_res=None, starting_digit_prec=42, target_digit_prec=50000, max_extension_field_degree=None):
         """
         Compute Belyi map from scratch. This is done by first using Hejhal's method to get approximate values at the elliptic points and cusps.
         Afterwards, Newton iterations are used to refine the solution. In the last step, the result is verified.
@@ -139,13 +140,20 @@ class BelyiMap():
             print("We are using the index as max_extension_field_degree which is not correct in general!")
             max_extension_field_degree = G.index()
         
-        G = MySubgroup(G)
         S = AutomorphicFormSpace(G,0)
-        (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
+        G = S.group() #In case the input has been a sage-subgroup, we now make sure to get a psage-subgroup
+        if newton_res == None:
+            (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
+        else: #We have loaded the result and use this to reconstruct the belyi map
+            (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = newton_res
+            if len(cusp_rep_values) != 0:
+                CBF = ComplexBallField(cusp_rep_values[0][1].parent().precision())
+                cusp_rep_values = [(cusp,CBF(cusp_evaluation)) for (cusp,cusp_evaluation) in cusp_rep_values]
         self.G = G
+        self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self.p3, self.p2, self.pc = p3, p2, pc
         self.p3_constructed, self.p2_constructed, self.pc_constructed = p3.construct(), p2.construct(), pc.construct()
-        self.principal_cusp_width = G.cusp_width(Cusp(1,0))
+        self.p3_u_v, self.p2_u_v, self.pc_u_v = get_factored_polynomial_in_u_v(p3,u_interior_Kv,self.principal_cusp_width), get_factored_polynomial_in_u_v(p2,u_interior_Kv,self.principal_cusp_width), get_factored_polynomial_in_u_v(pc,u_interior_Kv,self.principal_cusp_width)
         self._v_Kw, self._u_interior_Kv = v_Kw, u_interior_Kv
         self._Kv, self._Kw = u_interior_Kv.parent(), v_Kw.parent()
         self.v_QQbar = QQbar(self._Kv.gen())
@@ -154,6 +162,7 @@ class BelyiMap():
         else:
             self.u_QQbar = QQbar(self._Kw.gen())
         self._j_G_hejhal = j_G_hejhal
+        self._cusp_rep_values = cusp_rep_values
 
         self._p2_fixed = self._get_e2_fixed_point_polynomial()
         self._p3_fixed = self._get_e3_fixed_point_polynomial()
@@ -164,20 +173,53 @@ class BelyiMap():
         return self.__str__()
 
     def __str__(self):
-        p3_u_v = get_factored_polynomial_in_u_v(self.p3,self._u_interior_Kv,self.principal_cusp_width)
-        pc_u_v = get_factored_polynomial_in_u_v(self.pc,self._u_interior_Kv,self.principal_cusp_width)
-        return p3_u_v.__str__() + " / " + pc_u_v.__str__()
+        return self.p3_u_v.__str__() + " / " + self.pc_u_v.__str__()
     
+    def _return_res_as_dict(self):
+        """
+        Returns most important results as a dictionary.
+        The requirements on this function are that the output should be readable from sage only without requiring psage to be installed.
+        """
+        res = dict()
+        res["p2_factored_raw"] = self.p2.factors
+        res["p3_factored_raw"] = self.p3.factors
+        res["pc_factored_raw"] = self.pc.factors
+        res["p2_factored_pretty"] = self.p2_u_v.factors
+        res["p3_factored_pretty"] = self.p3_u_v.factors
+        res["pc_factored_pretty"] = self.pc_u_v.factors
+        return res
+    
+    def _return_newton_res(self):
+        """
+        Returns parameters of this instance from which the class can be initialized again.
+        This is useful because it offers a way to load belyi maps even after the code of this class has changed.
+        """
+        if len(self._cusp_rep_values) != 0:
+            CIF = ComplexIntervalField(self._cusp_rep_values[0][1].parent().precision()) #CBFs currently cannot be stored
+            cusp_rep_values_cif = [(cusp,CIF(cusp_evaluation)) for (cusp,cusp_evaluation) in self._cusp_rep_values]
+        else:
+            cusp_rep_values_cif = []
+        return (self.p3, self.p2, self.pc), cusp_rep_values_cif, self._j_G_hejhal, self._v_Kw, self._u_interior_Kv
+
     def print_u(self):
         """
         Prints symbolic expression and embedding of u.
         """
         if self.principal_cusp_width == 1:
-            print("u = " + self._u_interior_Kv.__str__())
+            print("u = " + self.get_u_str())
         else:
             CC = ComplexField(53)
-            print("u = (" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")")
+            print("u = " + self.get_u_str())
             print("with embedding: " + CC(self.u_QQbar).__str__())
+
+    def get_u_str(self):
+        """
+        Returns string of symbolic expression of u.
+        """
+        if self.principal_cusp_width == 1:
+            return self._u_interior_Kv.__str__() #u is just a rational
+        else:
+            return "(" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")"
     
     def print_v(self):
         """
