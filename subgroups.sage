@@ -19,9 +19,10 @@ def get_conjugator_permutation(o_start, o_end):
 
 def get_permT_conjugator(permT):
     """
-    Given permT, return conjugator p, such that p**(-1)*permT*p has cycle lens ordered by size and labels sorted by size.
+    Given permT, return conjugator p, such that p**(-1)*permT*p has cycle lens ordered by size and labels sorted by size
+    unless there are several cusps with the same smallest width in which case we try to set a unique cusp at infinity.
     """
-    ct = permT.cycle_type()
+    ct = get_desired_permT_cycle_type(permT)
     i = 1
     normalized_perm_T_str = ''
     for cycle_len in ct:
@@ -33,6 +34,31 @@ def get_permT_conjugator(permT):
     normalized_perm_T = MyPermutation(normalized_perm_T_str)
     p = get_conjugator_permutation(permT,normalized_perm_T)
     return p
+
+def get_desired_permT_cycle_type(permT):
+    """
+    Returns the desired cycle type given permT.
+    If the cusp-width of the smallest cusp-width is unique, this is given by the traditional cycle type
+    (i.e., the cycle lens sorted by their size).
+    Otherwise we try to place a cusp at infinity that has a unique cusp-width.
+    """
+    ct = permT.cycle_type()
+    for i in range(len(ct)):
+        if has_equal_list_entry(ct,i) == False: #Found a unique cusp-width
+            ct[0], ct[i] = ct[i], ct[0] #Swap cusps to put the unique one at infinity
+            break
+    #In case no unique cusp has been found, we could also check to place the one with the lowest multiplicity at infinity.
+    #This case however never seems to happen for the subgroups that we consider so we dont implement it...
+    return ct
+
+def has_equal_list_entry(list, index):
+    """
+    If there exists an element in list (outside index) that is equal to list[index], return True, otherwise return False.
+    """
+    for i in range(len(list)):
+        if i != index and list[i] == list[index]:
+            return True
+    return False
 
 def get_list_of_all_passports(max_index, genus=None):
     if max_index > 17:
