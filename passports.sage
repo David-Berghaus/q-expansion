@@ -4,8 +4,9 @@ from belyi.number_fields import is_effectively_zero
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
+from classes.belyi_map import BelyiMap
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=True, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:

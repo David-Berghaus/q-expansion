@@ -1,5 +1,5 @@
 """
-Routines for loading noncong_reps.sobj
+Routines for loading data/noncong_reps.sobj
 """
 
 from psage.modform.arithgroup.mysubgroup import MySubgroup
@@ -63,7 +63,7 @@ def has_equal_list_entry(list, index):
 def get_list_of_all_passports(max_index, genus=None):
     if max_index > 17:
         raise ArithmeticError("The database of subgroups only goes up to and including order 17!")
-    data = load("noncong_reps.sobj")
+    data = load("data/noncong_reps.sobj")
     res = []
     sorted_signatures = sorted(data.keys())
     for signature in sorted_signatures:
