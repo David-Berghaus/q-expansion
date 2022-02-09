@@ -55,7 +55,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                 eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms_fl[weight],modforms_fl[weight],return_scaling_constants=True)
                 for i in range(len(eis_scaling_constant_list)):
                     for j in range(len(eis_scaling_constant_list[i])):
-                        if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],eisenstein_digit_prec) == True:
+                        if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*eisenstein_digit_prec))) == True:
                             eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
             else:
                 eisforms_fl = modforms_fl #In this case the eisforms are equivalent to modforms
