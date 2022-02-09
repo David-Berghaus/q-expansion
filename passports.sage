@@ -2,7 +2,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
 from belyi.number_fields import is_effectively_zero
 from eisenstein.eisenstein_computation import compute_eisenstein_series
-from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label
+from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 from classes.belyi_map import BelyiMap
 
@@ -75,7 +75,8 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     res["u_str"] = B.get_u_str()
     res["curve"] = B._return_res_as_dict()
     res["q_expansions"] = dict()
-    CIF = ComplexIntervalField(j_G_fl.get_cusp_expansion(Cusp(1,0)).base_ring().precision()) #Unfortunately arbs currently cannot be stored, see: https://trac.sagemath.org/ticket/33310#ticket
+    CIF = ComplexIntervalField(digits_to_bits(101)) #Unfortunately arbs currently cannot be stored, see: https://trac.sagemath.org/ticket/33310#ticket
+    #We limit the floating-point precision to 100 digits for storage-space reasons
     for weight in range(0,max_weight+1,2): #We only consider even weights
         res["q_expansions"][weight] = dict()
         if weight == 0:
