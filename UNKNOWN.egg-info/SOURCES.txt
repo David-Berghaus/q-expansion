@@ -1,6 +1,7 @@
 .gitignore
 README.md
-noncong_reps.sobj
+create_database_entry.py
+database.sage
 passports.sage
 run.sage
 setup.py
@@ -55,6 +56,9 @@ classes/modform_class.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
+data/genus_one_passport_list.sobj
+data/genus_zero_passport_list.sobj
+data/noncong_reps.sobj
 eisenstein/__init__.py
 eisenstein/eisenstein_computation.c
 eisenstein/eisenstein_computation.pyx
