@@ -6,8 +6,6 @@ from point_matching.point_matching_arb_wrap import _get_echelon_normalization_fr
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 from classes.belyi_map import BelyiMap
 
-load("subgroups.sage") #We use this import for "has_equal_list_entry"
-
 def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
     Compute relevant data for a specified passport.
@@ -156,3 +154,12 @@ def get_max_extension_field_degree(passport):
         if cusp_width == principal_cusp_width:
             amount_of_equal_cusp_widths += 1
     return amount_of_equal_cusp_widths*len(passport)
+
+def has_equal_list_entry(list, index):
+    """
+    If there exists an element in list (outside index) that is equal to list[index], return True, otherwise return False.
+    """
+    for i in range(len(list)):
+        if i != index and list[i] == list[index]:
+            return True
+    return False

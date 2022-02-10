@@ -89,13 +89,11 @@ def get_coset_expansions(F):
         cusp_expansion /= width**(weight//2) #We follow the convention of Cohen's paper who uses different cusp-normalizers
         roots_of_unity = [(2*CF(0,pi)*i/width).exp() for i in range(width)]
         cusp_normalizer = G.cusp_normalizer(c)
+        cusp_expansion_list = list(cusp_expansion)
         for coset_i in G._vertex_data[ci]['coset']:
             m = get_m(cusp_normalizer,cosets[coset_i])
-            coset_expansion = 0
-            for n in range(cusp_expansion.degree()+1):
-                coeff = cusp_expansion[n]*roots_of_unity[(n*m)%width]
-                coset_expansion += coeff*q**n
-            coset_expansions[coset_i] = coset_expansion.O(cusp_expansion.degree()+1)
+            coset_expansion_list = [cusp_expansion[n]*roots_of_unity[(n*m)%width] for n in range(cusp_expansion.degree()+1)]
+            coset_expansions[coset_i] = R(coset_expansion_list).O(cusp_expansion.degree()+1)
     
     return coset_expansions
 
