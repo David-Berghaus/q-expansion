@@ -130,7 +130,13 @@ def get_exp_two_pi_i_a_m_dict(a_values, f, g, CC):
     return Hashabledict(exp_two_pi_i_a_m_dict) #We need our dict to be hashable in order to use it as input for memoized functions
 
 def get_exp_two_pi_i_a_m(a, m, exp_two_pi_i_a_m_dict):
-    return exp_two_pi_i_a_m_dict[a][m]
+    try:
+        res = exp_two_pi_i_a_m_dict[a][m]
+    except KeyError: #It sometimes happens that the modular forms have slightly different amounts of coefficients
+        CC = a.parent()
+        res = (CC(0,2*pi)*a*m).exp()
+        exp_two_pi_i_a_m_dict[a][m] = res
+    return res
 
 def compute_petersson_product_haberland(f, g, clear_memoized_caches_bool=True, exp_two_pi_i_a_m_dict=None):
     """
