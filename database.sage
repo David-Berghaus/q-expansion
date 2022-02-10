@@ -54,18 +54,34 @@ def get_signature_to_underscore(signature):
     res = res[:-1] #Remove last underscore
     return res
 
-def print_missing_passports(max_passport_index, genus, database_path):
+def print_missing_passports(genus, database_path, max_passport_index=None):
     """
     Prints all passports up to max_passport_index that have not been computed yet.
     """
     if genus != 0:
         raise NotImplementedError("This case has not been implemented yet!")
     passport_list = load("data/genus_zero_passport_list.sobj")
+    if max_passport_index == None:
+        max_passport_index = len(passport_list)
     for i in range(max_passport_index):
         G = passport_list[i][0]
         entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list))
         storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
         if os.path.isfile(storage_path + "/" + entry_name + ".sobj") == False:
             print(i)
-    
 
+def create_list_of_passport_labels(genus, max_passport_index=None):
+    """
+    Create a list of all passport labels (represented as strings).
+    """
+    if genus != 0:
+        raise NotImplementedError("This case has not been implemented yet!")
+    passport_label_list = []
+    passport_list = load("data/genus_zero_passport_list.sobj")
+    if max_passport_index == None:
+        max_passport_index = len(passport_list)
+    for i in range(max_passport_index):
+        G = passport_list[i][0]
+        passport_label = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list))
+        passport_label_list.append(passport_label)
+    return passport_label_list
