@@ -6,6 +6,8 @@ from point_matching.point_matching_arb_wrap import _get_echelon_normalization_fr
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
 from classes.belyi_map import BelyiMap
 
+load("subgroups.sage") #We use this import for "has_equal_list_entry"
+
 def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
     Compute relevant data for a specified passport.
@@ -29,9 +31,10 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     """
     max_extension_field_degree = get_max_extension_field_degree(passport)
     B = BelyiMap(passport[0],max_extension_field_degree=max_extension_field_degree)
-    if B._Kv.degree() != max_extension_field_degree:
-        raise ArithmeticError("We have not considered the case of decaying numberfields yet!")
     G = B.G
+    if B._Kv.degree() != max_extension_field_degree:
+        if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
+            raise ArithmeticError("We have not considered the case of decaying numberfields yet!")
 
     #First do the rigorous computation of the q-expansions
     j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
