@@ -592,20 +592,31 @@ class BelyiMap():
         #We therefore set the coefficients that are effectively zero to true zeros
         pc_shifted_coeffs = []
         for i in range(pc_shifted_QQbar.degree()+1):
-            if i < cusp_width:
+            if i < cusp_width: #It is an easy calculation to check that these are always zero
                 pc_shifted_coeffs.append(CBF(0))
             else:
                 if i == cusp_width: #If imag or real are empty then this can cause problems too...
                     if pc_shifted_QQbar[i].real() == 0:
-                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]).imag())
+                        pc_shifted_coeffs.append(CBF(0,pc_shifted_QQbar[i].imag()))
                     elif pc_shifted_QQbar[i].imag() == 0:
-                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]).real())
+                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i].real(),0))
                     else:
                         pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
                 else:
                     pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
         pc_shifted = L(pc_shifted_coeffs).O(trunc_order)
-        p3_shifted = L(p3_shifted_QQbar).O(trunc_order) #We might get empty error balls here but thats fine because its in the numerator
+        p3_shifted_coeffs = []
+        for i in range(p3_shifted_QQbar.degree()+1):
+            if i == 0: #Again, zeros can cause problems...
+                if p3_shifted_QQbar[i].real() == 0:
+                        p3_shifted_coeffs.append(CBF(0,p3_shifted_QQbar[i].imag()))
+                elif p3_shifted_QQbar[i].imag() == 0:
+                    p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i].real(),0))
+                else:
+                    p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i]))
+            else:
+                p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i]))
+        p3_shifted = L(p3_shifted_coeffs).O(trunc_order)
 
         s = my_n_th_root_with_correct_embedding(pc_shifted/p3_shifted,cusp_width,q_coefficient)
         s_prec = s.prec() #Exponent of the O-term
