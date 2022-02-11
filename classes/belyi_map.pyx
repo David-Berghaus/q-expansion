@@ -586,17 +586,26 @@ class BelyiMap():
         x = pc_shifted_QQbar.parent().gen()
         #We need to perform this shift in QQbar because with CBF we might get empty error balls
         #In this case, performing the shift in QQbar also seems feasible performance wise
-        pc_shifted, p3_shifted = L(pc_shifted_QQbar.subs({x:x+cusp_evaluation})).O(trunc_order), L(p3_shifted_QQbar.subs({x:x+cusp_evaluation})).O(trunc_order)
+        pc_shifted_QQbar, p3_shifted_QQbar = pc_shifted_QQbar.subs({x:x+cusp_evaluation}), p3_shifted_QQbar.subs({x:x+cusp_evaluation})
         
         #It is very important that the leading order terms of pc_shifted are truely zero, otherwise we can get very large rounding errors
         #We therefore set the coefficients that are effectively zero to true zeros
         pc_shifted_coeffs = []
-        for i in range(pc_shifted.degree()+1):
+        for i in range(pc_shifted_QQbar.degree()+1):
             if i < cusp_width:
                 pc_shifted_coeffs.append(CBF(0))
             else:
-                pc_shifted_coeffs.append(pc_shifted[i])
+                if i == cusp_width: #If imag or real are empty then this can cause problems too...
+                    if pc_shifted_QQbar[i].real() == 0:
+                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]).imag())
+                    elif pc_shifted_QQbar[i].imag() == 0:
+                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]).real())
+                    else:
+                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
+                else:
+                    pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
         pc_shifted = L(pc_shifted_coeffs).O(trunc_order)
+        p3_shifted = L(p3_shifted_QQbar).O(trunc_order) #We might get empty error balls here but thats fine because its in the numerator
 
         s = my_n_th_root_with_correct_embedding(pc_shifted/p3_shifted,cusp_width,q_coefficient)
         s_prec = s.prec() #Exponent of the O-term
