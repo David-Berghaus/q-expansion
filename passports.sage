@@ -120,6 +120,7 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                 for i in range(len(eis_scaling_constant_list_num)):
                     for j in range(len(eis_scaling_constant_list_num[i])):
                         if abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]) > tol:
+                            print("i, j: ", i, j)
                             print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
                             print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
                             print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
@@ -137,6 +138,7 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     for i in range(f_expansion.degree()+1): #We could also get a 1/q part for j_G which is however always correct
         diff = abs(f_expansion[i]-f_numerics_expansion[i])
         if diff > tol:
+            print("i: ", i)
             print("CC(f_expansion[i]): ", CC(f_expansion[i]))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion[i]-f_numerics_expansion[i]))
@@ -144,6 +146,7 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
         #Also test that the u-v-factoriazation works correctly
         diff = abs(f_expansion_factored[i].change_ring(CC).subs(u=u_CC)-f_numerics_expansion[i])
         if diff > tol:
+            print("i: ", i)
             print("f_expansion_factored[i].change_ring(CC).subs(u=u_CC): ", f_expansion_factored[i].change_ring(CC).subs(u=u_CC))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion_factored[i].change_ring(CC).subs(u=u_CC)-f_numerics_expansion[i]))
