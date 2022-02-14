@@ -618,7 +618,17 @@ class BelyiMap():
                 p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i]))
         p3_shifted = L(p3_shifted_coeffs).O(trunc_order)
 
-        s = my_n_th_root_with_correct_embedding(pc_shifted/p3_shifted,cusp_width,q_coefficient)
+        s_no_nth_root = pc_shifted/p3_shifted
+        if s_no_nth_root[s_no_nth_root.valuation()].real().accuracy() <= 0: #Again, we have to look for empty balls...
+            s_no_nth_root_list = list(s_no_nth_root.power_series().polynomial())
+            s_no_nth_root_list[s_no_nth_root.valuation()] = CBF(0,s_no_nth_root[s_no_nth_root.valuation()].imag())
+            s_no_nth_root = L(s_no_nth_root_list).O(s_no_nth_root.prec())
+        elif s_no_nth_root[s_no_nth_root.valuation()].imag().accuracy() <= 0:
+            s_no_nth_root_list = list(s_no_nth_root.power_series().polynomial())
+            s_no_nth_root_list[s_no_nth_root.valuation()] = CBF(s_no_nth_root[s_no_nth_root.valuation()].real(),0)
+            s_no_nth_root = L(s_no_nth_root_list).O(s_no_nth_root.prec())
+
+        s = my_n_th_root_with_correct_embedding(s_no_nth_root,cusp_width,q_coefficient)
         s_prec = s.prec() #Exponent of the O-term
         s_arb_reverted = s.power_series().polynomial().revert_series(s_prec) #Perform the reversion in arb because it is expensive
         s_arb_reverted_prec = s_arb_reverted.prec() #Exponent of the O-term
