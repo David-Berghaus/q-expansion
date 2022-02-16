@@ -8,6 +8,7 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.complex_field import ComplexField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.arith.misc import prime_factors
 from sage.rings.real_double import RealDoubleElement
@@ -676,6 +677,43 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     else:
         return res, M_0
 
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_Horner=False):
+    """ 
+    Computes Fourier-expansion coefficients of modforms using classical iterative refinement
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec,is_cuspform=False)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=False,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=False)
+    print("Y = ", Y)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+    cdef PLU_Mat plu
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
+    b = b_vecs[0]
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,prec=53)
+
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+
+    V.diag_inv_scale_vec(res, res, bit_prec)
+
+    if return_M == False:
+        return res
+    else:
+        return res, M_0
+
 cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=True,use_Horner=False):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
@@ -718,37 +756,57 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
         else:
             return res, M_0
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_Horner=False):
+cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=False,label=0,use_FFT=True,use_Horner=False):
     """ 
-    Computes Fourier-expansion coefficients of modforms using classical iterative refinement
+    Computes expansion coefficients of cuspform using classical iterative refinement.
+    This function uses the precisions specified in 'digit_precs' to gradually increase the size of the system of linear equations
+    and restart the iterative refinement process.
     """
-    bit_prec = digits_to_bits(digit_prec)
-    RBF = RealBallField(bit_prec)
-    CBF = ComplexBallField(bit_prec)
-    if M_0 == 0:
-        M_0 = get_M_0(S,digit_prec,is_cuspform=False)
-    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=False,prec_loss=prec_loss)
-    if Q == 0:
-        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=False)
-    print("Y = ", Y)
-    print("M_0 = ", M_0)
-    print("Q = ", Q)
-    print("ncusps = ", S.group().ncusps())
+    G = S.group()
     cdef Block_Factored_Mat V
-    cdef Acb_Mat b, res
+    cdef Acb_Mat b, res, acb_mat_wrap
     cdef PLU_Mat plu
+    cdef ComplexBall acb_wrap
+    M_0_values = [get_M_0(S,digit_prec) for digit_prec in digit_precs]
+    c_vec_for_next_iter = None
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
-    b = b_vecs[0]
-    tol = RBF(10.0)**(-digit_prec+1)
+    for (i,digit_prec) in enumerate(digit_precs):
+        bit_prec = digits_to_bits(digit_prec)
+        RBF = RealBallField(bit_prec)
+        CBF = ComplexBallField(bit_prec)
+        M_0 = M_0_values[i]
+        Y = get_horo_height_arb_wrap(S,RBF,M_0)
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
+        print("Y = ", Y)
+        print("M_0 = ", M_0)
+        print("Q = ", Q)
+        print("ncusps = ", S.group().ncusps())
 
-    V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+        V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_Horner,labels=[label])
+        b = b_vecs[0]
+        tol = RBF(10.0)**(-digit_prec+1)
 
-    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+        V_dp = V.construct_sc_np()
+        plu = PLU_Mat(V_dp,prec=53)
 
-    V.diag_inv_scale_vec(res, res, bit_prec)
+        if i == 0:
+            starting_prec = 0
+        else:
+            starting_prec = digit_precs[i-1]
+        res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, x0=c_vec_for_next_iter, starting_prec=starting_prec)
+        
+        if i < len(digit_precs)-1: #Inflate c_vec_for_next_iter to a higher precision and to a higher M by filling unknown coeffs with zeros
+            res_mcbd = res._get_mcbd(bit_prec)
+            next_bit_prec = digits_to_bits(digit_precs[i+1])
+            next_M_0 = M_0_values[i+1]
+            c_vec_for_next_iter = Acb_Mat(G.ncusps()*next_M_0,1)
+            acb_mat_wrap = c_vec_for_next_iter
+            for cii in range(G.ncusps()):
+                for i in range(M_0):
+                    acb_wrap = res_mcbd[i+cii*M_0][0]
+                    acb_approx_set(acb_mat_entry(acb_mat_wrap.value,i+cii*next_M_0,0),acb_wrap.value)
+        else:
+            V.diag_inv_scale_vec(res, res, bit_prec) #Only do this in the last iteration
 
     if return_M == False:
         return res
