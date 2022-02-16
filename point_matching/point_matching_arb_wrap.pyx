@@ -64,7 +64,14 @@ cpdef digits_to_bits(int digits): #Approximates how many bits are required to ac
 cpdef bits_to_digits(int bit_prec):
     return math.ceil(bit_prec*math.log10(2))
 
-cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True):
+cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True,mix_precisions=False):
+    """
+    Compute W matrix and store it (inplace) into W.
+    We also provide additional parameters:
+    trunc_W: Tries to (experimentally) truncate columns of W up to a sufficient order
+    mix_precisions: Tries to (experimentally) compute entries of W to the least required precision.
+                    We have currently disabled this by default because it does not seem to improve the performance significantly
+    """
     cdef int weight_half = weight//2
     cdef int coord_len = len(coordinates)
     cdef RR = RealBallField(bit_prec)
@@ -89,12 +96,18 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
         acb_set(acb_mat_entry(W, j, 0), tmp.value)
         if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
             #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
-            suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CF_low_prec(exp_one).abs()).log()))
+            suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CF_low_prec(exp_one).abs().log())))
             trunc_order = min(suggested_trunc_order,Mf)
         else:
             trunc_order = Mf
-        for l in range(Ms+1,trunc_order+1):
-            acb_approx_mul(acb_mat_entry(W, j, l-Ms), acb_mat_entry(W, j, l-Ms-1), exp_one.value, bit_prec)
+        if mix_precisions == True:
+            exp_one_log_2 = RealDoubleElement(CF_low_prec(exp_one).abs().log(2)) #Maybe there is a better way to extract the binary exponent...
+            for l in range(Ms+1,trunc_order+1):
+                computation_bit_prec = max(int(bit_prec+l*exp_one_log_2+weight_half*math.log2(l)+10),64)
+                acb_approx_mul(acb_mat_entry(W, j, l-Ms), acb_mat_entry(W, j, l-Ms-1), exp_one.value, computation_bit_prec)
+        else:
+            for l in range(Ms+1,trunc_order+1):
+                acb_approx_mul(acb_mat_entry(W, j, l-Ms), acb_mat_entry(W, j, l-Ms-1), exp_one.value, bit_prec)
 
 cdef _compute_V_block_matrix_arb_wrap(acb_mat_t V_view,acb_mat_t J,int Ms,int Mf,int weight,coordinates,int bit_prec): #computes a V-block-matrix and stores it in V
     coord_len = len(coordinates)
@@ -761,6 +774,10 @@ cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=Fa
     Computes expansion coefficients of cuspform using classical iterative refinement.
     This function uses the precisions specified in 'digit_precs' to gradually increase the size of the system of linear equations
     and restart the iterative refinement process.
+
+    Remarks:
+    This function currently does not seem to be significantly faster because the construction of the W matrices takes so long.
+    For this reason, we put this function on to hold until arb releases a faster Horner scheme.
     """
     G = S.group()
     cdef Block_Factored_Mat V
