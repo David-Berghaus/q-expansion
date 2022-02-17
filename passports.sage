@@ -1,6 +1,7 @@
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
-from belyi.number_fields import is_effectively_zero
+from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
+from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
@@ -21,11 +22,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     tol: Maximum difference between q-expansion coefficients compared to the numerical results
     Output:
     ------
-    belyi_map: BelyiMap class instance
-    j_G: Rigorous q-expansion of the hauptmodul at infinity
-    cuspforms: Rigorous q-expansion of the cuspforms at infinity
-    modforms: Rigorous q-expansion of the modforms at infinity
-    eis_scaling_constants: Constants such that the basis of modforms multiplied with these constants constructs the space of Eisenstein series
+    A dictionary with the computed information that can be read using Sage only.
     """
     max_extension_field_degree = get_max_extension_field_degree(passport)
     B = BelyiMap(passport[0],max_extension_field_degree=max_extension_field_degree)
