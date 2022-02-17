@@ -248,16 +248,17 @@ def get_u(floating_expression_linear_in_u, v, principal_cusp_width, extension_fi
     and the embedding of u into CC.
     If principal_cusp_width == 1 we choose u to be in QQ (and hence independently of Kv).
     """
-    if principal_cusp_width == 1:
-        u_interior_Kv = QQ(1)*v**0
+    x = floating_expression_linear_in_u**principal_cusp_width
+    tmp = get_u_factor(x,v,principal_cusp_width,extension_field_degree)
+    if tmp == None:
+        return None
+    c, recognized_expression = tmp
+    if principal_cusp_width == 1: #In this case don't factor out "c"
+        largest_denominator = max([Q.denominator() for Q in list(recognized_expression.polynomial())])
+        u_interior_Kv = (QQ(1)/largest_denominator)*v**0
         CC = floating_expression_linear_in_u.parent()
         u_embedding = CC(u_interior_Kv)
     else:
-        x = floating_expression_linear_in_u**principal_cusp_width
-        tmp = get_u_factor(x,v,principal_cusp_width,extension_field_degree)
-        if tmp == None:
-            return None
-        c, recognized_expression = tmp
         u_interior_Kv = recognized_expression/(c**principal_cusp_width) #This corresponds to u(v)**princial_cusp_width, i.e., u(v) = (u_interior_Kv)**(1/princial_cusp_width)
         u_embedding = floating_expression_linear_in_u/c
     return u_interior_Kv, u_embedding

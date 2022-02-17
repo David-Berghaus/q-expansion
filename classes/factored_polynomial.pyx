@@ -81,7 +81,8 @@ def get_improved_choice_of_u_interior_Kv(coeff_tuples_list, u_interior_Kv, princ
         return u_interior_Kv #Impossible to improve expressions
     if principal_cusp_width == 1:
         largest_denominator = max([factor.denominator() for coeff in linear_u_expressions for factor in list(coeff)])
-        u_interior_Kv /= largest_denominator
+        largest_denominator_u = max([factor.denominator() for factor in list(u_interior_Kv)])
+        u_interior_Kv /= (QQ(largest_denominator)/largest_denominator_u).numerator() #Potentially add additional factors that are not present in u yet
     else:
         u_expressions_with_u_factored_out = [factor_into_u_v(linear_u_expression,1,u_interior_Kv,principal_cusp_width)[1] for linear_u_expression in linear_u_expressions]
         largest_denominator = max([factor.denominator() for coeff in u_expressions_with_u_factored_out for factor in list(coeff)])
