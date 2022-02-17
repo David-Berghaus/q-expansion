@@ -95,6 +95,52 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, B._return_newton_res()
     return res
 
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, eisenstein_digit_prec, max_weight):
+    max_extension_field_degree = get_max_extension_field_degree(passport)
+    G = passport[0]
+    CC = ComplexField(digits_to_bits(eisenstein_digit_prec))
+    principal_cusp_width = G.cusp_width(Cusp(1,0))
+    cuspforms_fl = dict()
+    for weight in range(2,max_weight+1,2): #We only consider even weights
+        dim_S = G.dimension_cusp_forms(weight)
+        if dim_S != 0:
+            cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
+            cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),eisenstein_digit_prec)
+            expression_linear_in_u = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))[dim_S+1]
+            if is_effectively_zero(expression_linear_in_u,eisenstein_digit_prec-5) == True:
+                raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
+            tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
+            if tmp == None:
+                raise ArithmeticError("Not enough precision to identify numberfield!")
+            Kv, Kw, v_Kw, u_interior_Kv = tmp
+            print("u_interior_Kv: ", u_interior_Kv)
+            if principal_cusp_width == 1:
+                u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+            else:
+                u = Kw.gen()
+            
+            #We could try to improve the choice of u here
+
+            #It would be better to put this into an external function
+            coeff_list = list(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)))
+            coeff_list_recognized = list()
+            for i in range(min(max_rigorous_trunc_order+1,len(coeff_list))):
+                if i < dim_S:
+                    u_pow = 0
+                else:
+                    u_pow = i-dim_S       
+                expression_to_recognize = coeff_list[i]/(CC(u)**u_pow)
+                if expression_to_recognize.is_one() == True:
+                    recognized_expression = Kv(1)
+                elif is_effectively_zero(expression_to_recognize,eisenstein_digit_prec) == True: #Dangerous because we have precision loss
+                    recognized_expression = Kv(0)
+                else:
+                    recognized_expression = to_K(expression_to_recognize,Kv)
+                if recognized_expression == None: #Stop because we have been unable to recognize coeff
+                    break
+                coeff_list_recognized.append(recognized_expression)
+            return coeff_list_recognized
+
 def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_scaling_constants, u_QQbar, numerics_digit_prec, tol):
     """
     Compare the results that have been computed through the Belyi map with values obtained from a numerical method.
