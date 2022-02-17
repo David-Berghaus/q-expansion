@@ -111,13 +111,14 @@ def lindep(L, check_if_result_is_invalid=True):
     if check_if_result_is_invalid == True or len(res) == 0: #len(res) == 0 happens when len(L) == 2 because 1 and a complex number are independent over QQ...
         #We add additional constants to our list to check if LLL detects that these are not part of the solution
         parent = L[-1].parent()
+        largest_abs_L_value = max([abs(L_val) for L_val in L])
         L_copy_results = []
-        for c in [parent(pi),parent(pi,pi)]:
+        for c in [largest_abs_L_value*parent(pi),largest_abs_L_value*parent(pi,pi)]: #It is important that our testing constant is of a similar order of magnitude than input
             L_copy = copy(L)
             L_copy.append(c)
             F = pari(L_copy).lindep().list()
             L_copy_res = [f.sage() for f in F]
-            if L_copy_res[-1] != 0 or L_copy_res[:len(res)] != res: #Found an invalid example
+            if L_copy_res[-1] != 0 or L_copy_res[0] == 0 or L_copy_res[:len(res)] != res: #Found an invalid example
                 return None
             if len(L_copy_results) != 0 and L_copy_results[-1] != L_copy_res: #Found an invalid example
                 return None
