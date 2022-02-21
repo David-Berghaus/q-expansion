@@ -10,11 +10,11 @@ from sage.rings.number_field.number_field import NumberField_generic
 
 from point_matching.point_matching_arb_wrap import (
     get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap,
-    digits_to_bits, _get_normalization_cuspforms, 
+    digits_to_bits, bits_to_digits, _get_normalization_cuspforms, 
     _get_normalization_modforms, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
 )
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v
-from belyi.number_fields import get_decimal_digit_prec
+from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
 
 def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
     """
@@ -150,6 +150,47 @@ def c_vec_to_cusp_expansions_hauptmodul(c_vec_mcbd, S, M_0):
                 f += CF(c_vec_mcbd[i+cii*M_0][0])*q**(i)
         cusp_expansions[Cusp(ci)] = f.O(M_0)
     return cusp_expansions
+
+def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_trunc_order, modform_type, label, Kv, u, v_Kw, u_interior_Kv, estimated_bit_prec=None):
+    """
+    Given a cusp expansion as a (floating point) power series, use u and the LLL algorithm to try to recognize coefficients.
+    This function returns FourierExpansion instance of the recognized cusp_expansion truncated to the order up to which the coefficients have been recognized.
+    """
+    if estimated_bit_prec == None: #We have not specified the precision so we use the full working precision
+        bit_prec = cusp_expansion[0].parent().precision()
+    else:
+        bit_prec = estimated_bit_prec
+    if modform_type == "CuspForm":
+        starting_order = 1
+        dim = G.dimension_cusp_forms(weight)
+    elif modform_type == "ModForm":
+        starting_order = 0
+        dim = G.dimension_modular_forms(weight)
+    else:
+        raise NotImplementedError("We have only implemented this functionalty for CuspForm and ModForm yet!")
+    CC = ComplexField(bit_prec)
+    Kw = v_Kw.parent()
+    coeff_list_recognized = list()
+    for i in range(min(max_rigorous_trunc_order+1,cusp_expansion.degree()+1)):
+        if i < dim+starting_order:
+            u_pow = 0
+        else:
+            u_pow = i-label-starting_order
+        expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
+        if expression_to_recognize.is_one() == True:
+            recognized_expression = Kv(1)
+        elif is_effectively_zero(expression_to_recognize,int(0.8*bits_to_digits(bit_prec))) == True: #This should only detect true zeros while also accounting for precision loss
+            recognized_expression = Kv(0)
+        else:
+            recognized_expression = to_K(expression_to_recognize,Kv)
+        if recognized_expression == None: #Stop because we have been unable to recognize coeff
+            break
+        coeff_list_recognized.append(recognized_expression)
+    P = PowerSeriesRing(Kw,cusp_expansion.variable())
+    cusp_expansion_rig = P(coeff_list_recognized).O(len(coeff_list_recognized))
+    cusp_expansions = dict()
+    cusp_expansions[Cusp(1,0)] = cusp_expansion_rig
+    return FourierExpansion(G,weight,cusp_expansions,modform_type,Kv,only_principal_cusp_expansion=True,Kw=Kw,Kv=Kv,u_interior_Kv=u_interior_Kv)
 
 def to_reduced_row_echelon_form(fourier_expansions):
     """

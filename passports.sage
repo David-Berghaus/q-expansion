@@ -4,7 +4,7 @@ from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, t
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits
-from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx
+from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u
 from classes.belyi_map import BelyiMap
 
 def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
@@ -96,50 +96,57 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     return res
 
 def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, eisenstein_digit_prec, max_weight):
+    #To Do:
+    #-Generate (some of) higher forms by multiplying lower ones
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(eisenstein_digit_prec))
     principal_cusp_width = G.cusp_width(Cusp(1,0))
+
     cuspforms_fl = dict()
+    cuspforms_rig = dict()
+    Kv, Kw, v_Kw, u_interior_Kv, u = None, None, None, None, None
     for weight in range(2,max_weight+1,2): #We only consider even weights
         dim_S = G.dimension_cusp_forms(weight)
         if dim_S != 0:
-            cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
             cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),eisenstein_digit_prec)
-            expression_linear_in_u = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))[dim_S+1]
-            if is_effectively_zero(expression_linear_in_u,eisenstein_digit_prec-5) == True:
-                raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
-            tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
-            if tmp == None:
-                raise ArithmeticError("Not enough precision to identify numberfield!")
-            Kv, Kw, v_Kw, u_interior_Kv = tmp
-            print("u_interior_Kv: ", u_interior_Kv)
-            if principal_cusp_width == 1:
-                u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
-            else:
-                u = Kw.gen()
-            
-            #We could try to improve the choice of u here
+            if u == None:
+                #Note that we need to be careful to select a cusp_expansion that is not an oldform!
+                #For our examples we always used one of the lowest-weight cuspforms, which does however not always work in general!
+                cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
+                Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,eisenstein_digit_prec,max_extension_field_degree,principal_cusp_width)
+                if Kv.degree() != max_extension_field_degree:
+                    if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
+                        raise ArithmeticError("We have not considered the case of decaying numberfields yet! Please also make sure that the selected cusp_expansion is not an oldform!")
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
 
-            #It would be better to put this into an external function
-            coeff_list = list(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)))
-            coeff_list_recognized = list()
-            for i in range(min(max_rigorous_trunc_order+1,len(coeff_list))):
-                if i < dim_S:
-                    u_pow = 0
-                else:
-                    u_pow = i-dim_S       
-                expression_to_recognize = coeff_list[i]/(CC(u)**u_pow)
-                if expression_to_recognize.is_one() == True:
-                    recognized_expression = Kv(1)
-                elif is_effectively_zero(expression_to_recognize,eisenstein_digit_prec) == True: #Dangerous because we have precision loss
-                    recognized_expression = Kv(0)
-                else:
-                    recognized_expression = to_K(expression_to_recognize,Kv)
-                if recognized_expression == None: #Stop because we have been unable to recognize coeff
-                    break
-                coeff_list_recognized.append(recognized_expression)
-            return coeff_list_recognized
+    modforms_fl = dict()
+    modforms_rig = dict()
+    for weight in range(2,max_weight+1,2): #We only consider even weights
+        dim_M = G.dimension_modular_forms(weight)
+        if dim_M != 0:
+            modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),eisenstein_digit_prec)
+            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
+
+    return cuspforms_rig, modforms_rig
+
+def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extension_field_degree, principal_cusp_width):
+    """
+    Given a cusp_expansion defined over CC, try to determine u by recognizing a coefficient that is linear in u.
+    """
+    expression_linear_in_u = cusp_expansion[coeff_index]
+    if is_effectively_zero(expression_linear_in_u,digit_prec-5) == True:
+        raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
+    tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
+    if tmp == None:
+        raise ArithmeticError("Not enough precision to identify numberfield!")
+    Kv, Kw, v_Kw, u_interior_Kv = tmp
+    print("u_interior_Kv: ", u_interior_Kv)
+    if principal_cusp_width == 1:
+        u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+    else:
+        u = Kw.gen()
+    return Kv, Kw, v_Kw, u_interior_Kv, u
 
 def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_scaling_constants, u_QQbar, numerics_digit_prec, tol):
     """
