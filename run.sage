@@ -48,6 +48,22 @@ def haberland_precision_test():
                 p2 = compute_petersson_product_haberland(c2,m2)
                 print((p2-p1).abs())
 
+def test_construction_of_higher_weight_forms():
+    B = BelyiMap(U1)
+    cuspforms = dict()
+    modforms = dict()
+    for weight in range(2,7,2):
+        if U1.dimension_cusp_forms(weight) != 0:
+            cuspforms[weight] = B.get_cuspforms(weight,10)
+        if U1.dimension_modular_forms(weight) != 0:
+            modforms[weight] = B.get_modforms(weight,10)
+    # test = [modforms[2][0]**2,modforms[4][1],modforms[4][2]]
+    # test = to_reduced_row_echelon_form(test)
+    # print("modforms[4]: ", modforms[4])
+    test = [cuspforms[4][0]*modforms[2][0],cuspforms[6][1]]
+    test = to_reduced_row_echelon_form(test)
+    print("cuspforms[6]: ", cuspforms[6])
+    print("test: ", test)
 
 def test(trunc_order, digit_prec):
     bit_prec = round(3.33*digit_prec)

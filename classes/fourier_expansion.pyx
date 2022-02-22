@@ -13,7 +13,7 @@ from point_matching.point_matching_arb_wrap import (
     digits_to_bits, bits_to_digits, _get_normalization_cuspforms, 
     _get_normalization_modforms, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
 )
-from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v
+from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v, convert_from_Kv_to_Kw
 from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
 
 def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_Horner=False):
@@ -172,10 +172,10 @@ def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_tru
     Kw = v_Kw.parent()
     coeff_list_recognized = list()
     for i in range(min(max_rigorous_trunc_order+1,cusp_expansion.degree()+1)):
-        if i < dim+starting_order:
+        if i <= label+starting_order:
             u_pow = 0
         else:
-            u_pow = i-label-starting_order
+            u_pow = i-(label+starting_order)
         expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
         if expression_to_recognize.is_one() == True:
             recognized_expression = Kv(1)
@@ -185,7 +185,9 @@ def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_tru
             recognized_expression = to_K(expression_to_recognize,Kv)
         if recognized_expression == None: #Stop because we have been unable to recognize coeff
             break
-        coeff_list_recognized.append(recognized_expression)
+        recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
+        algebraic_expression = recognized_expression_Kw*(u**u_pow)
+        coeff_list_recognized.append(algebraic_expression)
     P = PowerSeriesRing(Kw,cusp_expansion.variable())
     cusp_expansion_rig = P(coeff_list_recognized).O(len(coeff_list_recognized))
     cusp_expansions = dict()
@@ -372,16 +374,19 @@ class FourierExpansion():
         cusp_expansions = dict()
         cusp_expansions_self = self.cusp_expansions
         weight = self.weight
+        modform_type = self.modform_type
         if isinstance(a,FourierExpansion):
             for c in cusp_expansions_self.keys():
                 cusp_expansions[c] = cusp_expansions_self[c]*a.get_cusp_expansion(c)
             weight += a.weight
+            if a.modform_type == "CuspForm":
+                self.modform_type = "CuspForm" #Even if self is a modform, multiplying a modform and a cuspform results in a modform
         else: #Scalar multiplication
             for c in cusp_expansions_self.keys():
                 cusp_expansion_base_ring = cusp_expansions_self[c].base_ring()
                 a_converted = cusp_expansion_base_ring(a) #This is useful if a is a numberfield element and cusp_expansions are defined over CBFs of different prec
                 cusp_expansions[c] = cusp_expansions_self[c]*a_converted
-        return FourierExpansion(self.G,weight,cusp_expansions,self.modform_type,self.base_ring,
+        return FourierExpansion(self.G,weight,cusp_expansions,modform_type,self.base_ring,
                 only_principal_cusp_expansion=self.only_principal_cusp_expansion,Kw=self._Kw,Kv=self._Kv,u_interior_Kv=self._u_interior_Kv)
     
     def __truediv__(self, a):
