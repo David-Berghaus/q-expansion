@@ -5,9 +5,9 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from eisenstein.eisenstein_computation import compute_eisenstein_series
-from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits
+from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits, get_M_0, get_horo_height_arb_wrap
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
-from classes.belyi_map import BelyiMap
+from classes.belyi_map import BelyiMap, get_u_str
 
 def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     """
@@ -97,9 +97,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, B._return_newton_res()
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True):
-    #To Do:
-    #-Generate (some of) higher forms by multiplying lower ones
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
@@ -159,6 +157,46 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
                 cuspforms_fl[weight] = to_reduced_row_echelon_form([cuspforms_fl_weight[i] for i in range(dim_S)])
                 cuspforms_rig[weight] = to_reduced_row_echelon_form([cuspforms_rig_weight[i] for i in range(dim_S)])
 
+    #Now to the Eisenstein series
+    eis_scaling_constants = dict()
+    for weight in range(2,max_weight+1,2): #We only consider even weights
+        if G.dimension_modular_forms(weight) != 0:
+            if G.dimension_cusp_forms(weight) != 0:
+                eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms_fl[weight],modforms_fl[weight],return_scaling_constants=True)
+                for i in range(len(eis_scaling_constant_list)):
+                    for j in range(len(eis_scaling_constant_list[i])):
+                        if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*digit_prec))) == True:
+                            eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
+            else:
+                eisforms_fl = modforms_fl #In this case the eisforms are equivalent to modforms
+                eis_scaling_constant_list = [_get_echelon_normalization_from_label(i,len(eisforms_fl)) for i in range(len(eisforms_fl))]
+            eis_scaling_constants[weight] = eis_scaling_constant_list
+
+    u_QQbar = QQbar(u)
+    if compare_result_to_numerics == True:
+        compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,u_QQbar,numerics_digit_prec,tol,Y_fact=0.9)
+    
+    res = dict()
+    res["G"] = G.as_permutation_group()
+    res["Kv"] = Kv
+    res["v"] = Kv.gen()
+    res["u"] = u_QQbar
+    res["u_str"] = get_u_str(u_interior_Kv,principal_cusp_width)
+    res["curve"] = None #To Do: Implement this
+    res["q_expansions"] = dict()
+    CC_100_dig = ComplexField(digits_to_bits(101)) #Returning intervals here would be misleading
+    #We limit the floating-point precision to 100 digits for storage-space reasons
+    for weight in range(2,max_weight+1,2): #We only consider even weights
+        res["q_expansions"][weight] = dict()
+        if G.dimension_modular_forms(weight) != 0:
+            res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
+            res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
+            res["q_expansions"][weight]["modforms_float"] = [modform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for modform in modforms_fl[weight]]
+            res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
+            if G.dimension_cusp_forms(weight) != 0:
+                res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
     return cuspforms_rig, modforms_rig
 
 def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, digit_prec, max_extension_field_degree, principal_cusp_width):
@@ -336,21 +374,24 @@ def construct_form_from_product_formula(product_formula, modforms, cuspforms):
             res = modforms[weight][label]*res
     return res
 
-def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_scaling_constants, u_QQbar, numerics_digit_prec, tol):
+def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_scaling_constants, u_QQbar, numerics_digit_prec, tol, Y_fact=1):
     """
     Compare the results that have been computed through the Belyi map with values obtained from a numerical method.
     More specifically, we test the rigorous expansions (and their u-v-factorization) at infinity of all modular objects
     by comparing them to the numerical values.
     We do the same for the Eisenstein scaling coefficients which tests the floating-point expansions at all cusps.
     """
+    prec_loss = 10
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
-            modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=10)
+            Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,False,prec_loss)
+            modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
             for i in range(len(modforms_num)):
                 if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
                     raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
-                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=10)
+                Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,True,prec_loss)
+                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
@@ -363,6 +404,17 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                             print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
                             print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
                             raise ArithmeticError("We detected a eis_scaling_constants that does not match the numerical values!")
+
+def multiply_Y_by_Y_fact(G, weight, Y_fact, numerics_digit_prec, is_cuspform, prec_loss):
+    """
+    Multiply default choice of horocycle height by another factor to potentially get a different set of pullback points.
+    This can produce floating point results with additional heuristic evidence.
+    """
+    S = AutomorphicFormSpace(G,weight)
+    M_0 = get_M_0(S,numerics_digit_prec,is_cuspform=is_cuspform)
+    RBF = RealBallField(digits_to_bits(numerics_digit_prec))
+    Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=is_cuspform,prec_loss=prec_loss)
+    return RBF(Y_fact)*Y
 
 def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     """
