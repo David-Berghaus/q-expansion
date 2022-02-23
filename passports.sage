@@ -112,7 +112,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     modforms_rig = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
         dim_M = G.dimension_modular_forms(weight)
-        if dim_M != 0:
+        if dim_M != 0 and G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
             if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
                 modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
                 modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
@@ -160,7 +160,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
-        if G.dimension_modular_forms(weight) != 0:
+        if G.dimension_eis(weight) != 0:
             if G.dimension_cusp_forms(weight) != 0:
                 eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms_fl[weight],modforms_fl[weight],return_scaling_constants=True)
                 for i in range(len(eis_scaling_constant_list)):
@@ -189,15 +189,20 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     for weight in range(2,max_weight+1,2): #We only consider even weights
         res["q_expansions"][weight] = dict()
         if G.dimension_modular_forms(weight) != 0:
-            res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
-            res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
-            res["q_expansions"][weight]["modforms_float"] = [modform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for modform in modforms_fl[weight]]
-            res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
+            if G.dimension_eis(weight) == 0: #The cuspforms form the modform basis and we don't have any eisenstein_basis_factors
+                res["q_expansions"][weight]["modforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
+            else:
+                res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_float"] = [modform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for modform in modforms_fl[weight]]
+                res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
-    return cuspforms_rig, modforms_rig
+    return res
 
 def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, digit_prec, max_extension_field_degree, principal_cusp_width):
     """
@@ -308,7 +313,10 @@ def get_mod_and_cusp_form_dimensions_up_to_weight(G, max_weight):
     modform_dims = dict()
     for weight in range(2,max_weight+1,2):
         cuspform_dims[weight] = G.dimension_cusp_forms(weight)
-        modform_dims[weight] = G.dimension_modular_forms(weight)
+        if G.dimension_eis(weight) == 0:
+            modform_dims[weight] = 0 #We cannot use these for construction of modforms because they have a wrong valuation
+        else:
+            modform_dims[weight] = G.dimension_modular_forms(weight)
     return cuspform_dims, modform_dims
 
 def get_max_valuation(weight_combination, modform_dims, cuspform_dims, is_cuspform):
@@ -384,26 +392,28 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
     prec_loss = 10
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
-            Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,False,prec_loss)
-            modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
-            for i in range(len(modforms_num)):
-                if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
-                    raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
+            if G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
+                Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,False,prec_loss)
+                modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
+                for i in range(len(modforms_num)):
+                    if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
+                        raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
                 Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,True,prec_loss)
                 cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
-                eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
-                for i in range(len(eis_scaling_constant_list_num)):
-                    for j in range(len(eis_scaling_constant_list_num[i])):
-                        if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
-                            print("i, j: ", i, j)
-                            print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
-                            print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
-                            print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
-                            raise ArithmeticError("We detected a eis_scaling_constants that does not match the numerical values!")
+                if G.dimension_eis(weight) != 0:
+                    eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
+                    for i in range(len(eis_scaling_constant_list_num)):
+                        for j in range(len(eis_scaling_constant_list_num[i])):
+                            if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
+                                print("i, j: ", i, j)
+                                print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
+                                print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
+                                print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
+                                raise ArithmeticError("We detected a eis_scaling_constants that does not match the numerical values!")
 
 def multiply_Y_by_Y_fact(G, weight, Y_fact, numerics_digit_prec, is_cuspform, prec_loss):
     """
