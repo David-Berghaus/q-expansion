@@ -22,7 +22,6 @@ extensions = [
     Extension("pullback.my_pullback", ["pullback/my_pullback.pyx"]),
     Extension("point_matching.point_matching_dp", ["point_matching/point_matching_dp.pyx"]),
     Extension("point_matching.point_matching_arb_wrap", ["point_matching/point_matching_arb_wrap.pyx"]),
-    Extension("point_matching.fft_test", ["point_matching/fft_test.pyx"]),
     Extension("iterative_solvers.gmres_dp", ["iterative_solvers/gmres_dp.pyx"]),
     Extension("iterative_solvers.gmres_arb_wrap", ["iterative_solvers/gmres_arb_wrap.pyx"]),
     Extension("iterative_solvers.iterative_refinement_arb_wrap", ["iterative_solvers/iterative_refinement_arb_wrap.pyx"]),
