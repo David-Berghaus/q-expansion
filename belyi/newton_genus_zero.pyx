@@ -13,9 +13,9 @@ from sage.modular.cusps import Cusp
 from arblib_helpers.acb_approx cimport *
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero
+from belyi.number_fields import get_decimal_digit_prec, is_effectively_zero, get_numberfield_of_coeff
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
-from classes.factored_polynomial import Factored_Polynomial, get_numberfield_of_coeff, recognize_coeffs_using_u, get_improved_choice_of_u_interior_Kv, get_updated_Kw_v_Kw, update_terms_linear_in_u_to_new_u
+from classes.factored_polynomial import Factored_Polynomial, recognize_coeffs_using_u, get_improved_choice_of_u_interior_Kv, get_updated_Kw_v_Kw, update_terms_linear_in_u_to_new_u
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx
 from point_matching.point_matching_arb_wrap import get_pi_ball, get_coefficients_haupt_ir_arb_wrap, digits_to_bits
 

@@ -8,7 +8,6 @@ from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_
 from classes.gamma_2_subgroup import Gamma_2_Subgroup
 from classes.modform_class import ModForm
 from classes.belyi_map import BelyiMap
-from point_matching.fft_test import test_fft
 from eisenstein.haberland import compute_petersson_product_haberland
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 
@@ -48,6 +47,22 @@ def haberland_precision_test():
                 p2 = compute_petersson_product_haberland(c2,m2)
                 print((p2-p1).abs())
 
+def test_construction_of_higher_weight_forms():
+    B = BelyiMap(U1)
+    cuspforms = dict()
+    modforms = dict()
+    for weight in range(2,7,2):
+        if U1.dimension_cusp_forms(weight) != 0:
+            cuspforms[weight] = B.get_cuspforms(weight,10)
+        if U1.dimension_modular_forms(weight) != 0:
+            modforms[weight] = B.get_modforms(weight,10)
+    # test = [modforms[2][0]**2,modforms[4][1],modforms[4][2]]
+    # test = to_reduced_row_echelon_form(test)
+    # print("modforms[4]: ", modforms[4])
+    test = [cuspforms[4][0]*modforms[2][0],cuspforms[6][1]]
+    test = to_reduced_row_echelon_form(test)
+    print("cuspforms[6]: ", cuspforms[6])
+    print("test: ", test)
 
 def test(trunc_order, digit_prec):
     bit_prec = round(3.33*digit_prec)

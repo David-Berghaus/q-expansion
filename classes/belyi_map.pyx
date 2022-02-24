@@ -125,6 +125,15 @@ def identify_cusp_from_pc_root(pc_root, cusp_rep_values):
     cusp,_ = cusp_rep_values[diffs.index(min(diffs))]
     return cusp
 
+def get_u_str(u_interior_Kv, principal_cusp_width):
+    """
+    Returns string of symbolic expression of u.
+    """
+    if principal_cusp_width == 1:
+        return u_interior_Kv.__str__() #u is just a rational
+    else:
+        return "(" + u_interior_Kv.__str__() + ")^(1/" + str(principal_cusp_width) + ")"
+
 class BelyiMap():
     """
     Class for working with Belyi maps that are expressed in terms of Factored_Polynomials with algebraic coefficients.
@@ -216,10 +225,7 @@ class BelyiMap():
         """
         Returns string of symbolic expression of u.
         """
-        if self.principal_cusp_width == 1:
-            return self._u_interior_Kv.__str__() #u is just a rational
-        else:
-            return "(" + self._u_interior_Kv.__str__() + ")^(1/" + str(self.principal_cusp_width) + ")"
+        return get_u_str(self._u_interior_Kv,self.principal_cusp_width)
     
     def print_v(self):
         """
