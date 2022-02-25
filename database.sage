@@ -10,7 +10,7 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
     Loads entries of database and returns them as a list.
     We allow to filter for index, genus and Kv_degree by specifying them as ints or lists of ints.
     """
-    if genus != 0 and genus != None:
+    if genus != None and genus > 1:
         raise NotImplementedError("This case has not been implemented yet!")
     if isinstance(index, list) == False and index != None: #Index is an int which we convert to a list
         index = [index]
@@ -20,7 +20,16 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
         Kv_degree = [Kv_degree]
 
     res = []
-    passport_list = load("data/genus_zero_passport_list.sobj")
+    passport_list = []
+    if genus == None:
+        passport_list_g_zero = load("data/genus_zero_passport_list.sobj")
+        passport_list_g_one = load("data/genus_one_passport_list.sobj")
+        passport_list = passport_list_g_zero+passport_list_g_one
+    else:
+        if 0 in genus:
+            passport_list += load("data/genus_zero_passport_list.sobj")
+        if 1 in genus:
+            passport_list += load("data/genus_one_passport_list.sobj")
     for i in range(len(passport_list)):
         G = passport_list[i][0]
         if index == None or G.index() in index:
@@ -58,9 +67,12 @@ def print_missing_passports(genus, database_path, max_passport_index=None):
     """
     Prints all passports up to max_passport_index that have not been computed yet.
     """
-    if genus != 0:
+    if genus > 1:
         raise NotImplementedError("This case has not been implemented yet!")
-    passport_list = load("data/genus_zero_passport_list.sobj")
+    if genus == 0:
+        passport_list = load("data/genus_zero_passport_list.sobj")
+    elif genus == 1:
+        passport_list = load("data/genus_one_passport_list.sobj")
     if max_passport_index == None:
         max_passport_index = len(passport_list)
     for i in range(max_passport_index):
