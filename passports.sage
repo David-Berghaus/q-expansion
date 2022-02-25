@@ -9,7 +9,7 @@ from point_matching.point_matching_arb_wrap import _get_echelon_normalization_fr
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
 from classes.belyi_map import BelyiMap, get_u_str
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=50, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -390,17 +390,29 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
     We do the same for the Eisenstein scaling coefficients which tests the floating-point expansions at all cusps.
     """
     prec_loss = 10
+    M_modform_rig_max, M_cuspform_rig_max = 0, 0
+    for weight in range(2,max_weight+1,2):
+        if weight in modforms_rig:
+            M_modform_rig_max = max([modform_rig.get_cusp_expansion(Cusp(1,0)).degree() for modform_rig in modforms_rig[weight]]+[M_modform_rig_max])
+        if weight in cuspforms_rig:
+            M_cuspform_rig_max = max([cuspform_rig.get_cusp_expansion(Cusp(1,0)).degree() for cuspform_rig in cuspforms_rig[weight]]+[M_cuspform_rig_max])
+    M_rig_max = max(M_modform_rig_max,M_cuspform_rig_max)
+    S = AutomorphicFormSpace(G,max_weight)
+    M_0_numerics = get_M_0(S,numerics_digit_prec,is_cuspform=False)
+    if M_0_numerics-8 < M_rig_max: #We need to increase the size of M_numerics in order to get enough values to compare
+        M_0_numerics = M_rig_max+8
+    RBF = RealBallField(digits_to_bits(numerics_digit_prec))
+    Y = get_horo_height_arb_wrap(S,RBF,M_0_numerics,is_cuspform=False,prec_loss=prec_loss)*RBF(Y_fact)
+
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
             if G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
-                Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,False,prec_loss)
-                modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
+                modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(modforms_num)):
                     if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
                         raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
-                Y = multiply_Y_by_Y_fact(G,weight,Y_fact,numerics_digit_prec,True,prec_loss)
-                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y)
+                cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
@@ -414,17 +426,6 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                                 print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
                                 print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
                                 raise ArithmeticError("We detected a eis_scaling_constants that does not match the numerical values!")
-
-def multiply_Y_by_Y_fact(G, weight, Y_fact, numerics_digit_prec, is_cuspform, prec_loss):
-    """
-    Multiply default choice of horocycle height by another factor to potentially get a different set of pullback points.
-    This can produce floating point results with additional heuristic evidence.
-    """
-    S = AutomorphicFormSpace(G,weight)
-    M_0 = get_M_0(S,numerics_digit_prec,is_cuspform=is_cuspform)
-    RBF = RealBallField(digits_to_bits(numerics_digit_prec))
-    Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=is_cuspform,prec_loss=prec_loss)
-    return RBF(Y_fact)*Y
 
 def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     """
