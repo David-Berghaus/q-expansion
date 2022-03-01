@@ -245,6 +245,8 @@ def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extensio
     if tmp == None:
         raise ArithmeticError("Not enough precision to identify numberfield!")
     Kv, Kw, v_Kw, u_interior_Kv = tmp
+    if Kv.degree() == 1 and u_interior_Kv.sign() == -1:
+        u_interior_Kv *= -1 #Having a positive QQ-term is prettier
     if principal_cusp_width == 1:
         u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
     else:
