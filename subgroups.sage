@@ -17,12 +17,18 @@ def get_conjugator_permutation(o_start, o_end):
     assert p.inverse()*o_start*p == o_end
     return p
 
-def get_permT_conjugator(permT):
+def get_permT_conjugator(permT, reverse_permT):
     """
     Given permT, return conjugator p, such that p**(-1)*permT*p has cycle lens ordered by size and labels sorted by size
     unless there are several cusps with the same smallest width in which case we try to set a unique cusp at infinity.
+    If reverse_permT is True, we place the largest cusp at infinity (unless it has higher multiplicity).
+    This is useful for higher genera cases because it typically leads to smaller coefficients.
+    For genus zero cases it is not very useful because it leads to slower rigorous arithmetic.
     """
-    ct = get_desired_permT_cycle_type(permT)
+    if reverse_permT == False:
+        ct = get_desired_permT_cycle_type(permT)
+    else:
+        ct = get_desired_permT_cycle_type_reversed(permT)
     i = 1
     normalized_perm_T_str = ''
     for cycle_len in ct:
@@ -51,6 +57,19 @@ def get_desired_permT_cycle_type(permT):
     #This case however never seems to happen for the subgroups that we consider so we dont implement it...
     return ct
 
+def get_desired_permT_cycle_type_reversed(permT):
+    """
+    Returns the desired cycle type given permT.
+    For this function we try to place the largest cusp at infinity (if it is unique).
+    """
+    ct = permT.cycle_type()
+    ct.reverse() #Note that this is done inplace!
+    for i in range(len(ct)):
+        if has_equal_list_entry(ct,i) == False: #Found a unique cusp-width
+            ct[0], ct[i] = ct[i], ct[0] #Swap cusps to put the unique one at infinity
+            break
+    return ct
+
 def has_equal_list_entry(list, index):
     """
     If there exists an element in list (outside index) that is equal to list[index], return True, otherwise return False.
@@ -60,7 +79,10 @@ def has_equal_list_entry(list, index):
             return True
     return False
 
-def get_list_of_all_passports(max_index, genus=None):
+def get_list_of_all_passports(max_index, genus=None, reverse_permT=False):
+    """
+    Return a list of all passports up to specified index and with specified genus.
+    """
     if max_index > 17:
         raise ArithmeticError("The database of subgroups only goes up to and including order 17!")
     data = load("data/noncong_reps.sobj")
@@ -77,7 +99,7 @@ def get_list_of_all_passports(max_index, genus=None):
             (permS_str,permR_str,_) = rep
             permS, permR = MyPermutation(permS_str), MyPermutation(permR_str)
             permT = permS*permR
-            p = get_permT_conjugator(permT)
+            p = get_permT_conjugator(permT,reverse_permT)
             permS_new, permR_new, permT_new = p.inverse()*permS*p, p.inverse()*permR*p, p.inverse()*permT*p
             cycle_types = (tuple(permS_new.cycle_type()),tuple(permR_new.cycle_type()),tuple(permT_new.cycle_type())) #We need tuples for dict keys
             G = MySubgroup(o2=permS_new,o3=permR_new)
