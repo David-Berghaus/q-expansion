@@ -200,6 +200,8 @@ def to_reduced_row_echelon_form(fourier_expansions):
     """
     rowCount = len(fourier_expansions)
     expansion_degree = min([fourier_expansion.cusp_expansions[Cusp(1,0)].prec()-1 for fourier_expansion in fourier_expansions])
+    if expansion_degree < len(fourier_expansions):
+        raise ArithmeticError("Not enough terms to transform basis into reduced row echelon form!")
     columnCount = expansion_degree
     fourier_expansions_copy = copy(fourier_expansions)
     #We use the algorithm from https://en.wikipedia.org/wiki/Row_echelon_form

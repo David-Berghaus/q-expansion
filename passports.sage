@@ -8,6 +8,7 @@ from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits, get_M_0, get_horo_height_arb_wrap
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
 from classes.belyi_map import BelyiMap, get_u_str
+from classes.factored_polynomial import get_updated_Kw_v_Kw
 
 def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=50, tol=1e-10):
     """
@@ -226,6 +227,9 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, d
                 if Kv.degree() != max_extension_field_degree:
                     if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
                         raise ArithmeticError("We have not considered the case of decaying numberfields yet! Please also make sure that the selected cusp_expansion is not an oldform!")
+                #Now also try to recognize the second coefficient to see if we can factor out additional factors
+                expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
+
             cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
             break
     return cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight
@@ -235,18 +239,49 @@ def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extensio
     Given a cusp_expansion defined over CC, try to determine u by recognizing a coefficient that is linear in u.
     """
     expression_linear_in_u = cusp_expansion[coeff_index]
-    if is_effectively_zero(expression_linear_in_u,digit_prec-5) == True:
+    if is_effectively_zero(expression_linear_in_u,digit_prec-10) == True:
         raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
     tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
     if tmp == None:
         raise ArithmeticError("Not enough precision to identify numberfield!")
     Kv, Kw, v_Kw, u_interior_Kv = tmp
-    print("u_interior_Kv: ", u_interior_Kv)
+    if Kv.degree() == 1 and u_interior_Kv.sign() == -1:
+        u_interior_Kv *= -1 #Having a positive QQ-term is prettier
     if principal_cusp_width == 1:
         u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
     else:
         u = Kw.gen()
+    #Try to recognize second coeff to see if one can find a better denominator, otherwise leave parameters unchanged
+    Kw, v_Kw, u_interior_Kv, u = try_to_improve_choice_of_u(cusp_expansion,coeff_index+1,Kv,Kw,v_Kw,u_interior_Kv,u,principal_cusp_width, digit_prec)
+    print("u_interior_Kv: ", u_interior_Kv)
     return Kv, Kw, v_Kw, u_interior_Kv, u
+
+def try_to_improve_choice_of_u(cusp_expansion, coeff_index, Kv, Kw, v_Kw, u_interior_Kv, u, principal_cusp_width, digit_prec):
+    """
+    Given an initial choice of u, try to improve u by recognizing second coefficient (i.e., a term that is quadratic in u)
+    and test if this has a non-trivial denominator.
+    """
+    expression_to_recognize = cusp_expansion[coeff_index]/u**2
+    if is_effectively_zero(expression_to_recognize,digit_prec-10) == True:
+        return Kw, v_Kw, u_interior_Kv, u #Unable to improve choice
+    tmp = to_K(expression_to_recognize,Kv)
+    if tmp == None:
+        return Kw, v_Kw, u_interior_Kv, u #Unable to improve choice
+    largest_denominator = max([c.denominator() for c in list(tmp)])
+    u_interior_Kv_updated = u_interior_Kv
+    if largest_denominator != 1:
+        largest_denominator_factored = list(factor(largest_denominator))
+        for (fact,power) in largest_denominator_factored:
+            if power >= 2: #Recall that our expression is quadratic in u
+                u_interior_Kv_updated /= fact**principal_cusp_width
+        if principal_cusp_width == 1:
+            u_interior_Kv = u_interior_Kv_updated
+            u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
+        else:
+            Kw, v_Kw = get_updated_Kw_v_Kw(u_interior_Kv_updated,u_interior_Kv,Kw,v_Kw,principal_cusp_width)
+            u_interior_Kv = u_interior_Kv_updated
+            u = Kw.gen()
+    return Kw, v_Kw, u_interior_Kv, u #Return updated parameters
 
 def get_product_formulas_for_forms(G, weight, is_cuspform):
     """
