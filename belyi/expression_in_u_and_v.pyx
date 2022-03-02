@@ -78,8 +78,20 @@ def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width
     res, u_pow = 0, 0
     if trunc_order == None:
         trunc_order = q_expansion.prec()
+    is_ZZ_form = True #Indicates if form can be defined over ZZ (which happens for oldforms)
     for i in range(leading_order_exponent,trunc_order):
         expression_in_Ku = q_expansion[i]
-        res += factor_into_u_v(expression_in_Ku,u_pow,u_interior_Kv,principal_cusp_width)*q**i
+        if expression_in_Ku.polynomial().degree() > 0:
+            is_ZZ_form = False
+            break
+    if is_ZZ_form == True and u_interior_Kv.polynomial().degree() == 0: #Form is in QQ not ZZ
+        is_ZZ_form = False
+    u_pow = 0
+    for i in range(leading_order_exponent,trunc_order):
+        expression_in_Ku = q_expansion[i]
+        if is_ZZ_form == True: #This expression can be defined over ZZ (and hence independently of u)
+            res += factor_into_u_v(expression_in_Ku,0,u_interior_Kv,principal_cusp_width)*q**i
+        else:
+            res += factor_into_u_v(expression_in_Ku,u_pow,u_interior_Kv,principal_cusp_width)*q**i
         u_pow += 1
     return res.O(trunc_order)
