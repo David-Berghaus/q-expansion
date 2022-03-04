@@ -25,6 +25,7 @@ cdef class W_class():
     cdef bint use_Horner
     cdef bint is_initialized
     cdef int _nrows
+    cdef list p_splitting_list
 
     cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec)
 

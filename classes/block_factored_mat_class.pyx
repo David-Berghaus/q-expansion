@@ -7,6 +7,7 @@ from sage.rings.complex_arb cimport *
 from sage.libs.arb.acb_mat cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.real_double import RealDoubleElement
 
 cdef extern from "complex.h": #For some reason it is important to include this after "from sage.rings.complex_arb cimport *" otherwise it won't compile
     cdef double cimag(double complex)
@@ -16,8 +17,10 @@ cdef extern from "complex.h": #For some reason it is important to include this a
 
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
+from classes.Modular_splitting_polynomial cimport Modular_splitting_polynomial
 from point_matching.point_matching_arb_wrap cimport _get_J_block_matrix_arb_wrap, _get_W_block_matrix_arb_wrap
-from point_matching.point_matching_arb_wrap import get_pi_ball
+from point_matching.point_matching_arb_wrap import get_pi_ball, bits_to_digits
+from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
 
 cdef class J_class():
     def __init__(self, use_FFT):
@@ -130,27 +133,66 @@ cdef class W_class():
         self.W = Acb_Mat(len(coordinates),M)
         _get_W_block_matrix_arb_wrap(self.W.value,Ms,Mf,weight,coordinates,bit_prec)
     
-    def _construct_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
-        raise ArithmeticError("NOT IMPLEMENTED YET!")
+    def _construct_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True):
+        coord_len = len(coordinates)
+        weight_half = weight//2
+        CBF = ComplexBallField(bit_prec)
+        RBF = RealBallField(bit_prec)
+        cdef ComplexBall two_pi_i = CBF(0,2*get_pi_ball(bit_prec))
+        cdef RealBall y_fund_fact = RBF(1)
+
+        #Hopefully we can remove this section once arb adds fast Horner schemes...
+        cdef CBF_low_prec = ComplexBallField(53)
+        cdef double log10_pow_minus_D = -1.1*bits_to_digits(bit_prec)*math.log(10)
+
+        p_splitting_list = []
+        for j in range(coord_len):
+            (z_horo,a,b,c,d) = coordinates[j]
+            z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
+            if weight != 0:
+                y_fund_fact = (z_fund.imag())**weight_half
+            q = (two_pi_i*z_fund).exp()
+            tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use q here for performance
+            if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
+                #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
+                suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log())))
+                trunc_order = min(suggested_trunc_order,Mf)
+            else:
+                trunc_order = Mf
+            p = Modular_splitting_polynomial(Ms,suggested_trunc_order,two_pi_i,q,y_fund_fact,bit_prec)
+            p_splitting_list.append(p)
+        self.p_splitting_list = p_splitting_list
     
     def _construct(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,bint use_Horner):
         self._nrows = len(coordinates)
         if use_Horner == False and self.use_Horner == False:
             self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
         elif use_Horner == True and self.use_Horner == True:
-            self._construct_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+            if Mf < 100: #We don't use splitting for small cases because we are not interested in implementing these corner cases
+                self.use_Horner = False
+                self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+            else:
+                self._construct_horner(M,Ms,Mf,weight,coordinates,bit_prec)
         else:
             raise ArithmeticError("Wrong initialization!")
         self.is_initialized = True
 
     cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
+        cdef Modular_splitting_polynomial p_splitting
+        cdef Acb_Mat x_acb_mat
         if self.is_initialized == True:
             if self.use_Horner == False:
                 sig_on()
                 acb_mat_approx_mul(b, self.W.value, x, prec)
                 sig_off()
             else:
-                raise ArithmeticError("Not implemented yet")
+                x_acb_mat = Acb_Mat(acb_mat_nrows(x),acb_mat_ncols(x))
+                acb_mat_swap(x,x_acb_mat.value) #Unfortunately we cannot pass acb_mat_t to p_splitting because its a python object...
+                p_splitting_list = self.p_splitting_list
+                for i in range(len(p_splitting_list)):
+                    p_splitting = p_splitting_list[i]
+                    p_splitting.evaluate(acb_mat_entry(b,i,0),x_acb_mat,prec)
+                acb_mat_swap(x,x_acb_mat.value)
         else:
             raise ArithmeticError("W has not been properly initialized yet!")
     

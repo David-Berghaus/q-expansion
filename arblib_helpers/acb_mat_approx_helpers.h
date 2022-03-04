@@ -33,3 +33,9 @@ acb_mat_approx_left_mul_diag(acb_mat_t res, const acb_mat_t D, const acb_mat_t A
 
 void //Computes A*D where D is a diagonal matrix which is stored as a Nx1 vector
 acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t D, int prec);
+
+void //Stores powers of x into xs, where xs is a 1xN matrix
+acb_mat_set_powers_approx(acb_mat_t xs, const acb_t x, int prec);
+
+void //Evaluate polynomial using rectangular splitting
+evaluate_modular_splitting_polynomial(acb_t res, acb_mat_t coeffs, acb_mat_t xs, acb_mat_t ys, int j, int k, int Ms, int Mf, int bit_prec)

@@ -53,6 +53,7 @@ classes/gamma_2_subgroup.pxd
 classes/gamma_2_subgroup.pyx
 classes/modform_class.c
 classes/modform_class.pyx
+classes/modular_splitting_polynomial.c
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
