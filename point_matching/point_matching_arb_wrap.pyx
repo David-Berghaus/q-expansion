@@ -91,8 +91,8 @@ cdef _get_W_block_matrix_arb_wrap(acb_mat_t W,int Ms,int Mf,int weight,coordinat
         z_fund = apply_moebius_transformation_arb_wrap(z_horo,a,b,c,d)
         if weight != 0:
             y_fund_fact = (z_fund.imag())**weight_half
-        exp_one = (two_pi_i*z_fund).exp()
-        tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use exp_one here for performance
+        exp_one = (two_pi_i*z_fund).exp() #We could in principle re-use this for the normalized column to get some more performance...
+        tmp = y_fund_fact*(exp_one**Ms)
         acb_set(acb_mat_entry(W, j, 0), tmp.value)
         if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
             #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
