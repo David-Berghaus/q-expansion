@@ -325,7 +325,7 @@ void evaluate_modular_splitting_polynomial(acb_t res, acb_mat_t coeffs, acb_mat_
         for (m = 0; m < k; m++){
             coeff_index = j*m+l;
             if (coeff_index >= Ms && coeff_index <= Mf){ //Otherwise coeffs are left to be zero
-                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index,0)); //Recall that the coeffs are stored in a Nx1 vector...
+                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index-Ms,0)); //Recall that the coeffs are stored in a Nx1 vector...
             }
         }
         acb_approx_dot(partial_results+l, NULL, 0, coeffs_vec, 1, ys_vec, 1, k, bit_prec);
@@ -333,7 +333,7 @@ void evaluate_modular_splitting_polynomial(acb_t res, acb_mat_t coeffs, acb_mat_
         for (m = 0; m < k; m++){
             coeff_index = j*m+l;
             if (coeff_index >= Ms && coeff_index <= Mf){ //Otherwise coeffs are left to be zero
-                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index,0)); //Recall that the coeffs are stored in a Nx1 vector...
+                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index-Ms,0)); //Recall that the coeffs are stored in a Nx1 vector...
             }
         }
     }

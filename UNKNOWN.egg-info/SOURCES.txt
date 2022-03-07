@@ -54,6 +54,8 @@ classes/gamma_2_subgroup.pyx
 classes/modform_class.c
 classes/modform_class.pyx
 classes/modular_splitting_polynomial.c
+classes/modular_splitting_polynomial.pxd
+classes/modular_splitting_polynomial.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx

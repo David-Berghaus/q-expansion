@@ -52,9 +52,9 @@ def test_fourier_expansion_basis_cuspform():
     f0 = b[0].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     f1 = b[1].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     assert f0[0] == 0 and f0[1] == 0 and f0[3] == 0
-    assert abs(f0[8]-256) < 1e-40
+    assert abs(f0[8]-256) < 1e-35
     assert f1[0] == 0 and f1[1] == 0 and f1[2] == 0
-    assert abs(f1[9]-72) < 1e-40
+    assert abs(f1[9]-72) < 1e-35
     print("test_fourier_expansion_basis_cuspform ok")
 
 def test_fourier_expansion_basis_modform():

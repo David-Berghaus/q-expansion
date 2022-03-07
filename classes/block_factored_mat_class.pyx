@@ -17,7 +17,7 @@ cdef extern from "complex.h": #For some reason it is important to include this a
 
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
-from classes.Modular_splitting_polynomial cimport Modular_splitting_polynomial
+from classes.modular_splitting_polynomial cimport Modular_splitting_polynomial
 from point_matching.point_matching_arb_wrap cimport _get_J_block_matrix_arb_wrap, _get_W_block_matrix_arb_wrap
 from point_matching.point_matching_arb_wrap import get_pi_ball, bits_to_digits
 from pullback.my_pullback cimport apply_moebius_transformation_arb_wrap
@@ -152,14 +152,13 @@ cdef class W_class():
             if weight != 0:
                 y_fund_fact = (z_fund.imag())**weight_half
             q = (two_pi_i*z_fund).exp()
-            tmp = y_fund_fact*((two_pi_i*Ms*z_fund).exp()) #We could use q here for performance
             if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
                 #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
                 suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log())))
                 trunc_order = min(suggested_trunc_order,Mf)
             else:
                 trunc_order = Mf
-            p = Modular_splitting_polynomial(Ms,suggested_trunc_order,two_pi_i,q,y_fund_fact,bit_prec)
+            p = Modular_splitting_polynomial(Ms,trunc_order,q,y_fund_fact,bit_prec)
             p_splitting_list.append(p)
         self.p_splitting_list = p_splitting_list
     
@@ -178,6 +177,7 @@ cdef class W_class():
         self.is_initialized = True
 
     cdef act_on_vec(self, acb_mat_t b, acb_mat_t x, int prec):
+        cdef int i
         cdef Modular_splitting_polynomial p_splitting
         cdef Acb_Mat x_acb_mat
         if self.is_initialized == True:
