@@ -22,7 +22,7 @@ cdef class J_class():
 
 cdef class W_class():
     cdef Acb_Mat W
-    cdef bint use_Horner
+    cdef bint use_splitting
     cdef bint is_initialized
     cdef int _nrows
     cdef list p_splitting_list

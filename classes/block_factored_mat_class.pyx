@@ -125,8 +125,8 @@ cdef class J_class():
             raise ArithmeticError("J has not been properly initialized yet!")
 
 cdef class W_class():
-    def __init__(self, use_Horner):
-        self.use_Horner = use_Horner
+    def __init__(self, use_splitting):
+        self.use_splitting = use_splitting
         self.is_initialized = False #This flag indicates if W has been fully initialized or not
 
     def _construct_non_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
@@ -162,13 +162,13 @@ cdef class W_class():
             p_splitting_list.append(p)
         self.p_splitting_list = p_splitting_list
     
-    def _construct(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,bint use_Horner):
+    def _construct(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,bint use_splitting):
         self._nrows = len(coordinates)
-        if use_Horner == False and self.use_Horner == False:
+        if use_splitting == False and self.use_splitting == False:
             self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
-        elif use_Horner == True and self.use_Horner == True:
+        elif use_splitting == True and self.use_splitting == True:
             if Mf < 100: #We don't use splitting for small cases because we are not interested in implementing these corner cases
-                self.use_Horner = False
+                self.use_splitting = False
                 self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
             else:
                 self._construct_horner(M,Ms,Mf,weight,coordinates,bit_prec)
@@ -181,7 +181,7 @@ cdef class W_class():
         cdef Modular_splitting_polynomial p_splitting
         cdef Acb_Mat x_acb_mat
         if self.is_initialized == True:
-            if self.use_Horner == False:
+            if self.use_splitting == False:
                 sig_on()
                 acb_mat_approx_mul(b, self.W.value, x, prec)
                 sig_off()
