@@ -567,10 +567,10 @@ cdef apply_preconditioner(x, M, PLU, int prec): #Apply preconditioner (if availa
         if type(x) is Acb_Mat:
             x_cast = x
             sig_on()
-            acb_mat_approx_solve_lu_precomp(x_cast.value, PLU_cast.P, PLU_cast.value, x_cast.value, prec)
+            PLU.solve_arb(x_cast,x_cast,prec)
             sig_off()
         elif type(x) is Acb_Mat_Win:
             x_win_cast = x
             sig_on()
-            acb_mat_approx_solve_lu_precomp(x_win_cast.value, PLU_cast.P, PLU_cast.value, x_win_cast.value, prec)
+            PLU.solve_arb_win(x_win_cast,x_win_cast,prec)
             sig_off()
