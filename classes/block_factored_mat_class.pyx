@@ -167,7 +167,7 @@ cdef class W_class():
         if use_splitting == False and self.use_splitting == False:
             self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
         elif use_splitting == True and self.use_splitting == True:
-            if Mf < 100: #We don't use splitting for small cases because we are not interested in implementing these corner cases
+            if Mf < 50: #We don't use splitting for small cases because we are not interested in implementing these corner cases
                 self.use_splitting = False
                 self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
             else:
