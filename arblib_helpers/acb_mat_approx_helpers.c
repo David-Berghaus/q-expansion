@@ -285,3 +285,69 @@ acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t 
         }
     }
 }
+
+//This function is the analogue of https://github.com/fredrik-johansson/arb/blob/637582ad487b364493ac39d45cf46fa09d5dfefb/acb/vec_set_powers.c
+//for approximate arithmetic and using matrices instead of arrays
+void acb_mat_set_powers_approx(acb_mat_t xs, const acb_t x, int prec)
+{
+    int i;
+    int len = acb_mat_ncols(xs);
+
+    for (i = 0; i < len; i++)
+    {
+        if (i == 0)
+            acb_one(acb_mat_entry(xs,0,i));
+        else if (i == 1)
+            acb_set_round(acb_mat_entry(xs,0,i), x, prec);
+        else if (i % 2 == 0)
+            acb_approx_mul(acb_mat_entry(xs,0,i), acb_mat_entry(xs,0,i/2), acb_mat_entry(xs,0,i/2), prec);
+        else
+            acb_approx_mul(acb_mat_entry(xs,0,i), acb_mat_entry(xs,0,i-1), x, prec);
+    }
+}
+
+void evaluate_modular_splitting_polynomial(acb_t res, acb_mat_t coeffs, acb_mat_t xs, acb_mat_t ys, int j, int k, int Ms, int Mf, int bit_prec)
+{
+    int coeff_index, l, m;
+    acb_ptr coeffs_vec, ys_vec, xs_vec, partial_results;
+    coeffs_vec = _acb_vec_init(k);
+    ys_vec = _acb_vec_init(k);
+    xs_vec = _acb_vec_init(j);
+    partial_results = _acb_vec_init(j);
+
+    for (m = 0; m < k; m++){
+        acb_swap(ys_vec+m,acb_mat_entry(ys,0,m));
+    }
+    for (l = 0; l < j; l++){
+        acb_swap(xs_vec+l,acb_mat_entry(xs,0,l));
+    }
+    for (l = 0; l < j; l++){
+        for (m = 0; m < k; m++){
+            coeff_index = j*m+l;
+            if (coeff_index >= Ms && coeff_index <= Mf){ //Otherwise coeffs are left to be zero
+                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index-Ms,0)); //Recall that the coeffs are stored in a Nx1 vector...
+            }
+        }
+        acb_approx_dot(partial_results+l, NULL, 0, coeffs_vec, 1, ys_vec, 1, k, bit_prec);
+        //Swap back
+        for (m = 0; m < k; m++){
+            coeff_index = j*m+l;
+            if (coeff_index >= Ms && coeff_index <= Mf){ //Otherwise coeffs are left to be zero
+                acb_swap(coeffs_vec+m,acb_mat_entry(coeffs,coeff_index-Ms,0)); //Recall that the coeffs are stored in a Nx1 vector...
+            }
+        }
+    }
+    acb_approx_dot(res, NULL, 0, partial_results, 1, xs_vec, 1, j, bit_prec);
+    //Swap back
+    for (m = 0; m < k; m++){
+        acb_swap(ys_vec+m,acb_mat_entry(ys,0,m));
+    }
+    //Swap back
+    for (l = 0; l < j; l++){
+        acb_swap(xs_vec+l,acb_mat_entry(xs,0,l));
+    }
+    _acb_vec_clear(coeffs_vec, k);
+    _acb_vec_clear(ys_vec, k);
+    _acb_vec_clear(xs_vec, j);
+    _acb_vec_clear(partial_results, j);
+}

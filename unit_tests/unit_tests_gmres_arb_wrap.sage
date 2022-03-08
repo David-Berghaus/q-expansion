@@ -47,7 +47,7 @@ def test_gmres_non_precond():
     Y = RBF(S.group().minimal_height()*0.8)
     M = 30
     Q = 50
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec,use_FFT=False,use_Horner=False,labels=[0])
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec,use_FFT=False,use_splitting=False,labels=[0])
     b = b_vecs[0]
 
     tol = RBF(10.0)**(-digit_prec)

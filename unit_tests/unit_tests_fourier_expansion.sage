@@ -16,15 +16,15 @@ def run_unit_tests_fourier_expansion():
 def test_fourier_expansion_cuspform():
     S = AutomorphicFormSpace(Gamma0(11),weight=4) #Search for a multiplicity two new-form
     MF = get_cuspform_q_expansion_approx(S,50,label=1)
-    assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-45
+    assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-43
     print("test_fourier_expansion_cuspform ok")
 
 def test_fourier_expansion_cuspform_non_fft_non_horner():
     """
-    Test case where 'use_FFT=False' and 'use_Horner=False' and classical matrix-vector multiplication is used.
+    Test case where 'use_FFT=False' and 'use_splitting=False' and classical matrix-vector multiplication is used.
     """
     S = AutomorphicFormSpace(Gamma0(11),weight=4) #Search for a multiplicity two new-form
-    MF = get_cuspform_q_expansion_approx(S,50,label=1,use_FFT=False,use_Horner=False)
+    MF = get_cuspform_q_expansion_approx(S,50,label=1,use_FFT=False,use_splitting=False)
     assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-(-4)) < 1e-45
     print("test_fourier_expansion_cuspform_non_fft_non_horner ok")
 
@@ -43,7 +43,7 @@ def test_fourier_expansion_modform():
 def test_fourier_expansion_hauptmodul():
     S = AutomorphicFormSpace(Gamma0(6),weight=0)
     MF = get_hauptmodul_q_expansion_approx(S,50)
-    assert abs(MF.get_cusp_expansion(Cusp(-1,3))[9]--456) < 1e-40
+    assert abs(MF.get_cusp_expansion(Cusp(-1,3))[9]--456) < 1e-36
     print("test_fourier_expansion_hauptmodul ok")
 
 def test_fourier_expansion_basis_cuspform():
@@ -52,9 +52,9 @@ def test_fourier_expansion_basis_cuspform():
     f0 = b[0].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     f1 = b[1].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     assert f0[0] == 0 and f0[1] == 0 and f0[3] == 0
-    assert abs(f0[8]-256) < 1e-40
+    assert abs(f0[8]-256) < 1e-35
     assert f1[0] == 0 and f1[1] == 0 and f1[2] == 0
-    assert abs(f1[9]-72) < 1e-40
+    assert abs(f1[9]-72) < 1e-35
     print("test_fourier_expansion_basis_cuspform ok")
 
 def test_fourier_expansion_basis_modform():

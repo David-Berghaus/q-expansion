@@ -19,6 +19,7 @@ cdef extern from "arb_wrap.h":
     void acb_mat_approx_mul_classical(acb_mat_t res, const acb_mat_t mat1, const acb_mat_t mat2, long prec)
     void acb_mat_neg(acb_mat_t dest, const acb_mat_t src)
     void acb_mat_get_mid(acb_mat_t B, const acb_mat_t A)
+    void acb_mat_swap(acb_mat_t mat1, acb_mat_t mat2)
 
     void acb_mat_window_init(acb_mat_t window, const acb_mat_t mat, long r1, long c1, long r2, long c2)
     void acb_mat_window_clear(acb_mat_t window)
@@ -66,6 +67,8 @@ cdef extern from "acb_mat_approx_helpers.c":
     void acb_mat_approx_right_mul_diag(acb_mat_t res, const acb_mat_t A, const acb_mat_t D, int prec)
     void acb_approx_complex_sign(acb_t res, acb_t z, arb_t z_abs, int prec)
     void lartg(acb_t c, acb_t s, acb_t r, acb_t f, acb_t g, int prec)
+    void acb_mat_set_powers_approx(acb_mat_t xs, const acb_t x, int prec)
+    void evaluate_modular_splitting_polynomial(acb_t res, acb_mat_t coeffs, acb_mat_t xs, acb_mat_t ys, int j, int k, int Ms, int Mf, int bit_prec)
 
 cdef extern from "acb_dft_helpers.c":
     void acb_dft_column_precomp(acb_mat_t b, acb_dft_pre_t pre_comp, acb_mat_t x, int prec)

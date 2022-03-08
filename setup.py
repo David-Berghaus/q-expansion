@@ -14,6 +14,7 @@ extensions = [
     Extension("classes.acb_dft_class", ["classes/acb_dft_class.pyx"]),
     Extension("classes.plu_class", ["classes/plu_class.pyx"]),
     Extension("classes.block_factored_mat_class", ["classes/block_factored_mat_class.pyx"]),
+    Extension("classes.modular_splitting_polynomial", ["classes/modular_splitting_polynomial.pyx"]),
     Extension("classes.modform_class", ["classes/modform_class.pyx"]),
     Extension("classes.gamma_2_subgroup", ["classes/gamma_2_subgroup.pyx"]),
     Extension("classes.factored_polynomial", ["classes/factored_polynomial.pyx"]),
