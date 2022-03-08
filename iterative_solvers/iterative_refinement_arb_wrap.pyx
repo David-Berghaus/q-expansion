@@ -51,7 +51,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_cast = x0
         acb_mat_set(x.value, acb_mat_cast.value)
     else:
-        acb_mat_approx_solve_lu_precomp(x.value, PLU.P, PLU.value, b.value, low_prec)
+        PLU.solve(x,b,low_prec)
 
     for i in range(maxiter):
         if mix_prec == True:
@@ -64,7 +64,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_approx_sub(r.value, b.value, r.value, iter_prec)
         sig_off()
         # d = A\r
-        acb_mat_approx_solve_lu_precomp(d.value, PLU.P, PLU.value, r.value, low_prec)
+        PLU.solve(d,r,low_prec)
         # x = x + d
         acb_mat_approx_add(x.value, x.value, d.value, iter_prec)
         #normr = norm(r)

@@ -79,6 +79,17 @@ cdef class PLU_Mat():
             for i in range(nrows):
                 P[i] = piv[i]
 
+    def solve(self, Acb_Mat x, Acb_Mat b, bit_prec):
+        self.solve_arb(x,b,bit_prec)
+
+    def solve_arb(self, Acb_Mat x, Acb_Mat b, bit_prec):
+        """
+        Solve A*x=b by using the LU-decomposition that is stored as an arb matrix inside this class.
+        """
+        sig_on()
+        acb_mat_approx_solve_lu_precomp(x.value,self.P,self.value,b.value,bit_prec)
+        sig_off()
+
     def __dealloc__(self):
         acb_mat_clear(self.value)
         sig_free(self.P)
