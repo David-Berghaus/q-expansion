@@ -37,7 +37,7 @@ def test_fourier_expansion_cuspform_prec_loss(): #Test that prec_loss is working
 def test_fourier_expansion_modform():
     S = AutomorphicFormSpace(Gamma0(3),weight=4)
     MF = get_modform_q_expansion_approx(S,50,label=0)
-    assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-240) < 1e-40
+    assert abs(MF.get_cusp_expansion(Cusp(1,0),trunc_order=10)[3]-240) < 1e-37
     print("test_fourier_expansion_modform ok")
 
 def test_fourier_expansion_hauptmodul():
@@ -63,7 +63,7 @@ def test_fourier_expansion_basis_modform():
     f0 = b[0].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     f1 = b[1].get_cusp_expansion(Cusp(1,0),trunc_order=10)
     assert f0[0] == 1 and f0[1] == 0 and f0[2] == 0
-    assert abs(f0[8]-2160) < 1e-40
+    assert abs(f0[8]-2160) < 1e-36
     assert f1[0] == 0 and f1[1] == 0 and f1[2] == 1
-    assert abs(f1[6]-28) < 1e-40
+    assert abs(f1[6]-28) < 1e-38
     print("test_fourier_expansion_basis_modform ok")
