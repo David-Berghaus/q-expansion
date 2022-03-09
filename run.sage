@@ -31,6 +31,7 @@ def get_passport_list_up_to_degree(genus, max_extension_field_degree):
     for i in range(len(passport_list_raw)):
         if len(passport_list_raw[i]) <= max_extension_field_degree:
             passport_list.append(passport_list_raw[i])
+    return passport_list
 
 def haberland_precision_test():
     """
