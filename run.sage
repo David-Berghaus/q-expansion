@@ -17,6 +17,21 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 
 load("subgroups.sage")
 
+def get_passport_list_up_to_degree(genus, max_extension_field_degree):
+    """
+    Returns all passports with extension_field_degree <= specified degree.
+    """
+    if genus == 0:
+        passport_list_raw = load("data/genus_zero_passport_list.sobj")
+    elif genus == 1:
+        passport_list_raw = load("data/genus_one_passport_list.sobj")
+    else:
+        raise NotImplementedError("This case has not been implemented yet!")
+    passport_list = []
+    for i in range(len(passport_list_raw)):
+        if len(passport_list_raw[i]) <= max_extension_field_degree:
+            passport_list.append(passport_list_raw[i])
+
 def haberland_precision_test():
     """
     Test precision of Petersson product evaluation for several examples.
