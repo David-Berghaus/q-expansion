@@ -618,10 +618,11 @@ cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     sig_off()
     return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=False,use_scipy_lu=False):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=False):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
+    use_scipy_lu = False #For GMRES we cannot use the scipy LU because we need to cast the LU matrix to working precision
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
