@@ -16,14 +16,14 @@ from point_matching.point_matching_arb_wrap import (
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v, convert_from_Kv_to_Kw
 from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
 
-def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True):
+def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True):
     """
     Computes q-expansion of cuspform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 1
     normalization = _get_normalization_cuspforms(S,label=label)
     if c_vec == None: #We compute c_vec from scratch
-        c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss)
+        c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
         if M_0 == 0:
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
@@ -33,14 +33,14 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
     base_ring = cusp_expansions[Cusp(1,0)].base_ring()
     return FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm",base_ring)
 
-def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True):
+def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True):
     """
     Computes q-expansion of modform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 0
     normalization = _get_normalization_modforms(S,label=label)
     if c_vec == None: #We compute c_vec from scratch
-        c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss)
+        c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
         if M_0 == 0:
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
@@ -50,12 +50,12 @@ def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=Non
     base_ring = cusp_expansions[Cusp(1,0)].base_ring()
     return FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm",base_ring)
 
-def get_hauptmodul_q_expansion_approx(S, digit_prec, Y=0, M_0=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True):
+def get_hauptmodul_q_expansion_approx(S, digit_prec, Y=0, M_0=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True):
     """
     Computes q-expansion of hauptmodul numerically and returns result as instance of "FourierExpansion".
     """
     if c_vec == None: #We compute c_vec from scratch
-        c_vec, M_0 = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=False,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,prec_loss=prec_loss)
+        c_vec, M_0 = get_coefficients_haupt_ir_arb_wrap(S,digit_prec,only_principal_expansion=False,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
         if M_0 == 0:
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")

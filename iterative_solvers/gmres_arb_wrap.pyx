@@ -18,123 +18,6 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.plu_class cimport PLU_Mat
 from classes.block_factored_mat_class cimport Block_Factored_Mat
 
-def test_gmres(S,int digit_prec,Y=0,int M=0):
-    from psage.modform.maass.automorphic_forms_alg import get_M_for_holom   
-    from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_arb_wrap
-    bit_prec = digits_to_bits(digit_prec)
-    RBF = RealBallField(bit_prec)
-    CBF = ComplexBallField(bit_prec)
-    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
-    print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
-    cdef Acb_Mat V, b, V_inv, res, x0
-    cdef PLU_Mat plu
-    V, b = get_V_tilde_matrix_b_arb_wrap(S,M,Y,bit_prec)
-    dimen = acb_mat_nrows(V.value)
-    x0 = Acb_Mat(dimen, 1)
-    tol = RBF(10.0)**(-digit_prec)
-    low_prec = 64
-
-    V_inv = Acb_Mat(dimen, dimen)
-    cdef Acb_Mat diag, diag_inv
-    diag = Acb_Mat(dimen, 1)
-    diag_inv = Acb_Mat(dimen, 1)
-    cdef RealBall tmp
-    weight_half = weight//2
-    cdef RealBall Y_pow_weight_half = Y**weight_half
-    from point_matching.point_matching_arb_wrap import get_pi_ball
-    cdef RealBall two_pi = 2*get_pi_ball(bit_prec)
-    for i in range(2,dimen+2):
-        tmp = Y_pow_weight_half*((-two_pi*i*Y).exp())
-        acb_set_arb(acb_mat_entry(diag.value,i-2,0), tmp.value)
-    for i in range(dimen):
-        #acb_set(acb_mat_entry(diag.value,i,0), acb_mat_entry(V.value, i, i))
-        acb_approx_inv(acb_mat_entry(diag_inv.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
-    acb_mat_approx_right_mul_diag(V.value, V.value, diag_inv.value, bit_prec)
-
-    acb_mat_approx_inv(V_inv.value, V.value, low_prec)
-    # epsilon = CBF(RBF(10.0)**(-150), RBF(10.0)**(-150))
-    # _get_coefficient_guess(1, 12, x0, epsilon, bit_prec) #ONLY MODULAR GROUP HERE
-    # for i in range(dimen):
-    #     acb_approx_mul(acb_mat_entry(x0.value,i,0), acb_mat_entry(x0.value,i,0), acb_mat_entry(diag.value,i,0), bit_prec)
-    # for i in range(dimen//2, dimen): #Assume that we don't know the last dimen//2 entries
-    #     acb_zero(acb_mat_entry(x0.value,i,0))
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, M=V_inv)
-
-    # plu = PLU_Mat(V, low_prec)
-    # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
-
-    res = x_gmres_arb_wrap[0]
-    
-    acb_mat_approx_left_mul_diag(res.value, diag_inv.value, res.value, bit_prec)
-    print("test result for Gamma0(1): ")
-    acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
-    acb_printd(acb_mat_entry(res.value,0,0), digit_prec)
-    # print('')
-    # res.str(10)
-
-def test_factored_gmres(S,int digit_prec,Y=0,int M=0):
-    from psage.modform.maass.automorphic_forms_alg import get_M_for_holom   
-    from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_factored_b_arb_wrap
-    import time
-    bit_prec = digits_to_bits(digit_prec)
-    RBF = RealBallField(bit_prec)
-    CBF = ComplexBallField(bit_prec)
-    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
-        Y = RBF(S.group().minimal_height()*0.8)
-    if M == 0:
-        weight = S.weight()
-        M = math.ceil(get_M_for_holom(Y,weight,digit_prec))
-    print("Y = ", Y)
-    print("M = ", M)
-    print("dimen = ", S.group().ncusps()*M)
-    cdef Block_Factored_Mat V
-    cdef Acb_Mat b, V_inv, res
-    cdef PLU_Mat plu
-    V, b = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Y,bit_prec)
-    tol = RBF(10.0)**(-digit_prec)
-    low_prec = 64
-
-    V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
-
-    # V_inv = Acb_Mat(dimen, dimen)
-    # cdef Acb_Mat diag = Acb_Mat(dimen, 1)
-    # for j in range(dimen):
-    #     acb_set(acb_mat_entry(diag.value,j,0), acb_mat_entry(V.value, j, j))
-    #     for i in range(dimen):
-    #         acb_div(acb_mat_entry(V.value,i,j), acb_mat_entry(V.value,i,j), acb_mat_entry(diag.value,j,0), bit_prec)
-    # acb_mat_approx_inv(V_inv.value, V.value, low_prec)
-    st = time.time()
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
-    print(time.time()-st)
-
-    # plu = PLU_Mat(V, low_prec)
-    # x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
-
-    res = x_gmres_arb_wrap[0]
-
-    V.diag_inv_scale_vec(res, res, bit_prec)
-    print("test result for Gamma0(1): ")
-    acb_add_ui(acb_mat_entry(res.value,0,0), acb_mat_entry(res.value,0,0), 24, bit_prec)
-    acb_printd(acb_mat_entry(res.value,0,0), digit_prec)
-    # print('')
-    # res.str(10)
-
-def _get_coefficient_guess(N, weight, Acb_Mat x0, ComplexBall epsilon, prec): #Works only for Gamma0(N) and is only used for testing
-    from sage.modular.modform.constructor import CuspForms
-    CF = CuspForms(N, weight)
-    dimen = x0.nrows()
-    q = CF.q_expansion_basis(dimen+2)[0]
-    for i in range(dimen):
-        acb_set_si(acb_mat_entry(x0.value,i,0), q[i+2])
-        acb_approx_sub(acb_mat_entry(x0.value,i,0), acb_mat_entry(x0.value,i,0), epsilon.value, prec)
-
 cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     """Apply the first k Givens rotations in Q to v.
     Parameters
@@ -567,10 +450,10 @@ cdef apply_preconditioner(x, M, PLU, int prec): #Apply preconditioner (if availa
         if type(x) is Acb_Mat:
             x_cast = x
             sig_on()
-            acb_mat_approx_solve_lu_precomp(x_cast.value, PLU_cast.P, PLU_cast.value, x_cast.value, prec)
+            PLU.solve_arb(x_cast,x_cast,prec)
             sig_off()
         elif type(x) is Acb_Mat_Win:
             x_win_cast = x
             sig_on()
-            acb_mat_approx_solve_lu_precomp(x_win_cast.value, PLU_cast.P, PLU_cast.value, x_win_cast.value, prec)
+            PLU.solve_arb_win(x_win_cast,x_win_cast,prec)
             sig_off()

@@ -120,17 +120,18 @@ void acb_approx_abs(arb_t r, const acb_t z, int prec)
 
 int arb_get_exponent(arb_t x)
 {
-    fmpz_t man, exp;
+    fmpz_t exp;
+    arf_t arf_tmp;
 
-    fmpz_init(man);
     fmpz_init(exp);
+    arf_init(arf_tmp);
 
-    arf_get_fmpz_2exp(man, exp, arb_midref(x));
+    arf_frexp(arf_tmp, exp, arb_midref(x));
 
     int exp_int = fmpz_get_si(exp);
 
-    fmpz_clear(man);
     fmpz_clear(exp);
+    arf_clear(arf_tmp);
 
     return exp_int;
 }

@@ -33,6 +33,7 @@ cdef extern from "arb_wrap.h":
 
     void arf_printd(const arf_t x, long d)
     void arf_set_d(arf_t res, double x)
+    double arf_get_d(const arf_t x, arf_rnd_t rnd)
     void acb_set_d_d(acb_t z, double x, double y)
     void acb_get_mid(acb_t m, const acb_t x)
 

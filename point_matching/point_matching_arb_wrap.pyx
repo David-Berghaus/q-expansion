@@ -622,6 +622,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
+    use_scipy_lu = False #For GMRES we cannot use the scipy LU because we need to cast the LU matrix to working precision
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
@@ -644,7 +645,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
 
@@ -653,7 +654,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
 
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=False):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=False,use_scipy_lu=True):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -679,7 +680,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
 
@@ -690,7 +691,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     else:
         return res, M_0
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
     Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
@@ -716,7 +717,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
 
@@ -727,7 +728,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     else:
         return res, M_0
 
-cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=True,use_splitting=True):
+cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
     Computes expansion coefficients of hauptmodul using classical iterative refinement
     """
@@ -752,7 +753,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
 
@@ -769,7 +770,7 @@ cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
         else:
             return res, M_0
 
-cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=False,label=0,use_FFT=True,use_splitting=True):
+cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=False,label=0,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement.
     This function uses the precisions specified in 'digit_precs' to gradually increase the size of the system of linear equations
@@ -804,7 +805,7 @@ cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=Fa
         tol = RBF(10.0)**(-digit_prec+1)
 
         V_dp = V.construct_sc_np()
-        plu = PLU_Mat(V_dp,prec=53)
+        plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
         if i == 0:
             starting_prec = 0
@@ -830,7 +831,7 @@ cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=Fa
     else:
         return res, M_0
 
-cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True):
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -854,7 +855,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res_vec = []
     for i in range(len(b_vecs)):
@@ -870,7 +871,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
             labels = range(multiplicity)
         return res_vec, M_0, labels
 
-cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True):
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -894,7 +895,7 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,prec=53)
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res_vec = []
     for i in range(len(b_vecs)):
