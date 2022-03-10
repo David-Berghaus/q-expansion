@@ -31,6 +31,8 @@ def is_effectively_zero(x, estimated_digit_prec):
     """
     Given a number x, test if x is effectively zero (up to the estimated precision).
     """
+    if x == 0:
+        return True
     return get_decimal_digit_prec(x.abs()) > estimated_digit_prec
 
 cpdef to_K(x, K):
