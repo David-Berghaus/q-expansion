@@ -14,9 +14,10 @@ from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
 from classes.plu_class cimport PLU_Mat
 from classes.block_factored_mat_class cimport Block_Factored_Mat
 from iterative_solvers.gmres_arb_wrap cimport mat_vec_mul
+from belyi.number_fields import get_decimal_digit_prec
 from point_matching.point_matching_arb_wrap import digits_to_bits
 
-cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=10**4, mix_prec=True, starting_prec=0, is_scaled=True):
+cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=None, mix_prec=True, starting_prec=0, is_scaled=True):
     """Uses classical iterative refinement 
     to solve Ax = b
     Parameters
@@ -52,6 +53,8 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_set(x.value, acb_mat_cast.value)
     else:
         PLU.solve(x,b,low_prec)
+    if maxiter == None:
+        maxiter = get_decimal_digit_prec(tol)//15 + 10 #We expect to get around 15 digits per iteration, otherwise something likely went wrong
 
     for i in range(maxiter):
         if mix_prec == True:
