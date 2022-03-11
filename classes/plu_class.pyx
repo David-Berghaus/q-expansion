@@ -118,13 +118,13 @@ cdef class PLU_Mat():
         AFTER SCALING! IF THIS IS NOT THE CASE, PLEASE MAKE USE OF THE ARB-ROUTINES INSTEAD!
         """
         cdef int i
-        smallest_exponent = 0
+        largest_exponent = -9223372036854775807
         cdef int nrows = b.nrows()
         for i in range(nrows): #Detect smallest exponent of real parts of b entries
             b_i_exponent = arb_get_exponent(acb_realref(acb_mat_entry(b.value,i,0))) #In principle we need to considers abs here but real is sufficient for our needs
-            if b_i_exponent < smallest_exponent:
-                smallest_exponent = b_i_exponent
-        scaling_exponent = -smallest_exponent
+            if b_i_exponent > largest_exponent:
+                largest_exponent = b_i_exponent
+        scaling_exponent = -largest_exponent
         for i in range(nrows): #Scale exponents of b
             acb_mul_2exp_si(acb_mat_entry(b.value,i,0),acb_mat_entry(b.value,i,0),scaling_exponent)
         b_scaled_np = np.zeros(nrows,dtype=np.complex_)
