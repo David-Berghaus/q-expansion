@@ -445,11 +445,15 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                 modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(modforms_num)):
                     if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
+                        print("weight: ", weight)
+                        print("label: ", i)
                         raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
                 cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
+                        print("weight: ", weight)
+                        print("label: ", i)
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
                 if G.dimension_eis(weight) != 0:
                     eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
@@ -473,14 +477,16 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     u_CC = CC(u_QQbar)
     for i in range(f_expansion.degree()+1): #We could also get a 1/q part for j_G which is however always correct
         if does_result_match_numerics(f_expansion[i],f_numerics_expansion[i],tol) == False:
-            print("i: ", i)
+            print("Error inside raw-result")
+            print("coeff_index: ", i)
             print("CC(f_expansion[i]): ", CC(f_expansion[i]))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion[i]-f_numerics_expansion[i]))
             return False
         #Also test that the u-v-factoriazation works correctly
         if does_result_match_numerics(f_expansion_factored[i].change_ring(CC).subs(u=u_CC),f_numerics_expansion[i],tol) == False:
-            print("i: ", i)
+            print("Error inside u-v-factored result")
+            print("coeff_index: ", i)
             print("f_expansion_factored[i].change_ring(CC).subs(u=u_CC): ", f_expansion_factored[i].change_ring(CC).subs(u=u_CC))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion_factored[i].change_ring(CC).subs(u=u_CC)-f_numerics_expansion[i]))
