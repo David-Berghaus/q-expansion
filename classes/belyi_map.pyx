@@ -1,5 +1,3 @@
-from math import ceil
-
 from sage.libs.arb.acb cimport *
 from sage.rings.complex_arb cimport *
 from sage.libs.arb.acb_poly cimport *
@@ -22,13 +20,12 @@ from sage.functions.other import ceil
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.modform.arithgroup.mysubgroup import MySubgroup
-from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from arblib_helpers.acb_approx cimport *
 from belyi.newton_genus_zero import run_newton
 from belyi.number_fields import get_decimal_digit_prec
 from point_matching.point_matching_arb_wrap import get_coefficients_haupt_ir_arb_wrap, digits_to_bits, bits_to_digits, get_pi_ball
-from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form
+from classes.fourier_expansion import FourierExpansion, to_reduced_row_echelon_form, get_trunc_orders_convergence
 from classes.factored_polynomial import get_factored_polynomial_in_u_v
 
 def get_n_th_root_of_1_over_j(trunc_order,n): #We work over QQ because it is usually not slower than approx and one does not need to worry about conditioning
@@ -762,11 +759,4 @@ class BelyiMap():
         We choose the trunc_order for each cusp in a way that the expansion of f(z) (approximately) converges inside the fundamental domain.
         Where f(z) is a modular form of specified weight k for which we assume that the coefficients grow like O(n^k)
         """
-        trunc_orders = dict()
-        G = self.G
-        Y_0 = 0.866025403784439 #height of fundamental domain of SL2Z
-        for c in G.cusps():
-            Y = Y_0/G.cusp_width(c)
-            trunc_order = ceil(get_M_for_holom(Y,2*weight,digit_prec))
-            trunc_orders[c] = trunc_order
-        return trunc_orders
+        return get_trunc_orders_convergence(self.G,weight,digit_prec)
