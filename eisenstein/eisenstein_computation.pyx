@@ -4,7 +4,7 @@ from eisenstein.haberland import compute_petersson_product_haberland, get_exp_tw
 from sage.functions.other import conjugate
 from sage.symbolic.constants import pi
 
-def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=False):
+def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=False, truncate_cusp_expansions_to_convergence=True):
     """
     Compute the orthogonal complement of the cuspforms in the space of modular forms (which corresponds to a basis of Eisenstein series).
     We assume that cuspforms/modforms are lists of basis functions in reduced row echelon form.
@@ -12,6 +12,9 @@ def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=Fals
     """
     cuspforms_CC = [cuspform._convert_to_CC() for cuspform in cuspforms] #We need to work over ComplexFields because CBFs have hashing issues in haberland
     modforms_CC = [modform._convert_to_CC() for modform in modforms]
+    if truncate_cusp_expansions_to_convergence == True: #Ignore all higher coeffs that are not required to reach convergence
+        cuspforms_CC = [cuspform._get_convergence_truncated_instance() for cuspform in cuspforms_CC]
+        modforms_CC = [modform._get_convergence_truncated_instance() for modform in modforms_CC]
     dim_S = len(cuspforms_CC)
     dim_M = len(modforms)
     dim_E = dim_M-dim_S

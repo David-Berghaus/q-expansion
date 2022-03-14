@@ -15,6 +15,7 @@ UNKNOWN.egg-info/top_level.txt
 arblib_helpers/__init__.py
 arblib_helpers/acb_approx.c
 arblib_helpers/acb_approx.pxd
+arblib_helpers/acb_approx.pyx
 arblib_helpers/acb_approx_helpers.c
 arblib_helpers/acb_approx_helpers.h
 arblib_helpers/acb_dft_helpers.c

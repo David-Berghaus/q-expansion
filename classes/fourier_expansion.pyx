@@ -7,6 +7,9 @@ from sage.rings.qqbar import AlgebraicField
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 from sage.rings.number_field.number_field import NumberField_generic
+from sage.functions.other import ceil
+
+from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from point_matching.point_matching_arb_wrap import (
     get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap,
@@ -98,6 +101,20 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
         basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm",base_ring))
     return basis
+
+def get_trunc_orders_convergence(G, weight, digit_prec):
+        """
+        Returns a dictionary with cusps of self.G as keys and trunc_orders as values.
+        We choose the trunc_order for each cusp in a way that the expansion of f(z) (approximately) converges inside the fundamental domain.
+        Where f(z) is a modular form of specified weight k for which we assume that the coefficients grow like O(n^k)
+        """
+        trunc_orders = dict()
+        Y_0 = 0.866025403784439 #height of fundamental domain of SL2Z
+        for c in G.cusps():
+            Y = Y_0/G.cusp_width(c)
+            trunc_order = ceil(get_M_for_holom(Y,2*weight,digit_prec))
+            trunc_orders[c] = trunc_order
+        return trunc_orders
 
 def c_vec_to_cusp_expansions(c_vec_mcbd, S, starting_order, normalization, M_0):
     """
@@ -266,7 +283,21 @@ class FourierExpansion():
             c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
         else: #We only know the numerical values of the q-expansions
             c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__() #We only know the numerical values of the q-expansions
-        return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str 
+        return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str
+
+    def _get_convergence_truncated_instance(self):
+        """
+        Return a new instance for which the expansions at each cusp are not larger than what is needed
+        to obtain convergence up to 10^(-digit_prec).
+        This function can be used to truncate results that have been obtained from Hejhal's method before computing Petersson products.
+        """
+        new_self = deepcopy(self)
+        digit_prec = bits_to_digits(new_self.base_ring.precision())
+        trunc_orders_convergence = get_trunc_orders_convergence(new_self.G,new_self.weight,digit_prec)
+        for c in new_self.G.cusps():
+            if new_self.cusp_expansions[c].prec() > trunc_orders_convergence[c]+8:
+                new_self.cusp_expansions[c] = new_self.cusp_expansions[c].O(trunc_orders_convergence[c]+8)
+        return new_self
 
     def get_cusp_expansion(self, c, trunc_order=None, digit_prec=None, factor_into_u_v=False):
         """
