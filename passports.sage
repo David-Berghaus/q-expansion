@@ -477,16 +477,16 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     u_CC = CC(u_QQbar)
     for i in range(f_expansion.degree()+1): #We could also get a 1/q part for j_G which is however always correct
         if does_result_match_numerics(f_expansion[i],f_numerics_expansion[i],tol) == False:
-            print("Error inside raw-result")
             print("coeff_index: ", i)
+            print("f_expansion[i]: ", f_expansion[i])
             print("CC(f_expansion[i]): ", CC(f_expansion[i]))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion[i]-f_numerics_expansion[i]))
             return False
         #Also test that the u-v-factoriazation works correctly
         if does_result_match_numerics(f_expansion_factored[i].change_ring(CC).subs(u=u_CC),f_numerics_expansion[i],tol) == False:
-            print("Error inside u-v-factored result")
             print("coeff_index: ", i)
+            print("f_expansion_factored[i]: ", f_expansion_factored[i])
             print("f_expansion_factored[i].change_ring(CC).subs(u=u_CC): ", f_expansion_factored[i].change_ring(CC).subs(u=u_CC))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion_factored[i].change_ring(CC).subs(u=u_CC)-f_numerics_expansion[i]))
