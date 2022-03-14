@@ -98,7 +98,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, B._return_newton_res()
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=40, tol=1e-10):
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
