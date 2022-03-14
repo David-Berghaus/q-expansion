@@ -86,10 +86,13 @@ def create_list_of_passport_labels(genus, max_passport_index=None):
     """
     Create a list of all passport labels (represented as strings).
     """
-    if genus != 0:
-        raise NotImplementedError("This case has not been implemented yet!")
     passport_label_list = []
-    passport_list = load("data/genus_zero_passport_list.sobj")
+    if genus == 0:
+        passport_list = load("data/genus_zero_passport_list.sobj")
+    elif genus == 1:
+        passport_list = load("data/genus_one_passport_list.sobj")
+    else:
+        raise NotImplementedError("This case has not been implemented yet!")
     if max_passport_index == None:
         max_passport_index = len(passport_list)
     for i in range(max_passport_index):
