@@ -473,7 +473,7 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     f_expansion = f.get_cusp_expansion(Cusp(1,0))
     f_expansion_factored = f.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)
     f_numerics_expansion = f_numerics.get_cusp_expansion(Cusp(1,0))
-    CC = f_numerics_expansion.base_ring()
+    CC = ComplexField(2048) #It is important not to use too little precision here because the substitution of the rigorous expressions can be ill-conditioned...
     u_CC = CC(u_QQbar)
     for i in range(f_expansion.degree()+1): #We could also get a 1/q part for j_G which is however always correct
         if does_result_match_numerics(f_expansion[i],f_numerics_expansion[i],tol) == False:
