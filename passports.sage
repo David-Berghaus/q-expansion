@@ -98,7 +98,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, B._return_newton_res()
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=30, tol=1e-10):
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=40, tol=1e-10):
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
@@ -445,11 +445,15 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                 modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(modforms_num)):
                     if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
+                        print("weight: ", weight)
+                        print("label: ", i)
                         raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
                 cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
+                        print("weight: ", weight)
+                        print("label: ", i)
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
                 if G.dimension_eis(weight) != 0:
                     eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
@@ -469,18 +473,20 @@ def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     f_expansion = f.get_cusp_expansion(Cusp(1,0))
     f_expansion_factored = f.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)
     f_numerics_expansion = f_numerics.get_cusp_expansion(Cusp(1,0))
-    CC = f_numerics_expansion.base_ring()
+    CC = ComplexField(2048) #It is important not to use too little precision here because the substitution of the rigorous expressions can be ill-conditioned...
     u_CC = CC(u_QQbar)
     for i in range(f_expansion.degree()+1): #We could also get a 1/q part for j_G which is however always correct
-        if does_result_match_numerics(f_expansion[i],f_numerics_expansion[i],tol) == False:
-            print("i: ", i)
+        if does_result_match_numerics(CC(f_expansion[i]),f_numerics_expansion[i],tol) == False:
+            print("coeff_index: ", i)
+            print("f_expansion[i]: ", f_expansion[i])
             print("CC(f_expansion[i]): ", CC(f_expansion[i]))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
-            print("diff: ", abs(f_expansion[i]-f_numerics_expansion[i]))
+            print("diff: ", abs(CC(f_expansion[i])-f_numerics_expansion[i]))
             return False
         #Also test that the u-v-factoriazation works correctly
         if does_result_match_numerics(f_expansion_factored[i].change_ring(CC).subs(u=u_CC),f_numerics_expansion[i],tol) == False:
-            print("i: ", i)
+            print("coeff_index: ", i)
+            print("f_expansion_factored[i]: ", f_expansion_factored[i])
             print("f_expansion_factored[i].change_ring(CC).subs(u=u_CC): ", f_expansion_factored[i].change_ring(CC).subs(u=u_CC))
             print("f_numerics_expansion[i]: ", f_numerics_expansion[i])
             print("diff: ", abs(f_expansion_factored[i].change_ring(CC).subs(u=u_CC)-f_numerics_expansion[i]))

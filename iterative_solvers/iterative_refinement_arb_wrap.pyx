@@ -79,6 +79,8 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         # if normr < tol:
         if arb_lt(normr, tol.value) == 1:
             break
+        if i == maxiter-1:
+            raise ArithmeticError("Maximum amount of iterations reached without sufficient convergence!")
     
     arb_clear(normr)
     return x
