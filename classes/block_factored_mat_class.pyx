@@ -129,11 +129,11 @@ cdef class W_class():
         self.use_splitting = use_splitting
         self.is_initialized = False #This flag indicates if W has been fully initialized or not
 
-    def _construct_non_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
+    def _construct_non_splitting(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec):
         self.W = Acb_Mat(len(coordinates),M)
         _get_W_block_matrix_arb_wrap(self.W.value,Ms,Mf,weight,coordinates,bit_prec)
     
-    def _construct_horner(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True):
+    def _construct_splitting(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,trunc_W=True):
         coord_len = len(coordinates)
         weight_half = weight//2
         CBF = ComplexBallField(bit_prec)
@@ -154,7 +154,7 @@ cdef class W_class():
             q = (two_pi_i*z_fund).exp()
             if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
                 #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
-                suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log())))
+                suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log()))) + 8 #Somehow we need some extra terms for splitting...
                 trunc_order = min(suggested_trunc_order,Mf)
             else:
                 trunc_order = Mf
@@ -165,13 +165,13 @@ cdef class W_class():
     def _construct(self,int M,int Ms,int Mf,int weight,coordinates,int bit_prec,bint use_splitting):
         self._nrows = len(coordinates)
         if use_splitting == False and self.use_splitting == False:
-            self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+            self._construct_non_splitting(M,Ms,Mf,weight,coordinates,bit_prec)
         elif use_splitting == True and self.use_splitting == True:
             if Mf < 50: #We don't use splitting for small cases because we are not interested in implementing these corner cases
                 self.use_splitting = False
-                self._construct_non_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+                self._construct_non_splitting(M,Ms,Mf,weight,coordinates,bit_prec)
             else:
-                self._construct_horner(M,Ms,Mf,weight,coordinates,bit_prec)
+                self._construct_splitting(M,Ms,Mf,weight,coordinates,bit_prec)
         else:
             raise ArithmeticError("Wrong initialization!")
         self.is_initialized = True
