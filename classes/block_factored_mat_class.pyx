@@ -154,7 +154,7 @@ cdef class W_class():
             q = (two_pi_i*z_fund).exp()
             if trunc_W == True: #Hopefully we can remove this section once arb adds fast Horner schemes...
                 #This feature is naive and experimental. This should only be a temporary solution until Horner uses auto-truncation.
-                suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log())))
+                suggested_trunc_order = int(log10_pow_minus_D/(RealDoubleElement(CBF_low_prec(q).abs().log()))) + 8 #Somehow we need some extra terms for splitting...
                 trunc_order = min(suggested_trunc_order,Mf)
             else:
                 trunc_order = Mf
