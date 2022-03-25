@@ -8,6 +8,7 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.complex_field import ComplexField
 
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win
@@ -44,6 +45,9 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
     cdef Acb_Mat acb_mat_cast
     cdef arb_t normr
     arb_init(normr)
+    RBF = RealBallField(53)
+    CC = ComplexField(53)
+    cdef RealBall rbf_tmp = RBF(0) #we use this expression to print values properly in python
 
     cdef Acb_Mat r = Acb_Mat(dimen,1)
     cdef Acb_Mat d = Acb_Mat(dimen,1)
@@ -74,8 +78,9 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         sig_on()
         acb_mat_approx_norm(normr, r.value, low_prec)
         sig_off()
-        arb_printd(normr, 10)
-        print(' (' + str(i) + '. iteration)')
+        arb_set(rbf_tmp.value,normr)
+        # print(str(i) + ".iteration: " + str(CC(rbf_tmp)))
+        print(str(i) + ", " + str(CC(rbf_tmp)))
         # if normr < tol:
         if arb_lt(normr, tol.value) == 1:
             break
