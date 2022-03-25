@@ -11,6 +11,7 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
+from sage.rings.complex_field import ComplexField
 from sage.matrix.matrix_space import MatrixSpace
 
 from arblib_helpers.acb_approx cimport *
@@ -175,6 +176,9 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
     acb_init(acb_tmp)
     acb_init(acb_tmp2)
     acb_init(acb_tmp3)
+    RBF = RealBallField(53)
+    CC = ComplexField(53)
+    cdef RealBall rbf_tmp = RBF(0) #we use this expression to print values properly in python
 
     # Set number of outer and inner iterations
     if restrt:
@@ -354,8 +358,9 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
             if inner < max_inner-1:
                 # normr = np.abs(g[inner+1])
                 acb_approx_abs(normr, acb_mat_entry(g.value,inner+1,0), prec)
-                arb_printd(normr, 10)
-                print(' (' + str(inner) + '. iteration)')
+                arb_set(rbf_tmp.value,normr)
+                # print(str(i) + ".iteration: " + str(CC(rbf_tmp)))
+                print(str(inner) + ", " + str(CC(rbf_tmp)))
                 # if normr < tol:
                 if arb_lt(normr, tol.value) == 1:
                     break
