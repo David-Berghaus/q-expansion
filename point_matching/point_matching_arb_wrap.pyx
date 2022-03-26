@@ -654,7 +654,7 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
 
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=False,use_scipy_lu=True):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
