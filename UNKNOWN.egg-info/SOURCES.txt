@@ -1,9 +1,11 @@
 .gitignore
 README.md
+benchmarks.sage
 create_database_entry.py
 database.sage
 passports.sage
 run.sage
+run_benchmark.py
 setup.py
 ss.sage
 subgroups.sage

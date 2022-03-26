@@ -20,6 +20,7 @@ version = int(sys.argv[1])
 S = AutomorphicFormSpace(MySubgroup(o2='(1)(2 4)(3 7)(5 10)(6 11)(8 14)(9 15)(12 13)(16 17)',o3='(1 7 4)(2 11 10)(3 15 14)(5)(6 12 13)(8 17 9)(16)'),4) #Noncongruence group of signature (17, 0, 3, 1, 2)
 digit_prec = 200
 
+print("version: ", version)
 print("S: ", S)
 print("digit_prec: ", digit_prec)
 
