@@ -654,6 +654,31 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
 
     return res.get_window(0,0,M_0,1)
 
+cpdef get_coefficients_gmres_non_scaled_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,prec_loss=None):
+    """
+    Constructs V_tilde explicitly (uses the non-scaled version) and afterwards uses GMRES to solve the resolving linear system of equations.
+    WARNING:
+    ONLY USE THE FUNCTION FOR TESTING BECAUSE IT IS VERY INEFFICIENT!
+    """
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
+    print("Y = ", Y)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
+    cdef Acb_Mat V,b
+    V,b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, maxiter=10**4)
+    res = x_gmres_arb_wrap[0]
+    return res.get_window(0,0,M_0,1)
+
 cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
