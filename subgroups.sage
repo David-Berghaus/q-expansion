@@ -79,7 +79,7 @@ def has_equal_list_entry(list, index):
             return True
     return False
 
-def get_list_of_all_passports(max_index, genus=None, reverse_permT=False):
+def get_list_of_all_passports(max_index, genus=None, reverse_permT=True):
     """
     Return a list of all passports up to specified index and with specified genus.
     """
