@@ -32,7 +32,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     G = B.G
     if B._Kv.degree() != max_extension_field_degree:
         if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-            raise ArithmeticError("We have not considered the case of decaying numberfields yet!")
+            raise ArithmeticError("We have not considered the case of decaying Galois orbits yet!")
 
     #First do the rigorous computation of the q-expansions
     j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
@@ -232,7 +232,7 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, d
                 Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
                 if Kv.degree() != max_extension_field_degree:
                     if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-                        raise ArithmeticError("We have not considered the case of decaying numberfields yet! Please also make sure that the selected cusp_expansion is not an oldform!")
+                        raise ArithmeticError("We have not considered the case of decaying Galois orbits yet! Please also make sure that the selected cusp_expansion is not an oldform!")
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
