@@ -6,11 +6,11 @@ from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, t
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits, get_M_0, get_horo_height_arb_wrap
-from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
+from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_cuspform_q_expansion_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
 from classes.belyi_map import BelyiMap, get_u_str
 from classes.factored_polynomial import get_updated_Kw_v_Kw
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, numerics_digit_prec=50, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, return_embeddings=True, numerics_digit_prec=50, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -96,9 +96,12 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                     res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CIF) for cuspform in cuspforms_fl[weight]]
     if return_newton_res == True:
         return res, B._return_newton_res()
+    if return_embeddings == True:
+        all_embeddings = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
+        return res, all_embeddings
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, numerics_digit_prec=40, tol=1e-10):
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, return_embeddings=True, numerics_digit_prec=40, tol=1e-10):
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
@@ -203,6 +206,9 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
+    if return_embeddings == True:
+        all_embeddings = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
+        return res, all_embeddings
     return res
 
 def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, digit_prec, max_extension_field_degree, principal_cusp_width):
@@ -528,3 +534,77 @@ def has_equal_list_entry(list, index):
         if i != index and list[i] == list[index]:
             return True
     return False
+
+def get_lin_u_v_term(q_expansions):
+    """
+    Choose one coefficient of a cuspform that is linear in u.
+    """
+    for weight in range(2,10,2):
+        try:
+            cuspform = q_expansions[weight]["cuspforms_pretty"][-1] #We are not guaranteed that this is a newform though
+        except KeyError:
+            continue
+        i = 1
+        while cuspform[i][1] == 0:
+            i += 1
+        if cuspform[i][1] == 0:
+            raise ArithmeticError("Did not find suitable term linear in u.")
+        label = len(q_expansions[weight]["cuspforms_pretty"])-1
+        return cuspform[i], weight, i, label
+    raise ArithmeticError("We should not get here!")
+
+def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
+    """
+    Returns floating-point approximations for expression that is linear in u-v for Galois conjugate passport elements.
+    """
+    expr_for_other_embeddings = []
+    for G in passport[1:]:
+        expr_for_other_embedding = get_cuspform_q_expansion_approx(AutomorphicFormSpace(G,weight),digit_prec,label=label).get_cusp_expansion(Cusp(1,0))[i]
+        expr_for_other_embeddings.append(expr_for_other_embedding)
+    return expr_for_other_embeddings
+
+def identify_other_embeddings(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
+    """
+    Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'.
+    """
+    CC = ComplexField(digits_to_bits(digit_prec))
+    current_embedding = QQbar(Kv.gen())
+    remaining_embeddings = []
+    for embedding in Kv.polynomial().roots(ring=QQbar,multiplicities=False):
+        if embedding != current_embedding:
+            remaining_embeddings.append(embedding)
+    nth_power_of_embedding_expr_list = [] #List of expressions for each embedding which we use to idenfity embeddings
+    for embedding in remaining_embeddings:
+        nth_power_of_embedding_expr = non_zero_lin_u_expr[1].polynomial().subs(x=embedding)**principal_cusp_width * u_interior_Kv.polynomial().subs(x=embedding)
+        nth_power_of_embedding_expr_list.append(nth_power_of_embedding_expr)
+    ordered_embeddings = [] #List of embeddings ordered in the same way as 'expr_for_other_embeddings'
+    for expr in expr_for_other_embeddings:
+        nth_power_of_expr = expr**principal_cusp_width
+        diffs = [abs(nth_power_of_expr-nth_power_of_embedding_expr) for nth_power_of_embedding_expr in nth_power_of_embedding_expr_list]
+        min_diff = min(diffs)
+        if min_diff > 1e-20:
+            raise ArithmeticError("Embedding precision is suspiciously low.")
+        embedding_index = diffs.index(min_diff)
+        ordered_embeddings.append(remaining_embeddings[embedding_index])
+    if len(ordered_embeddings) != len(set(ordered_embeddings)):
+        raise ArithmeticError("We found duplicate embeddings which means that the embeddings could not be uniquely specified!")
+    return ordered_embeddings
+    
+def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp_width):
+    """
+    Identify the corresponding passport elements for each root of Kv.
+    """
+    if len(passport) == 1:
+        return {}
+    lin_u_v_term, weight, i, label = get_lin_u_v_term(q_expansions)
+    expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,i,label)
+    other_embeddings = identify_other_embeddings(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
+    res = dict()
+    for i in range(len(passport)):
+        G = passport[i]
+        perms = (str(G.permS),str(G.permR),str(G.permT))
+        if i == 0:
+            res[perms] = QQbar(Kv.gen())
+        else:
+            res[perms] = other_embeddings[i-1]
+    return res
