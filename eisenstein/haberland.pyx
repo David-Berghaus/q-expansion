@@ -175,7 +175,7 @@ def I(n, a, b, coset_expansion, width, two_pi_i, exp_two_pi_i_a_m_dict):
             raise ArithmeticError("We have only implemented the case where F is a cuspform!")
         return compute_period_integral(n,a,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)
     else:
-        m_zero_term = -compute_m_zero_period_integral_summand(n,a,b,coset_expansion) #WHY DO WE NEED THE MINUS?!
+        m_zero_term = compute_m_zero_period_integral_summand(n,a,b,coset_expansion)
         m_larger_zero_sum = compute_period_integral(n,a,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)-compute_period_integral(n,b,coset_expansion,width,two_pi_i,exp_two_pi_i_a_m_dict)
         return m_zero_term+m_larger_zero_sum
 
@@ -186,7 +186,7 @@ def compute_period_integral(n, a, coset_expansion, width, two_pi_i, exp_two_pi_i
     res = 0
     for i in range(1,coset_expansion.degree()+1):
         m = QQ(i)/width
-        res += coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i,exp_two_pi_i_a_m_dict)
+        res += -coset_expansion[i]*compute_period_integral_term(n,a,m,two_pi_i,exp_two_pi_i_a_m_dict)
     return res
 
 @cached_function
