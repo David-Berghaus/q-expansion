@@ -1,6 +1,8 @@
 """
 Routines for loading data/noncong_reps.sobj
 """
+from json.encoder import INFINITY
+import time
 
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 from psage.groups.permutation_alg import MyPermutation
@@ -100,7 +102,7 @@ def get_list_of_all_passports(max_index, genus=None, reverse_permT=True):
             permS, permR = MyPermutation(permS_str), MyPermutation(permR_str)
             permT = permS*permR
             p = get_permT_conjugator(permT,reverse_permT)
-            permS_new, permR_new, permT_new = p.inverse()*permS*p, p.inverse()*permR*p, p.inverse()*permT*p
+            permS_new, permR_new, permT_new = get_conjugate_permutation(permS,p), get_conjugate_permutation(permR,p), get_conjugate_permutation(permT,p)
             cycle_types = (tuple(permS_new.cycle_type()),tuple(permR_new.cycle_type()),tuple(permT_new.cycle_type())) #We need tuples for dict keys
             G = MySubgroup(o2=permS_new,o3=permR_new)
             monodromy_group_order = G.perm_group().order() #It is probably better to recognize groups by order instead of some string...
@@ -119,3 +121,59 @@ def get_list_of_all_passports(max_index, genus=None, reverse_permT=True):
             for passport in sorted_by_monodromy.values():
                 res.append(passport)
     return res
+
+def get_conjugate_permutation(sigma, conjugator):
+    """
+    Conjugate sigma by conjugator, i.e., return conjugator^(-1)*sigma*conjugator.
+    """
+    return conjugator.inverse()*sigma*conjugator
+
+def get_fixed_one_permutation_iterators(d):
+    """
+    Return an iterator of all permutations in S_d that keep 1 fixed.
+    The output is an iterator over lists.
+    """
+    return Permutations(list(range(2,d+1)))
+
+def get_optimal_conjugator_for_period_integral(G, preserve_cusp_width_at_inf=True):
+    """
+    Given a subgroup G, return permutation sigma, such that sigma^(-1)*G*sigma is optimal.
+    Optimal in this setting means that the period integrals can be as high inside H as possible
+    If preserve_cusp_width_at_inf = True, we make sure that the cusp width at infinity remains the same.
+    Otherwise we look for a potentially even better configuration.
+    """
+    max_height = get_min_height_for_period_integral(G)
+    print("Original min height: ", max_height)
+    max_conj = MyPermutation(list(range(1,G.index()+1))) #The one element in S_d
+    o2, o3 = G.permS, G.permR
+    if preserve_cusp_width_at_inf == True:
+        pot_swaps = G.permT.cycles()[0][1:] #All labels that we could potentially swap with 1
+    else:
+        pot_swaps = list(range(2,G.index()+1))
+    for i in pot_swaps:
+        l = list(range(1,G.index()+1))
+        l[1-1], l[i-1] = l[i-1], l[1-1] #Swap 1 and i
+        o = MyPermutation(l)
+        G_p = MySubgroup(get_conjugate_permutation(o2,o),get_conjugate_permutation(o3,o))
+        min_height_p = get_min_height_for_period_integral(G_p)
+        if min_height_p > max_height:
+            print("Found a better min_height: ", min_height_p)
+            max_height, max_conj = min_height_p, o
+    return max_conj
+
+def get_min_height_for_period_integral(G):
+    min_height = Infinity
+    for cusp in G.cusps():
+        N, N_inv = G.cusp_normalizer(cusp).matrix(), G.cusp_normalizer(cusp).inverse().matrix()
+        cusp_width = G.cusp_width(cusp)
+        for gen in G.generators():
+            gamma = N_inv*gen*N
+            c = gamma[1][0]
+            if c == 0:
+                continue
+            height = 1/(abs(c)*cusp_width)
+            if height < min_height:
+                min_height = height
+    if min_height == Infinity:
+        raise ArithmeticError("Min height is infinity which should not happen.")
+    return min_height

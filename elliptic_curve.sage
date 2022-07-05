@@ -1,7 +1,4 @@
-from psage.modform.arithgroup.mysubgroups_alg import apply_sl2z_map_dp
-
 from belyi.number_fields import is_effectively_zero, lindep, to_K
-from pullback.my_pullback import simple_two_by_two_matmul
 
 def example():
     from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
@@ -9,10 +6,10 @@ def example():
     from classes.fourier_expansion import get_cuspform_q_expansion_approx
     #G, Kv = MySubgroup(Gamma0(20)), NumberField(x,'v')
     #G = MySubgroup(o2='(2 3)(1 4)(5 7)(6 10)(8 13)(9 16)(11 19)(12 22)(14 25)(15 28)(17 31)(18 20)(21 26)(23 29)(24 32)(27 33)(30 34)(35 36)',o3='(2 4 3)(1 10 7)(5 16 13)(6 22 19)(8 28 25)(9 20 31)(11 26 18)(12 32 29)(14 33 21)(15 34 23)(17 27 24)(30 35 36)')
-    #G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
+    G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
     #G, Kv = MySubgroup(o2='(1)(2)(3 12)(4 7)(5 9)(6 10)(8 11)',o3='(1 2 3)(4 8 12)(5 10 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
-    G, Kv = MySubgroup(o2='(10)(2)(3 12)(4 7)(5 9)(6 1)(8 11)',o3='(10 2 3)(4 8 12)(5 1 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
-    digit_prec = 200
+    #G, Kv = MySubgroup(o2='(10)(2)(3 12)(4 7)(5 9)(6 1)(8 11)',o3='(10 2 3)(4 8 12)(5 1 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
+    digit_prec = 50
     f = get_cuspform_q_expansion_approx(AutomorphicFormSpace(G,2),digit_prec) #Weight 2 cuspform to 50 digits precision
     period_lattice_els = compute_period_lattice_els(G,f, digit_prec)
     w_1, w_2 = get_w_1_w_2(period_lattice_els, digit_prec)
