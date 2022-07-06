@@ -3,15 +3,20 @@ def example_relations():
     pp = load("rm_me.sobj")
     [X, Y, Z] = pp["q_expansions"][6]["cuspforms_raw"] #X,Y,Z now correspond to weight 6 cuspforms
     Kw = X.base_ring()
+    w = Kw.gen()
     monomial_list = get_monomial_list(X,Y,Z)
     A = get_monomial_matrix(monomial_list)
     ker = get_kernel(A)
     verify_equation(ker,X,Y,Z)
-    A3 = AffineSpace(3, Kw, 'x, y, z')
-    monomial_equation = get_monomial_equation(A3,ker)
-    V = A3.subscheme([monomial_equation])
-    print("V: ", V)
-    #E = ?
+    R = PolynomialRing(Kw,"x, y, z")
+    x, y, z = R.gens()
+    monomial_equation = get_monomial_equation(R,ker)
+    monomial_equation = monomial_equation.subs(x=w*x,z=z/w)
+    monomial_equation /= w
+    monomial_equation = monomial_equation.change_ring(QQ)
+    E = EllipticCurve_from_cubic(monomial_equation,[1,0,0],morphism=False) 
+    E = E.global_minimal_model()
+    return E
 
 def get_monomial_list(X, Y, Z):
     """
@@ -34,12 +39,12 @@ def get_monomial_matrix(monomial_list):
 def get_kernel(A):
     return A.kernel() #Is there a better way?
 
-def get_monomial_equation(A3, kernel):
+def get_monomial_equation(R, kernel):
     """
     Write the monomial equation in terms of the generators of A3.
     """
     ker_basis = kernel.basis()[0]
-    x, y, z = A3.gens()
+    x, y, z = R.gens()
     monomial_equation = ker_basis[0]*x**3 + ker_basis[1]*x**2*y + ker_basis[2]*x**2*z + ker_basis[3]*x*y**2 + ker_basis[4]*x*y*z + ker_basis[5]*x*z**2 + ker_basis[6]*y**3 + ker_basis[7]*y**2*z + ker_basis[8]*y*z**2 + ker_basis[9]*z**3
     return monomial_equation
 
