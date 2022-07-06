@@ -6,13 +6,16 @@ def example():
     from classes.fourier_expansion import get_cuspform_q_expansion_approx
     #G, Kv = MySubgroup(Gamma0(11)), NumberField(x,'v')
     #G = MySubgroup(o2='(2 3)(1 4)(5 7)(6 10)(8 13)(9 16)(11 19)(12 22)(14 25)(15 28)(17 31)(18 20)(21 26)(23 29)(24 32)(27 33)(30 34)(35 36)',o3='(2 4 3)(1 10 7)(5 16 13)(6 22 19)(8 28 25)(9 20 31)(11 26 18)(12 32 29)(14 33 21)(15 34 23)(17 27 24)(30 35 36)')
-    G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
-    #G, Kv = MySubgroup(o2='(1)(2)(3 12)(4 7)(5 9)(6 10)(8 11)',o3='(1 2 3)(4 8 12)(5 10 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
+    #G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
+    G, Kv = MySubgroup(o2='(1)(2)(3 12)(4 7)(5 9)(6 10)(8 11)',o3='(1 2 3)(4 8 12)(5 10 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
     #G, Kv = MySubgroup(o2='(10)(2)(3 12)(4 7)(5 9)(6 1)(8 11)',o3='(10 2 3)(4 8 12)(5 1 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
     digit_prec = 100
     f = get_cuspform_q_expansion_approx(AutomorphicFormSpace(G,2),digit_prec) #Weight 2 cuspform to 50 digits precision
     period_lattice_els = compute_period_lattice_els(G,f, digit_prec)
-    w_1, w_2 = get_w_1_w_2(period_lattice_els, digit_prec)
+    tmp = get_w_1_w_2(period_lattice_els, digit_prec)
+    if tmp == None:
+        return None
+    w_1, w_2 = tmp
     tau = w_1/w_2
     g_2, g_3 = elliptic_invariants = get_elliptic_invariants(tau)
     print("elliptic_invariants: ", elliptic_invariants)
@@ -20,6 +23,8 @@ def example():
     print("j_fl: ", j_fl)
     #j = QQ(pari(j_fl.real()).bestappr(int(digit_prec/2)))
     j = recognize_expr(j_fl,Kv)
+    if j == None:
+        return None
     print("j: ", j)
     print("j_fl-j: ", abs(j_fl-j_fl.parent(j)))
     E = EllipticCurve_from_j(j).global_minimal_model()
@@ -47,7 +52,8 @@ def example3():
 def recognize_expr(expr_fl, K):
     expr = to_K(expr_fl,K)
     if expr == None:
-        raise ArithmeticError("Not enough precision to recognize expression.")
+        print("Not enough precision to recognize expression ", expr_fl)
+        return None
     if K.degree() == 1:
         expr = QQ(expr) #Change j to QQ because sage is able to reduce the curve then
     return expr
@@ -137,7 +143,8 @@ def get_gamma_list(G):
 
 def get_w_1_w_2(non_zero_unique_period_lattice_els, digit_prec):
     if len(non_zero_unique_period_lattice_els) < 2:
-        raise ArithmeticError("Not enough elements to form lattice basis.")
+        print("Not enough elements to form lattice basis.")
+        return None
     elif len(non_zero_unique_period_lattice_els) == 2: #We don't need to use LLL to reduce the basis
         w_1, w_2 = non_zero_unique_period_lattice_els[0], non_zero_unique_period_lattice_els[1]
     else:
@@ -147,6 +154,8 @@ def get_w_1_w_2(non_zero_unique_period_lattice_els, digit_prec):
                 w_2 = non_zero_unique_period_lattice_els[i] #w_1 and w_2 are linearly independent
                 break
         lattice_factors = get_lattice_factors(w_1, w_2, non_zero_unique_period_lattice_els, digit_prec)
+        if lattice_factors == None:
+            return None
         w_1, w_2 = improve_w_1_w_2(w_1, w_2, lattice_factors)
     if imag(w_1/w_2) > 0:
         return w_1, w_2
@@ -167,6 +176,8 @@ def get_lattice_factors(w_1, w_2, non_zero_unique_period_lattice_els, digit_prec
             n_fl, m_fl = A.solve_right(vector([lattice_el.real(),lattice_el.imag()]))
             #n, m = QQ(pari(n_fl).bestappr(digit_prec_half)), QQ(pari(m_fl).bestappr(digit_prec_half)) #Use heuristic upper bound in denominator to avoid overfitting due to incorrect digits
             n, m = recognize_expr(n_fl,K), recognize_expr(m_fl,K)
+            if n == None or m == None:
+                return None
             n_m_list.append((n,m))
     return n_m_list
 
@@ -187,9 +198,7 @@ def improve_w_1_w_2(w_1, w_2, lattice_factors):
     integer_lattice_factors = [[largest_common_denominator*lattice_factor[0],largest_common_denominator*lattice_factor[1]] for lattice_factor in lattice_factors]
     V = ZZ^2
     smallest_lattice_factor = V.submodule(integer_lattice_factors).basis()
-    print("before: ", w_1, w_2)
     w_1, w_2 = (smallest_lattice_factor[0][0]*w_1+smallest_lattice_factor[0][1]*w_2)/largest_common_denominator, (smallest_lattice_factor[1][0]*w_1+smallest_lattice_factor[1][1]*w_2)/largest_common_denominator
-    print("after: ", w_1, w_2)
     return w_1, w_2
 
 def reduce_tau_to_psl2z(w_1, w_2): #Actually we don't need this function because arb does it internally
