@@ -12,6 +12,7 @@ def test_passport_genus_zero():
 
 def test_passport_higher_genera():
     passport = [MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)')]
-    res = compute_passport_data_higher_genera(passport,10,50,6)
+    res = compute_passport_data_higher_genera(passport,10,70,6)
+    assert res[0]["curve"] == EllipticCurve(QQ,(1, -1, 1, -95, -697))
     print("test_passport_higher_genera ok")
     #compute_passport_data_higher_genera already tests itself by comparing its result to numerical values so we don't need assert checks
