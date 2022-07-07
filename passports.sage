@@ -4,6 +4,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
 from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
+from belyi.elliptic_curve import get_elliptic_curve
 from eisenstein.eisenstein_computation import compute_eisenstein_series
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits, get_M_0, get_horo_height_arb_wrap
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_cuspform_q_expansion_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
@@ -186,7 +187,10 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     res["v"] = Kv.gen()
     res["u"] = u_QQbar
     res["u_str"] = get_u_str(u_interior_Kv,principal_cusp_width)
-    res["curve"] = None #To Do: Implement this
+    if G.genus() == 1:
+        res["curve"] = get_elliptic_curve(cuspforms_fl[2][0],Kv,digit_prec)
+    else:
+        res["curve"] = None
     res["q_expansions"] = dict()
     CC_100_dig = ComplexField(digits_to_bits(101)) #Returning intervals here would be misleading
     #We limit the floating-point precision to 100 digits for storage-space reasons
