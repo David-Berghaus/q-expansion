@@ -1,51 +1,34 @@
+from sage.rings.rational_field import QQ
+from sage.rings.integer_ring import ZZ
+from sage.schemes.elliptic_curves.constructor import EllipticCurve_from_j
+from sage.rings.complex_arb import ComplexBallField
+from sage.modules.free_module_element import vector
+from sage.matrix.matrix_space import MatrixSpace
+from sage.rings.number_field.number_field import NumberField
+from sage.modular.arithgroup.congroup_sl2z import SL2Z
+from sage.symbolic.constants import pi
+from sage.rings.real_mpfr import RealField
+
 from belyi.number_fields import is_effectively_zero, lindep, to_K
 
-def example():
-    from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
-    from psage.modform.arithgroup.mysubgroup import MySubgroup
-    from classes.fourier_expansion import get_cuspform_q_expansion_approx
-    #G, Kv = MySubgroup(Gamma0(11)), NumberField(x,'v')
-    #G = MySubgroup(o2='(2 3)(1 4)(5 7)(6 10)(8 13)(9 16)(11 19)(12 22)(14 25)(15 28)(17 31)(18 20)(21 26)(23 29)(24 32)(27 33)(30 34)(35 36)',o3='(2 4 3)(1 10 7)(5 16 13)(6 22 19)(8 28 25)(9 20 31)(11 26 18)(12 32 29)(14 33 21)(15 34 23)(17 27 24)(30 35 36)')
-    #G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
-    G, Kv = MySubgroup(o2='(1)(2)(3 12)(4 7)(5 9)(6 10)(8 11)',o3='(1 2 3)(4 8 12)(5 10 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
-    #G, Kv = MySubgroup(o2='(10)(2)(3 12)(4 7)(5 9)(6 1)(8 11)',o3='(10 2 3)(4 8 12)(5 1 7)(6 11 9)'), NumberField(x**2-3,'v',embedding=-1.732)
-    digit_prec = 100
-    f = get_cuspform_q_expansion_approx(AutomorphicFormSpace(G,2),digit_prec) #Weight 2 cuspform to 50 digits precision
-    period_lattice_els = compute_period_lattice_els(G,f, digit_prec)
+def get_elliptic_curve(f, Kv, digit_prec):
+    """
+    Given floating-point approximations of a weight two cuspform, try to compute the elliptic curve over Kv.
+    """
+    G = f.G
+    if G.genus() != 1 or f.modform_type != "CuspForm" or f.weight != 2:
+        raise ArithmeticError("Invalid setup!")
+    period_lattice_els = compute_period_lattice_els(G,f,digit_prec)
     tmp = get_w_1_w_2(period_lattice_els, digit_prec)
     if tmp == None:
         return None
     w_1, w_2 = tmp
     tau = w_1/w_2
-    g_2, g_3 = elliptic_invariants = get_elliptic_invariants(tau)
-    print("elliptic_invariants: ", elliptic_invariants)
+    g_2, g_3 = get_elliptic_invariants(tau)
     j_fl = 1728*g_2**3/(g_2**3-27*g_3**2)
-    print("j_fl: ", j_fl)
-    #j = QQ(pari(j_fl.real()).bestappr(int(digit_prec/2)))
     j = recognize_expr(j_fl,Kv)
     if j == None:
         return None
-    print("j: ", j)
-    print("j_fl-j: ", abs(j_fl-j_fl.parent(j)))
-    E = EllipticCurve_from_j(j).global_minimal_model()
-    print("E: ", E)
-    return E
-
-# def example2():
-#     from psage.modform.arithgroup.mysubgroup import MySubgroup
-#     G, Kv = MySubgroup(o2='(1)(2 5)(3 8)(4 9)(6 12)(7 10)(11)',o3='(1 2 6)(3 9 5)(4 10 8)(7 11 12)'), NumberField(x**2-3,'v',embedding=-1.732)
-#     v = Kv.gen()
-#     j = 14621235235888115443/16708992677662604*v - 20728089694692551503/16708992677662604
-#     E = EllipticCurve_from_j(j).global_minimal_model()
-#     return E
-
-def example3():
-    from psage.modform.arithgroup.mysubgroup import MySubgroup
-    G = MySubgroup(o2='(1)(2 5)(3 8)(4 9)(6 12)(7 10)(11)',o3='(1 2 6)(3 9 5)(4 10 8)(7 11 12)')
-    C = CyclotomicField(12)
-    z_12 = C.gen()
-    v = -z_12**3+2*z_12
-    j = 14621235235888115443/16708992677662604*v - 20728089694692551503/16708992677662604
     E = EllipticCurve_from_j(j).global_minimal_model()
     return E
 
@@ -65,7 +48,7 @@ def I(f, tau_0, cusp):
     CC = f.get_cusp_expansion(cusp).base_ring()
     RR = RealField(CC.precision())
     cusp_expansion = f.get_cusp_expansion(cusp)
-    q = exp(CC(0,2*pi)*tau_0/f.G.cusp_width(cusp))
+    q = (CC(0,2*pi)*tau_0/f.G.cusp_width(cusp)).exp()
     res = 0
     for n in range(1,cusp_expansion.prec()):
         res += -cusp_expansion[n]/n * q**n
@@ -157,7 +140,7 @@ def get_w_1_w_2(non_zero_unique_period_lattice_els, digit_prec):
         if lattice_factors == None:
             return None
         w_1, w_2 = improve_w_1_w_2(w_1, w_2, lattice_factors)
-    if imag(w_1/w_2) > 0:
+    if (w_1/w_2).imag() > 0:
         return w_1, w_2
     else:
         return w_2, w_1
@@ -166,6 +149,8 @@ def get_lattice_factors(w_1, w_2, non_zero_unique_period_lattice_els, digit_prec
     """
     Compute the lattice factors n,m in QQ such that lattice_el = n*w_1+m*w_2. 
     """
+    from sage.calculus.var import var
+    x = var('x')
     K = NumberField(x,'v')
     digit_prec_half = int(digit_prec/2)
     M = MatrixSpace(w_1.real().parent(),2,2)
@@ -203,10 +188,10 @@ def improve_w_1_w_2(w_1, w_2, lattice_factors):
 
 def reduce_tau_to_psl2z(w_1, w_2): #Actually we don't need this function because arb does it internally
     tau = w_1/w_2
-    if real(tau) < -1/2:
+    if tau.real() < -1/2:
         w_1, w_2 = w_1+w_2, w_2
         return reduce_tau_to_psl2z(w_1,w_2)
-    if real(tau) > 1/2:
+    if tau.real() > 1/2:
         w_1, w_2 = w_1-w_2, w_2
         return reduce_tau_to_psl2z(w_1,w_2)
     if abs(tau) > 1:
