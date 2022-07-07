@@ -81,7 +81,7 @@ def has_equal_list_entry(list, index):
             return True
     return False
 
-def get_list_of_all_passports(max_index, genus=None, reverse_permT=True):
+def get_list_of_all_passports(max_index, genus=None, reverse_permT=True, optimize_gen_1_for_period_int=True):
     """
     Return a list of all passports up to specified index and with specified genus.
     """
@@ -120,6 +120,21 @@ def get_list_of_all_passports(max_index, genus=None, reverse_permT=True):
         for sorted_by_monodromy in sorted_by_cycle_types.values():
             for passport in sorted_by_monodromy.values():
                 res.append(passport)
+    if optimize_gen_1_for_period_int == True: #Try to find a better choice of G that optimizes the period integral evaluation
+        for (i,pp) in enumerate(res):
+            if pp[0].genus() == 1:
+                conj_and_heights = [get_optimal_conjugator_and_max_height_for_period_integral(G) for G in pp]
+                best_index = 0 #Index of the G in pp with optimal properties for period integral evaluation
+                best_conj, best_height = conj_and_heights[best_index]
+                for j in range(1,len(conj_and_heights)):
+                    new_conj, new_height = conj_and_heights[j]
+                    if new_height > best_height:
+                        best_index = j
+                        best_conj, best_height = new_conj, new_height
+                pp.insert(0,pp.pop(best_index)) #Push best choice of G to front
+                #Conjugate all subgroups by the best conjugation
+                pp_conj = [MySubgroup(o2=get_conjugate_permutation(G.permS,best_conj),o3=get_conjugate_permutation(G.permR,best_conj)) for G in pp]
+                res[i] = pp_conj #Update res
     return res
 
 def get_conjugate_permutation(sigma, conjugator):
@@ -135,15 +150,15 @@ def get_fixed_one_permutation_iterators(d):
     """
     return Permutations(list(range(2,d+1)))
 
-def get_optimal_conjugator_for_period_integral(G, preserve_cusp_width_at_inf=True):
+def get_optimal_conjugator_and_max_height_for_period_integral(G, preserve_cusp_width_at_inf=True):
     """
-    Given a subgroup G, return permutation sigma, such that sigma^(-1)*G*sigma is optimal.
+    Given a subgroup G, return permutation sigma, such that sigma^(-1)*G*sigma is optimal as well as the
+    height under this choice.
     Optimal in this setting means that the period integrals can be as high inside H as possible
     If preserve_cusp_width_at_inf = True, we make sure that the cusp width at infinity remains the same.
     Otherwise we look for a potentially even better configuration.
     """
     max_height = get_min_height_for_period_integral(G)
-    print("Original min height: ", max_height)
     max_conj = MyPermutation(list(range(1,G.index()+1))) #The one element in S_d
     o2, o3 = G.permS, G.permR
     if preserve_cusp_width_at_inf == True:
@@ -157,9 +172,8 @@ def get_optimal_conjugator_for_period_integral(G, preserve_cusp_width_at_inf=Tru
         G_p = MySubgroup(get_conjugate_permutation(o2,o),get_conjugate_permutation(o3,o))
         min_height_p = get_min_height_for_period_integral(G_p)
         if min_height_p > max_height:
-            print("Found a better min_height: ", min_height_p)
             max_height, max_conj = min_height_p, o
-    return max_conj
+    return max_conj, max_height
 
 def get_min_height_for_period_integral(G):
     min_height = Infinity
