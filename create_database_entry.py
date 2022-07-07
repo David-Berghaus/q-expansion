@@ -23,20 +23,21 @@ def compute_database_entry(passport_index, genus, rigorous_trunc_order, eisenste
         passport = passport_list[passport_index]
         G = passport[0]
         entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
-        res, newton_res = compute_passport_data_genus_zero(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight,return_newton_res=True)
+        res, floating_expansions = compute_passport_data_genus_zero(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight)
         storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
         Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
         save(res,os.path.join(storage_path,entry_name))
-        save(newton_res,os.path.join(storage_path,entry_name+"_newton_res"))
+        save(floating_expansions,os.path.join(storage_path,entry_name+"_floating_expansions"))
     elif genus == 1: #We could use less copy-paste here...
         passport_list = load("data/genus_one_passport_list.sobj")
         passport = passport_list[passport_index]
         G = passport[0]
         entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
-        res = compute_passport_data_higher_genera(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight)
+        res, floating_expansions = compute_passport_data_higher_genera(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight)
         storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
         Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
         save(res,os.path.join(storage_path,entry_name))
+        save(floating_expansions,os.path.join(storage_path,entry_name+"_floating_expansions"))
     else:
         raise NotImplementedError("This case has not been implemented yet!")
 
