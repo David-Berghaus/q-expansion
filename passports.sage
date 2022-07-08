@@ -11,7 +11,7 @@ from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cus
 from classes.belyi_map import BelyiMap, get_u_str
 from classes.factored_polynomial import get_updated_Kw_v_Kw
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, return_newton_res=False, compare_result_to_numerics=True, return_embeddings=True, numerics_digit_prec=50, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=50, tol=1e-10):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -20,7 +20,6 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     rigorous_trunc_order: Amount of terms in the rigorous computation of the q-expansion at infinity
     eisenstein_digit_prec: Digit precision of the numerical approximation of the Eisenstein series
     max_weight: The maximum weight of the computed modular forms
-    return_newton_res: If true, return object that allows for an efficient reconstruction of a new Belyi map instance
     compare_result_to_numerics: Boolean that decides if the results that have been computed through the Belyi map should be compared to the numerical values
     numerics_digit_prec: The precision at which the numerical computation that we use to compare the results is performed
     tol: Maximum difference between q-expansion coefficients compared to the numerical results
@@ -67,42 +66,45 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,B.u_QQbar,numerics_digit_prec,tol)#Verify results by comparing them to numerical values
 
-    #Should we also specify the embeddings of v into CC for different passport elements?
-
     res = dict()
     res["G"] = B.G.as_permutation_group()
+    res["monodromy_group"] = G.perm_group().structure_description()
     res["Kv"] = B._Kv
     res["v"] = B._Kv.gen()
     res["u"] = B.u_QQbar
     res["u_str"] = B.get_u_str()
     res["curve"] = B._return_res_as_dict()
     res["q_expansions"] = dict()
-    CIF = ComplexIntervalField(digits_to_bits(101)) #Unfortunately arbs currently cannot be stored, see: https://trac.sagemath.org/ticket/33310#ticket
-    #We limit the floating-point precision to 100 digits for storage-space reasons
     for weight in range(0,max_weight+1,2): #We only consider even weights
         res["q_expansions"][weight] = dict()
         if weight == 0:
             res["q_expansions"][weight]["hauptmodul_raw"] = j_G_rig.get_cusp_expansion(Cusp(1,0))
             res["q_expansions"][weight]["hauptmodul_pretty"] = j_G_rig.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True)
-            res["q_expansions"][weight]["hauptmodul_float"] = j_G_fl.get_cusp_expansion(Cusp(1,0)).change_ring(CIF)
         else:
             if G.dimension_modular_forms(weight) != 0:
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
-                res["q_expansions"][weight]["modforms_float"] = [modform.get_cusp_expansion(Cusp(1,0)).change_ring(CIF) for modform in modforms_fl[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
                 if G.dimension_cusp_forms(weight) != 0:
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
-                    res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CIF) for cuspform in cuspforms_fl[weight]]
-    if return_newton_res == True:
-        return res, B._return_newton_res()
-    if return_embeddings == True:
-        all_embeddings = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
-        return res, all_embeddings
+    if compute_embeddings == True:
+        res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
+    if return_floating_expansions == True:
+        floating_expansions = dict()
+        for weight in range(0,max_weight+1,2): #We only consider even weights
+            floating_expansions[weight] = dict()
+            if weight == 0:
+                floating_expansions[weight]["hauptmodul_float"] = j_G_fl._convert_to_CC() #Note that we cannot store arbs
+            else:
+                if weight in modforms_fl:
+                    floating_expansions[weight]["modforms_float"] = [modform_fl._convert_to_CC() for modform_fl in modforms_fl[weight]] #Note that we cannot store arbs
+                if weight in cuspforms_fl:
+                    floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
+        return res, floating_expansions
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, return_embeddings=True, numerics_digit_prec=40, tol=1e-10):
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10):
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
@@ -183,6 +185,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     
     res = dict()
     res["G"] = G.as_permutation_group()
+    res["monodromy_group"] = G.perm_group().structure_description()
     res["Kv"] = Kv
     res["v"] = Kv.gen()
     res["u"] = u_QQbar
@@ -192,27 +195,30 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     else:
         res["curve"] = None
     res["q_expansions"] = dict()
-    CC_100_dig = ComplexField(digits_to_bits(101)) #Returning intervals here would be misleading
-    #We limit the floating-point precision to 100 digits for storage-space reasons
     for weight in range(2,max_weight+1,2): #We only consider even weights
         res["q_expansions"][weight] = dict()
         if G.dimension_modular_forms(weight) != 0:
             if G.dimension_eis(weight) == 0: #The cuspforms form the modform basis and we don't have any eisenstein_basis_factors
                 res["q_expansions"][weight]["modforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
-                res["q_expansions"][weight]["modforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
             else:
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
-                res["q_expansions"][weight]["modforms_float"] = [modform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for modform in modforms_fl[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
-                res["q_expansions"][weight]["cuspforms_float"] = [cuspform.get_cusp_expansion(Cusp(1,0)).change_ring(CC_100_dig) for cuspform in cuspforms_fl[weight]]
-    if return_embeddings == True:
-        all_embeddings = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
-        return res, all_embeddings
+    if compute_embeddings == True:
+        res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
+    if return_floating_expansions == True:
+        floating_expansions = dict()
+        for weight in range(2,max_weight+1,2): #We only consider even weights
+            floating_expansions[weight] = dict()
+            if weight in modforms_fl:
+                floating_expansions[weight]["modforms_float"] = [modform_fl._convert_to_CC() for modform_fl in modforms_fl[weight]] #Note that we cannot store arbs
+            if weight in cuspforms_fl:
+                floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
+        return res, floating_expansions
     return res
 
 def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, digit_prec, max_extension_field_degree, principal_cusp_width):
