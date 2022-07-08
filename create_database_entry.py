@@ -22,6 +22,8 @@ def compute_database_entry(passport_index, genus, rigorous_trunc_order, eisenste
         passport_list = load("data/genus_zero_passport_list.sobj")
         passport = passport_list[passport_index]
         G = passport[0]
+        if rigorous_trunc_order == 0:
+            rigorous_trunc_order = int(2000/len(passport)) #Heuristic choice that runs in reasonable amount of CPU time
         entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
         res, floating_expansions = compute_passport_data_genus_zero(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight)
         storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
