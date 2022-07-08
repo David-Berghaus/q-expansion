@@ -8,6 +8,7 @@ from sage.rings.number_field.number_field import NumberField
 from sage.modular.arithgroup.congroup_sl2z import SL2Z
 from sage.symbolic.constants import pi
 from sage.rings.real_mpfr import RealField
+from sage.interfaces.gp import pari
 
 from belyi.number_fields import is_effectively_zero, lindep, to_K
 
@@ -181,7 +182,7 @@ def improve_w_1_w_2(w_1, w_2, lattice_factors):
         if tmp_m.denominator() != 1:
             largest_common_denominator *= tmp_m.denominator()
     integer_lattice_factors = [[largest_common_denominator*lattice_factor[0],largest_common_denominator*lattice_factor[1]] for lattice_factor in lattice_factors]
-    V = ZZ^2
+    V = ZZ**2
     smallest_lattice_factor = V.submodule(integer_lattice_factors).basis()
     w_1, w_2 = (smallest_lattice_factor[0][0]*w_1+smallest_lattice_factor[0][1]*w_2)/largest_common_denominator, (smallest_lattice_factor[1][0]*w_1+smallest_lattice_factor[1][1]*w_2)/largest_common_denominator
     return w_1, w_2
