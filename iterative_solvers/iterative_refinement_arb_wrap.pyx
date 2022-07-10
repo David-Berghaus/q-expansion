@@ -58,7 +58,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
     else:
         PLU.solve(x,b,low_prec)
     if maxiter == None:
-        maxiter = get_decimal_digit_prec(tol)//15 + 10 #We expect to get around 15 digits per iteration, otherwise something likely went wrong
+        maxiter = 2147483647
 
     for i in range(maxiter):
         if mix_prec == True:
