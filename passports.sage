@@ -13,7 +13,7 @@ from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cus
 from classes.belyi_map import BelyiMap, get_u_str
 from classes.factored_polynomial import get_updated_Kw_v_Kw
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=50, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=50, tol=1e-10, state_file_path=None):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -25,25 +25,34 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     compare_result_to_numerics: Boolean that decides if the results that have been computed through the Belyi map should be compared to the numerical values
     numerics_digit_prec: The precision at which the numerical computation that we use to compare the results is performed
     tol: Maximum difference between q-expansion coefficients compared to the numerical results
+    state_file_path: If specified, restart computation before numerical results are being computed.
     Output:
     ------
     A dictionary with the computed information that can be read using Sage only.
     """
     max_extension_field_degree = get_max_extension_field_degree(passport)
-    B = BelyiMap(passport[0],max_extension_field_degree=max_extension_field_degree)
-    G = B.G
-    if B._Kv.degree() != max_extension_field_degree:
-        if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-            raise ArithmeticError("We have not considered the case of decaying Galois orbits yet!")
+    G = passport[0]
 
-    #First do the rigorous computation of the q-expansions
-    j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
-    cuspforms_rig, modforms_rig = dict(), dict()
-    for weight in range(2,max_weight+1,2): #We only consider even weights
-        if G.dimension_modular_forms(weight) != 0:
-            modforms_rig[weight] = B.get_modforms(weight,rigorous_trunc_order,j_G=j_G_rig)
-        if G.dimension_cusp_forms(weight) != 0:
-            cuspforms_rig[weight] = B.get_cuspforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+    if state_file_path != None and os.path.exists(state_file_path) == True:
+        B, j_G_rig, cuspforms_rig, modforms_rig = dict_to_state_genus_zero(load(state_file_path))
+    else:
+        B = BelyiMap(G,max_extension_field_degree=max_extension_field_degree)
+        if B._Kv.degree() != max_extension_field_degree:
+            if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
+                raise ArithmeticError("We have not considered the case of decaying Galois orbits yet!")
+
+        #First do the rigorous computation of the q-expansions
+        j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
+        cuspforms_rig, modforms_rig = dict(), dict()
+        for weight in range(2,max_weight+1,2): #We only consider even weights
+            if G.dimension_modular_forms(weight) != 0:
+                modforms_rig[weight] = B.get_modforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+            if G.dimension_cusp_forms(weight) != 0:
+                cuspforms_rig[weight] = B.get_cuspforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+    if state_file_path != None and os.path.exists(state_file_path) == False:
+        curr_state = state_to_dict_genus_zero(B, j_G_rig, cuspforms_rig, modforms_rig)
+        save(curr_state,state_file_path)
+        exit()
 
     #Now to the numerical stuff
     eisenstein_trunc_orders = B._get_trunc_orders_convergence(max_weight,eisenstein_digit_prec)
@@ -90,6 +99,8 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                 if G.dimension_cusp_forms(weight) != 0:
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+    if state_file_path != None:
+        os.remove(state_file_path)
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
     if return_floating_expansions == True:
@@ -105,6 +116,23 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                     floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
         return res, floating_expansions
     return res
+
+def state_to_dict_genus_zero(B, j_G_rig, cuspforms_rig, modforms_rig):
+    """
+    Save the current state into a dictionary which we can store to restart the computation.
+    """
+    curr_state = dict()
+    curr_state['B'] = B
+    curr_state['j_G_rig'] = j_G_rig
+    curr_state['cuspforms_rig'] = cuspforms_rig
+    curr_state['modforms_rig'] = modforms_rig
+    return curr_state
+
+def dict_to_state_genus_zero(curr_state):
+    """
+    Given a dictionary of the current state, unpack the variables.
+    """
+    return curr_state['B'], curr_state['j_G_rig'], curr_state['cuspforms_rig'], curr_state['modforms_rig']
 
 def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
     """
@@ -146,9 +174,6 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
                 curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
                 save(curr_state,state_file_path)
                 exit()
-    
-    if state_file_path != None:
-        os.remove(state_file_path)
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
@@ -194,6 +219,8 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+    if state_file_path != None:
+        os.remove(state_file_path)
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
     if return_floating_expansions == True:
