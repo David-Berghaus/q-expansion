@@ -1,4 +1,6 @@
 from copy import deepcopy
+from sys import exit
+import os
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
@@ -104,25 +106,49 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, floating_expansions
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10):
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
+    """
+    Compute database entry for given passport.
+    If state_file_path != None we store intermediate steps and exit the computation.
+    """
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
     principal_cusp_width = G.cusp_width(Cusp(1,0))
+    modforms_fl = dict()
+    modforms_rig = dict()
 
     #First compute the lowest-weight cuspform space and recognize u from that
-    cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = compute_lowest_weight_cuspform_space_to_get_u(G,max_rigorous_trunc_order,digit_prec,max_extension_field_degree,principal_cusp_width)
+    if state_file_path != None and os.path.exists(state_file_path) == True:
+        cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = dict_to_state_higher_genera(load(state_file_path))
+    else:
+        cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = compute_lowest_weight_cuspform_space_to_get_u(G,max_rigorous_trunc_order,digit_prec,max_extension_field_degree,principal_cusp_width)
+    if state_file_path != None and os.path.exists(state_file_path) == False:
+        curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+        save(curr_state,state_file_path)
+        exit()
 
     #Then continue with computing modforms
     #We start with these before computing the remaining cuspforms because some of them can be used to construct cuspforms (while the reverse it not true)
-    modforms_fl = dict()
-    modforms_rig = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
-        compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+        if weight not in modforms_fl and G.dimension_modular_forms(weight) != 0 and G.dimension_eis(weight) != 0:
+            compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            if state_file_path != None:
+                curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+                save(curr_state,state_file_path)
+                exit()
 
     #Now compute remaining cuspforms
     for weight in range(lowest_non_zero_cuspform_weight+2,max_weight+1,2): #We only consider even weights
-        compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+        if weight not in cuspforms_fl and G.dimension_cusp_forms(weight) != 0:
+            compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            if state_file_path != None:
+                curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+                save(curr_state,state_file_path)
+                exit()
+    
+    if state_file_path != None:
+        os.remove(state_file_path)
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
@@ -180,6 +206,29 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
                 floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
         return res, floating_expansions
     return res
+
+def state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight):
+    """
+    Save the current state into a dictionary which we can store to restart the computation.
+    """
+    curr_state = dict()
+    curr_state['cuspforms_fl'] = cuspforms_fl
+    curr_state['cuspforms_rig'] = cuspforms_rig
+    curr_state['modforms_fl'] = modforms_fl
+    curr_state['modforms_rig'] = modforms_rig
+    curr_state['Kv'] = Kv
+    curr_state['Kw'] = Kw
+    curr_state['v_Kw'] = v_Kw
+    curr_state['u_interior_Kv'] = u_interior_Kv
+    curr_state['u'] = u
+    curr_state['lowest_non_zero_cuspform_weight'] = lowest_non_zero_cuspform_weight
+    return curr_state
+
+def dict_to_state_higher_genera(curr_state):
+    """
+    Given a dictionary of the current state, unpack the variables.
+    """
+    return curr_state['cuspforms_fl'], curr_state['cuspforms_rig'], curr_state['modforms_fl'], curr_state['modforms_rig'], curr_state['Kv'], curr_state['Kw'], curr_state['v_Kw'], curr_state['u_interior_Kv'], curr_state['u'], curr_state['lowest_non_zero_cuspform_weight']
 
 def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms):
     """
