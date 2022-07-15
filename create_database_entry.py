@@ -26,13 +26,13 @@ def get_passport_list(genus):
     else:
         raise NotImplementedError("This case has not been implemented yet!")
 
-def compute_database_entry(passport_index, genus, rigorous_trunc_order, eisenstein_digit_prec, max_weight):
+def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_weight, rigorous_trunc_order=None):
     passport_list = get_passport_list(genus)
     passport = passport_list[passport_index]
     G = passport[0]
     storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
     Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
-    if genus == 0 and rigorous_trunc_order == 0:
+    if genus == 0 and rigorous_trunc_order == None:
             rigorous_trunc_order = int(2000/(len(passport)+G.cusp_width(Cusp(1,0)))+50) #Heuristic choice that runs in reasonable amount of CPU time
     entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
     unresolved_passport_path = os.path.join(storage_path,entry_name+"_unresolved_passport.sobj") #Path were we store unresolved passport elements in case the passport decays
@@ -64,7 +64,6 @@ def compute_database_entry(passport_index, genus, rigorous_trunc_order, eisenste
 
 passport_index = int(sys.argv[1])
 genus = int(sys.argv[2])
-rigorous_trunc_order = int(sys.argv[3])
-eisenstein_digit_prec = int(sys.argv[4])
-max_weight = int(sys.argv[5])
-compute_database_entry(passport_index,genus,rigorous_trunc_order,eisenstein_digit_prec,max_weight)
+eisenstein_digit_prec = int(sys.argv[3])
+max_weight = int(sys.argv[4])
+compute_database_entry(passport_index,genus,eisenstein_digit_prec,max_weight)

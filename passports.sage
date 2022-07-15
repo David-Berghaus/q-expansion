@@ -139,6 +139,8 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     Compute database entry for given passport.
     If state_file_path != None we store intermediate steps and exit the computation.
     """
+    if max_rigorous_trunc_order == None:
+        max_rigorous_trunc_order = 10000000 #Recognize as many coeffs as possible
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
