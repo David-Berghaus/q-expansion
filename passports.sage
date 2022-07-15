@@ -328,9 +328,6 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, d
                 #For our examples we always used one of the lowest-weight cuspforms, which does however not always work in general!
                 cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
                 Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
-                if Kv.degree() != max_extension_field_degree:
-                    if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-                        raise ArithmeticError("We have not considered the case of decaying Galois orbits yet! Please also make sure that the selected cusp_expansion is not an oldform!")
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
@@ -661,9 +658,10 @@ def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
         expr_for_other_embeddings.append(expr_for_other_embedding)
     return expr_for_other_embeddings
 
-def identify_other_embeddings(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
+def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
     """
-    Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'.
+    Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'
+    as well as the corresponding differences of the floating expressions to the embedded expressions.
     """
     CC = ComplexField(digits_to_bits(digit_prec))
     current_embedding = QQbar(Kv.gen())
@@ -680,29 +678,45 @@ def identify_other_embeddings(non_zero_lin_u_expr, expr_for_other_embeddings, Kv
         nth_power_of_expr = expr**principal_cusp_width
         diffs = [abs(nth_power_of_expr-nth_power_of_embedding_expr) for nth_power_of_embedding_expr in nth_power_of_embedding_expr_list]
         min_diff = min(diffs)
-        if min_diff > 1e-20:
-            raise ArithmeticError("Embedding precision is suspiciously low.")
         embedding_index = diffs.index(min_diff)
-        ordered_embeddings.append(remaining_embeddings[embedding_index])
-    if len(ordered_embeddings) != len(set(ordered_embeddings)):
-        raise ArithmeticError("We found duplicate embeddings which means that the embeddings could not be uniquely specified!")
+        ordered_embeddings.append((remaining_embeddings[embedding_index],min_diff))
     return ordered_embeddings
     
 def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp_width):
     """
     Identify the corresponding passport elements for each root of Kv.
+    Passport elements that do not correspond to roots of Kv (in case of decaying passports) are ignored.
     """
+    G = passport[0]
+    res = {(str(G.permS),str(G.permR),str(G.permT)): QQbar(Kv.gen())}
     if len(passport) == 1:
-        return {}
+        return res
     lin_u_v_term, weight, i, label = get_lin_u_v_term(q_expansions)
     expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,i,label)
-    other_embeddings = identify_other_embeddings(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
-    res = dict()
-    for i in range(len(passport)):
+    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
+    
+    for i in range(1,len(passport)):
         G = passport[i]
         perms = (str(G.permS),str(G.permR),str(G.permT))
-        if i == 0:
-            res[perms] = QQbar(Kv.gen())
-        else:
-            res[perms] = other_embeddings[i-1]
+        embedding, diff = other_embeddings_and_diffs[i-1]
+        if diff < 1e-20: #This seems to be a true embedding
+            res[perms] = embedding
+    embeddings = list(res.values())
+    if len(embeddings) != len(set(embeddings)):
+        raise ArithmeticError("We found duplicate embeddings which means that the embeddings could not be uniquely specified!")
+    if len(embeddings) != Kv.degree():
+        raise ArithmeticError("The amount of embeddings does not match the degree of Kv!")
     return res
+
+def get_unresolved_passport_elements(passport, embeddings):
+    """
+    Get a list of passport elements whose embedding has not been specified yet.
+    """
+    unresolved_embeddings = []
+    print("embeddings: ", embeddings)
+    for G in passport:
+        perms = (str(G.permS),str(G.permR),str(G.permT))
+        if perms not in embeddings:
+            print("perms: ", perms)
+            unresolved_embeddings.append(G)
+    return unresolved_embeddings
