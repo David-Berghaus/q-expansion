@@ -133,10 +133,14 @@ def get_w_1_w_2(non_zero_unique_period_lattice_els, digit_prec):
         w_1, w_2 = non_zero_unique_period_lattice_els[0], non_zero_unique_period_lattice_els[1]
     else:
         w_1 = non_zero_unique_period_lattice_els[0]
+        w_2 = None
         for i in range(1,len(non_zero_unique_period_lattice_els)):
             if lindep([w_1,non_zero_unique_period_lattice_els[i]],check_if_result_is_invalid=True) == None:
                 w_2 = non_zero_unique_period_lattice_els[i] #w_1 and w_2 are linearly independent
                 break
+        if w_2 == None:
+            print("Unable to find a choice of w_2 that is linearly independent to w_1.")
+            return None
         lattice_factors = get_lattice_factors(w_1, w_2, non_zero_unique_period_lattice_els, digit_prec)
         if lattice_factors == None:
             return None
