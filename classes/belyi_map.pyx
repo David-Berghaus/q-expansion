@@ -152,9 +152,9 @@ class BelyiMap():
             (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = run_newton(S,starting_digit_prec,target_digit_prec,stop_when_coeffs_are_recognized=True,return_cusp_rep_values=True,max_extension_field_degree=max_extension_field_degree)
         else: #We have loaded the result and use this to reconstruct the belyi map
             (p3, p2, pc), cusp_rep_values, j_G_hejhal, v_Kw, u_interior_Kv = newton_res
-            if len(cusp_rep_values) != 0:
-                CBF = ComplexBallField(cusp_rep_values[0][1].parent().precision())
-                cusp_rep_values = [(cusp,CBF(cusp_evaluation)) for (cusp,cusp_evaluation) in cusp_rep_values]
+        if len(cusp_rep_values) != 0:
+            CIF = ComplexIntervalField(cusp_rep_values[0][1].parent().precision())
+            cusp_rep_values = [(cusp,CIF(cusp_evaluation)) for (cusp,cusp_evaluation) in cusp_rep_values]
         self.G = G
         self.principal_cusp_width = G.cusp_width(Cusp(1,0))
         self.p3, self.p2, self.pc = p3, p2, pc
@@ -167,7 +167,7 @@ class BelyiMap():
             self.u_QQbar = QQbar(self._u_interior_Kv)
         else:
             self.u_QQbar = QQbar(self._Kw.gen())
-        self._j_G_hejhal = j_G_hejhal
+        self._j_G_hejhal = j_G_hejhal._convert_to_CC() #Note that CBFs currently cannot be stored
         self._cusp_rep_values = cusp_rep_values
 
         self._p2_fixed = self._get_e2_fixed_point_polynomial()

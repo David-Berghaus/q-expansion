@@ -1,4 +1,6 @@
 from copy import deepcopy
+from sys import exit
+import os
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
@@ -11,7 +13,7 @@ from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cus
 from classes.belyi_map import BelyiMap, get_u_str
 from classes.factored_polynomial import get_updated_Kw_v_Kw
 
-def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=50, tol=1e-10):
+def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_digit_prec, max_weight, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=50, tol=1e-10, state_file_path=None):
     """
     Compute relevant data for a specified passport.
     Input:
@@ -23,25 +25,34 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     compare_result_to_numerics: Boolean that decides if the results that have been computed through the Belyi map should be compared to the numerical values
     numerics_digit_prec: The precision at which the numerical computation that we use to compare the results is performed
     tol: Maximum difference between q-expansion coefficients compared to the numerical results
+    state_file_path: If specified, restart computation before numerical results are being computed.
     Output:
     ------
     A dictionary with the computed information that can be read using Sage only.
     """
     max_extension_field_degree = get_max_extension_field_degree(passport)
-    B = BelyiMap(passport[0],max_extension_field_degree=max_extension_field_degree)
-    G = B.G
-    if B._Kv.degree() != max_extension_field_degree:
-        if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-            raise ArithmeticError("We have not considered the case of decaying Galois orbits yet!")
+    G = passport[0]
 
-    #First do the rigorous computation of the q-expansions
-    j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
-    cuspforms_rig, modforms_rig = dict(), dict()
-    for weight in range(2,max_weight+1,2): #We only consider even weights
-        if G.dimension_modular_forms(weight) != 0:
-            modforms_rig[weight] = B.get_modforms(weight,rigorous_trunc_order,j_G=j_G_rig)
-        if G.dimension_cusp_forms(weight) != 0:
-            cuspforms_rig[weight] = B.get_cuspforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+    if state_file_path != None and os.path.exists(state_file_path) == True:
+        B, j_G_rig, cuspforms_rig, modforms_rig = dict_to_state_genus_zero(load(state_file_path))
+    else:
+        B = BelyiMap(G,max_extension_field_degree=max_extension_field_degree)
+        if B._Kv.degree() != max_extension_field_degree:
+            if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
+                raise ArithmeticError("We have not considered the case of decaying Galois orbits yet!")
+
+        #First do the rigorous computation of the q-expansions
+        j_G_rig = B.get_hauptmodul_q_expansion(rigorous_trunc_order)
+        cuspforms_rig, modforms_rig = dict(), dict()
+        for weight in range(2,max_weight+1,2): #We only consider even weights
+            if G.dimension_modular_forms(weight) != 0:
+                modforms_rig[weight] = B.get_modforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+            if G.dimension_cusp_forms(weight) != 0:
+                cuspforms_rig[weight] = B.get_cuspforms(weight,rigorous_trunc_order,j_G=j_G_rig)
+    if state_file_path != None and os.path.exists(state_file_path) == False:
+        curr_state = state_to_dict_genus_zero(B, j_G_rig, cuspforms_rig, modforms_rig)
+        save(curr_state,state_file_path)
+        exit()
 
     #Now to the numerical stuff
     eisenstein_trunc_orders = B._get_trunc_orders_convergence(max_weight,eisenstein_digit_prec)
@@ -88,6 +99,8 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                 if G.dimension_cusp_forms(weight) != 0:
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+    if state_file_path != None:
+        os.remove(state_file_path)
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
     if return_floating_expansions == True:
@@ -104,65 +117,65 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
         return res, floating_expansions
     return res
 
-def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10):
+def state_to_dict_genus_zero(B, j_G_rig, cuspforms_rig, modforms_rig):
+    """
+    Save the current state into a dictionary which we can store to restart the computation.
+    """
+    curr_state = dict()
+    curr_state['B'] = B
+    curr_state['j_G_rig'] = j_G_rig
+    curr_state['cuspforms_rig'] = cuspforms_rig
+    curr_state['modforms_rig'] = modforms_rig
+    return curr_state
+
+def dict_to_state_genus_zero(curr_state):
+    """
+    Given a dictionary of the current state, unpack the variables.
+    """
+    return curr_state['B'], curr_state['j_G_rig'], curr_state['cuspforms_rig'], curr_state['modforms_rig']
+
+def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
+    """
+    Compute database entry for given passport.
+    If state_file_path != None we store intermediate steps and exit the computation.
+    """
+    if max_rigorous_trunc_order == None:
+        max_rigorous_trunc_order = 10000000 #Recognize as many coeffs as possible
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
     CC = ComplexField(digits_to_bits(digit_prec))
     principal_cusp_width = G.cusp_width(Cusp(1,0))
+    modforms_fl = dict()
+    modforms_rig = dict()
 
     #First compute the lowest-weight cuspform space and recognize u from that
-    cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = compute_lowest_weight_cuspform_space_to_get_u(G,max_rigorous_trunc_order,digit_prec,max_extension_field_degree,principal_cusp_width)
+    if state_file_path != None and os.path.exists(state_file_path) == True:
+        cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = dict_to_state_higher_genera(load(state_file_path))
+    else:
+        cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = compute_lowest_weight_cuspform_space_to_get_u(G,max_rigorous_trunc_order,digit_prec,max_extension_field_degree,principal_cusp_width)
+    if state_file_path != None and os.path.exists(state_file_path) == False:
+        curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+        save(curr_state,state_file_path)
+        exit()
 
     #Then continue with computing modforms
     #We start with these before computing the remaining cuspforms because some of them can be used to construct cuspforms (while the reverse it not true)
-    modforms_fl = dict()
-    modforms_rig = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
-        dim_M = G.dimension_modular_forms(weight)
-        if dim_M != 0 and G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
-            if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
-                modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-                modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
-            else:
-                modforms_fl_weight, modforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
-                product_formulas = get_product_formulas_for_forms(G,weight,False)
-                constructable_labels, computable_labels = get_constructable_and_computable_labels(product_formulas,dim_M)
-                for constructable_label in constructable_labels:
-                    product_formula = product_formulas[constructable_label]
-                    modforms_fl_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_fl,cuspforms_fl)
-                    modforms_rig_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_rig,cuspforms_rig)
-                modforms_fl_computed = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
-                for i in range(len(modforms_fl_computed)):
-                    label = computable_labels[i]
-                    modforms_fl_weight[label] = modforms_fl_computed[i]
-                    modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv)
-                #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
-                modforms_fl[weight] = to_reduced_row_echelon_form([modforms_fl_weight[i] for i in range(dim_M)])
-                modforms_rig[weight] = to_reduced_row_echelon_form([modforms_rig_weight[i] for i in range(dim_M)])
+        if weight not in modforms_fl and G.dimension_modular_forms(weight) != 0 and G.dimension_eis(weight) != 0:
+            compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            if state_file_path != None:
+                curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+                save(curr_state,state_file_path)
+                exit()
 
     #Now compute remaining cuspforms
     for weight in range(lowest_non_zero_cuspform_weight+2,max_weight+1,2): #We only consider even weights
-        dim_S = G.dimension_cusp_forms(weight)
-        if dim_S != 0:
-            if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
-                cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-                cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
-            else:
-                cuspforms_fl_weight, cuspforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
-                product_formulas = get_product_formulas_for_forms(G,weight,True)
-                constructable_labels, computable_labels = get_constructable_and_computable_labels(product_formulas,dim_S)
-                for constructable_label in constructable_labels:
-                    product_formula = product_formulas[constructable_label]
-                    cuspforms_fl_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_fl,cuspforms_fl)
-                    cuspforms_rig_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_rig,cuspforms_rig)
-                cuspforms_fl_computed = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
-                for i in range(len(cuspforms_fl_computed)):
-                    label = computable_labels[i]
-                    cuspforms_fl_weight[label] = cuspforms_fl_computed[i]
-                    cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv)
-                #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
-                cuspforms_fl[weight] = to_reduced_row_echelon_form([cuspforms_fl_weight[i] for i in range(dim_S)])
-                cuspforms_rig[weight] = to_reduced_row_echelon_form([cuspforms_rig_weight[i] for i in range(dim_S)])
+        if weight not in cuspforms_fl and G.dimension_cusp_forms(weight) != 0:
+            compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            if state_file_path != None:
+                curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
+                save(curr_state,state_file_path)
+                exit()
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
@@ -208,6 +221,8 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+    if state_file_path != None:
+        os.remove(state_file_path)
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
     if return_floating_expansions == True:
@@ -220,6 +235,81 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
                 floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
         return res, floating_expansions
     return res
+
+def state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight):
+    """
+    Save the current state into a dictionary which we can store to restart the computation.
+    """
+    curr_state = dict()
+    curr_state['cuspforms_fl'] = cuspforms_fl
+    curr_state['cuspforms_rig'] = cuspforms_rig
+    curr_state['modforms_fl'] = modforms_fl
+    curr_state['modforms_rig'] = modforms_rig
+    curr_state['Kv'] = Kv
+    curr_state['Kw'] = Kw
+    curr_state['v_Kw'] = v_Kw
+    curr_state['u_interior_Kv'] = u_interior_Kv
+    curr_state['u'] = u
+    curr_state['lowest_non_zero_cuspform_weight'] = lowest_non_zero_cuspform_weight
+    return curr_state
+
+def dict_to_state_higher_genera(curr_state):
+    """
+    Given a dictionary of the current state, unpack the variables.
+    """
+    return curr_state['cuspforms_fl'], curr_state['cuspforms_rig'], curr_state['modforms_fl'], curr_state['modforms_rig'], curr_state['Kv'], curr_state['Kw'], curr_state['v_Kw'], curr_state['u_interior_Kv'], curr_state['u'], curr_state['lowest_non_zero_cuspform_weight']
+
+def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms):
+    """
+    Compute the modular forms of specified weight and add them to modforms_fl and modforms_rig dicts.
+    """
+    dim_M = G.dimension_modular_forms(weight)
+    if dim_M != 0 and G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
+        if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
+            modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
+            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
+        else:
+            modforms_fl_weight, modforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
+            product_formulas = get_product_formulas_for_forms(G,weight,False)
+            constructable_labels, computable_labels = get_constructable_and_computable_labels(product_formulas,dim_M)
+            for constructable_label in constructable_labels:
+                product_formula = product_formulas[constructable_label]
+                modforms_fl_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_fl,cuspforms_fl)
+                modforms_rig_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_rig,cuspforms_rig)
+            modforms_fl_computed = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
+            for i in range(len(modforms_fl_computed)):
+                label = computable_labels[i]
+                modforms_fl_weight[label] = modforms_fl_computed[i]
+                modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv)
+            #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
+            modforms_fl[weight] = to_reduced_row_echelon_form([modforms_fl_weight[i] for i in range(dim_M)])
+            modforms_rig[weight] = to_reduced_row_echelon_form([modforms_rig_weight[i] for i in range(dim_M)])
+
+def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_rigorous_trunc_order, construct_higher_weight_from_lower_weight_forms):
+    """
+    Compute the cusp forms of specified weight and add them to cuspforms_fl and cuspforms_rig dicts.
+    """
+    dim_S = G.dimension_cusp_forms(weight)
+    if dim_S != 0:
+        if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
+            cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
+        else:
+            cuspforms_fl_weight, cuspforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
+            product_formulas = get_product_formulas_for_forms(G,weight,True)
+            constructable_labels, computable_labels = get_constructable_and_computable_labels(product_formulas,dim_S)
+            for constructable_label in constructable_labels:
+                product_formula = product_formulas[constructable_label]
+                cuspforms_fl_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_fl,cuspforms_fl)
+                cuspforms_rig_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_rig,cuspforms_rig)
+            cuspforms_fl_computed = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
+            for i in range(len(cuspforms_fl_computed)):
+                label = computable_labels[i]
+                cuspforms_fl_weight[label] = cuspforms_fl_computed[i]
+                cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_rigorous_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv)
+            #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
+            cuspforms_fl[weight] = to_reduced_row_echelon_form([cuspforms_fl_weight[i] for i in range(dim_S)])
+            cuspforms_rig[weight] = to_reduced_row_echelon_form([cuspforms_rig_weight[i] for i in range(dim_S)])
 
 def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, digit_prec, max_extension_field_degree, principal_cusp_width):
     """
@@ -240,9 +330,6 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_rigorous_trunc_order, d
                 #For our examples we always used one of the lowest-weight cuspforms, which does however not always work in general!
                 cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
                 Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
-                if Kv.degree() != max_extension_field_degree:
-                    if has_equal_list_entry(G.cusp_widths(),0) == False: #If two cusps are identical it sometimes happens that they are in the same numberfield which we do not need to investigate further
-                        raise ArithmeticError("We have not considered the case of decaying Galois orbits yet! Please also make sure that the selected cusp_expansion is not an oldform!")
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
@@ -573,9 +660,10 @@ def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
         expr_for_other_embeddings.append(expr_for_other_embedding)
     return expr_for_other_embeddings
 
-def identify_other_embeddings(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
+def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
     """
-    Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'.
+    Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'
+    as well as the corresponding differences of the floating expressions to the embedded expressions.
     """
     CC = ComplexField(digits_to_bits(digit_prec))
     current_embedding = QQbar(Kv.gen())
@@ -592,29 +680,45 @@ def identify_other_embeddings(non_zero_lin_u_expr, expr_for_other_embeddings, Kv
         nth_power_of_expr = expr**principal_cusp_width
         diffs = [abs(nth_power_of_expr-nth_power_of_embedding_expr) for nth_power_of_embedding_expr in nth_power_of_embedding_expr_list]
         min_diff = min(diffs)
-        if min_diff > 1e-20:
-            raise ArithmeticError("Embedding precision is suspiciously low.")
         embedding_index = diffs.index(min_diff)
-        ordered_embeddings.append(remaining_embeddings[embedding_index])
-    if len(ordered_embeddings) != len(set(ordered_embeddings)):
-        raise ArithmeticError("We found duplicate embeddings which means that the embeddings could not be uniquely specified!")
+        ordered_embeddings.append((remaining_embeddings[embedding_index],min_diff))
     return ordered_embeddings
     
 def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp_width):
     """
     Identify the corresponding passport elements for each root of Kv.
+    Passport elements that do not correspond to roots of Kv (in case of decaying passports) are ignored.
     """
+    G = passport[0]
+    res = {(str(G.permS),str(G.permR),str(G.permT)): QQbar(Kv.gen())}
     if len(passport) == 1:
-        return {}
+        return res
     lin_u_v_term, weight, i, label = get_lin_u_v_term(q_expansions)
     expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,i,label)
-    other_embeddings = identify_other_embeddings(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
-    res = dict()
-    for i in range(len(passport)):
+    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
+    
+    for i in range(1,len(passport)):
         G = passport[i]
         perms = (str(G.permS),str(G.permR),str(G.permT))
-        if i == 0:
-            res[perms] = QQbar(Kv.gen())
-        else:
-            res[perms] = other_embeddings[i-1]
+        embedding, diff = other_embeddings_and_diffs[i-1]
+        if diff < 1e-20: #This seems to be a true embedding
+            res[perms] = embedding
+    embeddings = list(res.values())
+    if len(embeddings) != len(set(embeddings)):
+        raise ArithmeticError("We found duplicate embeddings which means that the embeddings could not be uniquely specified!")
+    if len(embeddings) != Kv.degree():
+        raise ArithmeticError("The amount of embeddings does not match the degree of Kv!")
     return res
+
+def get_unresolved_passport_elements(passport, embeddings):
+    """
+    Get a list of passport elements whose embedding has not been specified yet.
+    """
+    unresolved_embeddings = []
+    print("embeddings: ", embeddings)
+    for G in passport:
+        perms = (str(G.permS),str(G.permR),str(G.permT))
+        if perms not in embeddings:
+            print("perms: ", perms)
+            unresolved_embeddings.append(G)
+    return unresolved_embeddings
