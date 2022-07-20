@@ -52,7 +52,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     if state_file_path != None and os.path.exists(state_file_path) == False:
         curr_state = state_to_dict_genus_zero(B, j_G_rig, cuspforms_rig, modforms_rig)
         save(curr_state,state_file_path)
-        exit()
+        exit(1)
 
     #Now to the numerical stuff
     eisenstein_trunc_orders = B._get_trunc_orders_convergence(max_weight,eisenstein_digit_prec)
@@ -156,7 +156,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
     if state_file_path != None and os.path.exists(state_file_path) == False:
         curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
         save(curr_state,state_file_path)
-        exit()
+        exit(1)
 
     #Then continue with computing modforms
     #We start with these before computing the remaining cuspforms because some of them can be used to construct cuspforms (while the reverse it not true)
@@ -166,7 +166,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
             if state_file_path != None:
                 curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
                 save(curr_state,state_file_path)
-                exit()
+                exit(1)
 
     #Now compute remaining cuspforms
     for weight in range(lowest_non_zero_cuspform_weight+2,max_weight+1,2): #We only consider even weights
@@ -175,7 +175,7 @@ def compute_passport_data_higher_genera(passport, max_rigorous_trunc_order, digi
             if state_file_path != None:
                 curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
                 save(curr_state,state_file_path)
-                exit()
+                exit(1)
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
