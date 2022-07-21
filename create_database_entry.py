@@ -27,6 +27,7 @@ def get_passport_list(genus):
         raise NotImplementedError("This case has not been implemented yet!")
 
 def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_weight, rigorous_trunc_order=None):
+    print(f"Computing passport of index {passport_index} and genus {genus} to {eisenstein_digit_prec} digits precision up to weight {max_weight}.")
     passport_list = get_passport_list(genus)
     passport = passport_list[passport_index]
     G = passport[0]
