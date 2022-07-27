@@ -6,7 +6,7 @@ import os
 import sys
 from string import ascii_lowercase
 
-def load_database(database_path, index=None, genus=None, Kv_degree=None):
+def load_database(database_path, index=None, genus=None, Kv_degree=None, load_floating_expansions=False):
     """
     Loads entries of database and returns them as a list.
     We allow to filter for index, genus and Kv_degree by specifying them as ints or lists of ints.
@@ -21,6 +21,7 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
         Kv_degree = [Kv_degree]
 
     res = {}
+    res_fl = {}
     passport_list = []
     if genus == None:
         passport_list_g_zero = load("data/genus_zero_passport_list.sobj")
@@ -43,9 +44,15 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
                         entry = load(file_path)
                         if Kv_degree == None or entry["Kv"].degree() in Kv_degree:
                             res[entry_name] = entry
+                            if load_floating_expansions == True:
+                                file_path = storage_path + "/" + entry_name + "_floating_expansions.sobj"
+                                res_fl[entry_name] = load(file_path)
                     else:
                         break
-    return res
+    if load_floating_expansions == False:
+        return res
+    else:
+        return res, res_fl
 
 def get_signature_pos(passport_index, passport_list):
     """
