@@ -48,6 +48,7 @@ def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_wei
         entry_name += "_a"
         if os.path.exists(os.path.join(storage_path,entry_name+".sobj")) == True: #Computation is finished
             return
+    print(f"We are now computing the passport of label {entry_name}.")
     state_file_path = os.path.join(storage_path,entry_name+"_state.sobj") #Path where we store intermediate results to restart the computation
     if genus == 0:
         res, floating_expansions = compute_passport_data_genus_zero(passport,rigorous_trunc_order,eisenstein_digit_prec,max_weight,state_file_path=state_file_path)
