@@ -1,7 +1,7 @@
 """
 Routines for computing a passport and storing the result.
 Note that this file is supposed to be called from the commandline like this:
-sage create_database_entry.py <passport_index> <genus> <rigorous_trunc_order> <eisenstein_digit_prec> <max_weight>
+sage create_database_entry.py <passport_index> <genus> <eisenstein_digit_prec> <max_weight>
 """
 
 from sage.all_cmdline import *   # import sage library

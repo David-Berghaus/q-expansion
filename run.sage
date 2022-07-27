@@ -16,22 +16,23 @@ S = AutomorphicFormSpace(Gamma0(1),weight=12)
 from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modform_q_expansion_approx, get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_modform_basis_approx, to_reduced_row_echelon_form
 
 load("subgroups.sage")
+load("passports.sage")
 
-def get_passport_list_up_to_degree(genus, max_extension_field_degree):
+def eisenstein_algebraics_test(passport, floating_expansions, weight, d):
     """
-    Returns all passports with extension_field_degree <= specified degree.
+    Search for algebraic relations among eisenstein series of specified weight up to order d.
     """
-    if genus == 0:
-        passport_list_raw = load("data/genus_zero_passport_list.sobj")
-    elif genus == 1:
-        passport_list_raw = load("data/genus_one_passport_list.sobj")
-    else:
-        raise NotImplementedError("This case has not been implemented yet!")
-    passport_list = []
-    for i in range(len(passport_list_raw)):
-        if len(passport_list_raw[i]) <= max_extension_field_degree:
-            passport_list.append(passport_list_raw[i])
-    return passport_list
+    from eisenstein.eisenstein_computation import echelon_basis_to_eisenstein_basis, get_algebraic_relations
+    modforms = floating_expansions[weight]["modforms_float"]
+    eis_facts = passport["q_expansions"][weight]["eisenstein_basis_factors"]
+    eis_forms_echelon = []
+    for i in range(len(eis_facts)):
+        eis_form_echelon = 0
+        for j in range(len(modforms)):
+            eis_form_echelon = modforms[j]*eis_facts[i][j] + eis_form_echelon
+        eis_forms_echelon.append(eis_form_echelon)
+    eis_forms = echelon_basis_to_eisenstein_basis(eis_forms_echelon)
+    return get_algebraic_relations(eis_forms,d)
 
 def haberland_precision_test():
     """
