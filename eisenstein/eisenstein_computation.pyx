@@ -1,8 +1,13 @@
-from sage.matrix.matrix_space import MatrixSpace
+from itertools import combinations_with_replacement
 
-from eisenstein.haberland import compute_petersson_product_haberland, get_exp_two_pi_i_a_m_dict, clear_memoized_caches
+from sage.matrix.matrix_space import MatrixSpace
+from sage.misc.misc_c import prod
 from sage.functions.other import conjugate
 from sage.symbolic.constants import pi
+from sage.modular.cusps import Cusp
+
+from eisenstein.haberland import compute_petersson_product_haberland, get_exp_two_pi_i_a_m_dict, clear_memoized_caches
+from belyi.number_fields import lindep
 
 def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=False, truncate_cusp_expansions_to_convergence=True):
     """
@@ -49,3 +54,51 @@ def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=Fals
         return eisforms
     else:
         return eisforms, scaling_constants
+
+def echelon_basis_to_eisenstein_basis(eisforms):
+    """
+    Given a basis of Eisenstein series in reduced row echelon form, transform basis to a form
+    in which the zeroth coefficient is one for one cusp and zero for the other ones.
+    """
+    CC = eisforms[0].base_ring
+    G = eisforms[0].G
+    dim_E = len(eisforms)
+    cusps = G.cusps()
+    M_A = MatrixSpace(CC,len(cusps),dim_E)
+    M_b = MatrixSpace(CC,len(cusps),1)
+
+    A = M_A([[eisforms[i].get_cusp_expansion(c)[0] for i in range(dim_E)] for c in cusps])
+
+    scaling_constants = {}
+    for j in range(dim_E):
+        b = M_b([1 if i == j else 0 for i in range(len(cusps))])
+        c = A.solve_right(b)
+        scaling_constants[j] = c.list()
+
+    new_eisforms = []
+    for j in range(dim_E):
+        new_eisform = 0
+        for i in range(dim_E):
+            new_eisform = eisforms[i]*scaling_constants[j][i] + new_eisform
+        new_eisforms.append(new_eisform)
+    
+    return new_eisforms
+
+def get_monomial_products(list_of_vars, d):
+    """
+    Form all possible monomials of specified vars up to degree d.
+    Example:
+    form_monomial_products([x,y,z],3)
+    ->
+    [x^3, x^2*y, x^2*z, x*y^2, x*y*z, x*z^2, y^3, y^2*z, y*z^2, z^3]
+    """
+    return list(map(lambda x: prod(x), combinations_with_replacement(list_of_vars,d)))
+
+def get_algebraic_relations(eisforms, d):
+    """
+    Search for algebraic relations between the first non-trivial coefficients of Eisenstein series.
+    Note that we assume that the Eisenstein series are normalized according to the function 'echelon_basis_to_eisenstein_basis'.
+    """
+    first_non_trivial_coeffs = [eisform.get_cusp_expansion(Cusp(1,0))[1] for eisform in eisforms]
+    monomial_products = get_monomial_products(first_non_trivial_coeffs,d)
+    return lindep(monomial_products,check_if_result_is_invalid=True)
