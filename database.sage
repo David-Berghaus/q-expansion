@@ -4,6 +4,7 @@ Routines for loading and working database entries
 
 import os
 import sys
+from string import ascii_lowercase
 
 def load_database(database_path, index=None, genus=None, Kv_degree=None):
     """
@@ -19,7 +20,7 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
     if isinstance(Kv_degree, list) == False and Kv_degree != None: #Kv_degree is an int which we convert to a list
         Kv_degree = [Kv_degree]
 
-    res = []
+    res = {}
     passport_list = []
     if genus == None:
         passport_list_g_zero = load("data/genus_zero_passport_list.sobj")
@@ -34,13 +35,16 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None):
         G = passport_list[i][0]
         if index == None or G.index() in index:
             if genus == None or G.genus() in genus:
-                entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list))
-                storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
-                file_path = storage_path + "/" + entry_name + ".sobj"
-                if os.path.isfile(file_path) == True:
-                    entry = load(file_path)
-                    if Kv_degree == None or entry["Kv"].degree() in Kv_degree:
-                        res.append(entry)
+                for letter in ascii_lowercase:
+                    entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list)) + "_" + letter
+                    storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
+                    file_path = storage_path + "/" + entry_name + ".sobj"
+                    if os.path.isfile(file_path) == True:
+                        entry = load(file_path)
+                        if Kv_degree == None or entry["Kv"].degree() in Kv_degree:
+                            res[entry_name] = entry
+                    else:
+                        break
     return res
 
 def get_signature_pos(passport_index, passport_list):
