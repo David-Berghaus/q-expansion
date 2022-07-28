@@ -32,7 +32,8 @@ def eisenstein_algebraics_test(passport, floating_expansions, weight, d):
             eis_form_echelon = modforms[j]*eis_facts[i][j] + eis_form_echelon
         eis_forms_echelon.append(eis_form_echelon)
     eis_forms = echelon_basis_to_eisenstein_basis(eis_forms_echelon)
-    print("algebraic relations: ", get_algebraic_relations(eis_forms,d))
+    if len(eis_forms) > 1:
+        print("algebraic relations: ", get_algebraic_relations(eis_forms,d))
     return eis_forms
 
 def haberland_precision_test():
