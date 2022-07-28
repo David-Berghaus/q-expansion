@@ -6,9 +6,23 @@ import os
 import sys
 from string import ascii_lowercase
 
+def load_entry(database_path, entry_name, load_floating_expansions=False):
+    """
+    Given an entry_name (as a string), load data attached to this entry.
+    """
+    index, genus = entry_name.split('_')[0], entry_name.split('_')[1]
+    storage_path = os.path.join(database_path,index,genus)
+    file_path = storage_path + "/" + entry_name + ".sobj"
+    passport = load(file_path)
+    if load_floating_expansions == False:
+        return passport
+    else:
+        file_path = storage_path + "/" + entry_name + "_floating_expansions.sobj"
+        return passport, load(file_path)
+
 def load_database(database_path, index=None, genus=None, Kv_degree=None, load_floating_expansions=False):
     """
-    Loads entries of database and returns them as a list.
+    Loads entries of database and returns them as a dict.
     We allow to filter for index, genus and Kv_degree by specifying them as ints or lists of ints.
     """
     if genus != None and genus > 1:
