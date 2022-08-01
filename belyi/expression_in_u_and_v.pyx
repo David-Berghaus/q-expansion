@@ -22,7 +22,7 @@ def convert_from_Kw_to_Kv(expression_in_Kw, u_interior_Kv, principal_cusp_width)
     Otherwise use Sage to convert between the numberfields.
     """
     Kw, Kv = expression_in_Kw.parent(), u_interior_Kv.parent()
-    if principal_cusp_width == 1: #In this case Kw == Kv (up to different variable names)
+    if principal_cusp_width == 1 and Kv.polynomial() == Kw.polynomial(): #In this case Kw == Kv (up to different variable names)
         v = Kv.gen()
         Kw_expr_poly = expression_in_Kw.polynomial()
         res = 0
