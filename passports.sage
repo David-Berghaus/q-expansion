@@ -643,7 +643,7 @@ def get_lin_u_v_term(q_expansions):
         except KeyError:
             continue
         i = 1
-        while cuspform[i][1] == 0:
+        while cuspform[i][1] == 0 and i < cuspform.degree(): 
             i += 1
         if cuspform[i][1] == 0:
             raise ArithmeticError("Did not find suitable term linear in u.")
