@@ -91,6 +91,9 @@ def get_signature_to_underscore(signature):
     return res
 
 def print_pending_passports(genus, database_path, max_passport_index=None):
+    """
+    Print indices of passports whose computation is currently ongoing (i.e., for which a state or unresolved file exists).
+    """
     if genus > 1:
         raise NotImplementedError("This case has not been implemented yet!")
     if genus == 0:
@@ -115,7 +118,7 @@ def print_pending_passports(genus, database_path, max_passport_index=None):
 
 def print_missing_passports(genus, database_path, max_orbit_size, max_passport_index=None):
     """
-    Prints all passports up to max_passport_index that have not been computed yet (and are also not pending).
+    Print indicies of all passports up to max_passport_index that have not been computed yet (and are also not pending).
     """
     if genus > 1:
         raise NotImplementedError("This case has not been implemented yet!")
