@@ -563,6 +563,7 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                     for i in range(len(eis_scaling_constant_list_num)):
                         for j in range(len(eis_scaling_constant_list_num[i])):
                             if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
+                                print("weight: ", weight)
                                 print("i, j: ", i, j)
                                 print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
                                 print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
