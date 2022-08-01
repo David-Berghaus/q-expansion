@@ -3,6 +3,8 @@ Routines for loading and working database entries
 """
 
 import os
+from os.path import isfile
+import re
 import sys
 from string import ascii_lowercase
 
@@ -54,7 +56,7 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None, load_fl
                     entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list)) + "_" + letter
                     storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
                     file_path = storage_path + "/" + entry_name + ".sobj"
-                    if os.path.isfile(file_path) == True:
+                    if isfile(file_path) == True:
                         entry = load(file_path)
                         if Kv_degree == None or entry["Kv"].degree() in Kv_degree:
                             res[entry_name] = entry
@@ -88,10 +90,7 @@ def get_signature_to_underscore(signature):
     res = res[:-1] #Remove last underscore
     return res
 
-def print_missing_passports(genus, database_path, max_passport_index=None):
-    """
-    Prints all passports up to max_passport_index that have not been computed yet.
-    """
+def print_pending_passports(genus, database_path, max_passport_index=None):
     if genus > 1:
         raise NotImplementedError("This case has not been implemented yet!")
     if genus == 0:
@@ -102,9 +101,43 @@ def print_missing_passports(genus, database_path, max_passport_index=None):
         max_passport_index = len(passport_list)
     for i in range(max_passport_index):
         G = passport_list[i][0]
+        passport_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list))
+        storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
+        unresolved_passport_file_path = storage_path + "/" + passport_name + "_unresolved_passport.sobj"
+        if isfile(unresolved_passport_file_path):
+            print(i)
+            continue
+        for letter in ascii_lowercase:
+            state_file_path = storage_path + "/" + passport_name + "_" + letter + "_state.sobj"
+            if isfile(state_file_path):
+                print(i)
+                break
+
+def print_missing_passports(genus, database_path, max_orbit_size, max_passport_index=None):
+    """
+    Prints all passports up to max_passport_index that have not been computed yet (and are also not pending).
+    """
+    if genus > 1:
+        raise NotImplementedError("This case has not been implemented yet!")
+    if genus == 0:
+        passport_list = load("data/genus_zero_passport_list.sobj")
+    elif genus == 1:
+        passport_list = load("data/genus_one_passport_list.sobj")
+    if max_passport_index == None:
+        max_passport_index = len(passport_list)
+    for i in range(max_passport_index):
+        if len(passport_list[i]) > max_orbit_size:
+            continue
+        G = passport_list[i][0]
         entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list))
         storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
-        if os.path.isfile(storage_path + "/" + entry_name + ".sobj") == False:
+        pattern = re.compile(r'{}.*\.sobj$'.format(entry_name)) #Basically entry_name*.sobj
+        found_file = False
+        for filepath in os.listdir(storage_path):
+            if pattern.match(filepath):
+                found_file = True #Found either a finished or ongoing computation
+                break
+        if found_file == False:
             print(i)
 
 def create_list_of_passport_labels(genus, max_passport_index=None):
