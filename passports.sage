@@ -646,10 +646,10 @@ def get_lin_u_v_term(q_expansions):
         while cuspform[i][1] == 0 and i < cuspform.degree(): 
             i += 1
         if cuspform[i][1] == 0:
-            raise ArithmeticError("Did not find suitable term linear in u.")
+            continue
         label = len(q_expansions[weight]["cuspforms_pretty"])-1
         return cuspform[i], weight, i, label
-    raise ArithmeticError("We should not get here!")
+    raise ArithmeticError("Did not find suitable term linear in u.")
 
 def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
     """
