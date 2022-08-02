@@ -99,10 +99,10 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                 if G.dimension_cusp_forms(weight) != 0:
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
-    if state_file_path != None:
-        os.remove(state_file_path)
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],B._u_interior_Kv,G.cusp_width(Cusp(1,0)))
+    if state_file_path != None:
+        os.remove(state_file_path)
     if return_floating_expansions == True:
         floating_expansions = dict()
         for weight in range(0,max_weight+1,2): #We only consider even weights
