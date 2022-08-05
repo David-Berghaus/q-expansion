@@ -563,12 +563,16 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                     for i in range(len(eis_scaling_constant_list_num)):
                         for j in range(len(eis_scaling_constant_list_num[i])):
                             if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
+                                print("We detected a eis_scaling_constants that does not match the numerical values!")
                                 print("weight: ", weight)
                                 print("i, j: ", i, j)
                                 print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
                                 print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
                                 print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
-                                raise ArithmeticError("We detected a eis_scaling_constants that does not match the numerical values!")
+                                eisforms_num, eis_scaling_constant_list_num = None, None #Delete the Eisenstein results becaues they seem to be wrong
+                                break
+                        if eis_scaling_constant_list_num == None:
+                            break
 
 def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     """
@@ -702,7 +706,7 @@ def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp
         G = passport[i]
         perms = (str(G.permS),str(G.permR),str(G.permT))
         embedding, diff = other_embeddings_and_diffs[i-1]
-        if diff < 1e-20: #This seems to be a true embedding
+        if diff < 1e-16: #This seems to be a true embedding
             res[perms] = embedding
     embeddings = list(res.values())
     if len(embeddings) != len(set(embeddings)):

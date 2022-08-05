@@ -32,10 +32,18 @@ def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=Fals
     for i in range(dim_S):
         petersson_products[i] = [conjugate(compute_petersson_product_haberland(cuspforms_CC[i],modforms_CC[j],clear_memoized_caches_bool=False,exp_two_pi_i_a_m_dict=exp_two_pi_i_a_m_dict)) for j in range(dim_M)]
     clear_memoized_caches() #Although we could in principle think about using these for different weights
+    
     M_A, M_b = MatrixSpace(CC,dim_S,dim_S), MatrixSpace(CC,dim_S,1)
     A = M_A([petersson_products[i][j] for i in range(dim_S) for j in range(dim_E,dim_M)])
     b_vecs = [-M_b([petersson_products[i][j] for i in range(dim_S)]) for j in range(dim_E)]
     c_vecs = [A.solve_right(b_vecs[j]) for j in range(dim_E)]
+
+    #Instead of imposing normalizations we could also directly compute the kernel which does however seem to result in lower precisions
+    # M_A = MatrixSpace(CC,dim_S,dim_M)
+    # M_c = MatrixSpace(CC,dim_M,1)
+    # A = M_A([petersson_products[i] for i in range(dim_S)])
+    # K = A.right_kernel()
+    # c_vecs = [M_c(v) for v in K.basis()]
 
     #We are now ready to construct the eisforms from the modforms
     eisforms = []
