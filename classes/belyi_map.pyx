@@ -584,6 +584,7 @@ class BelyiMap():
         cusp_evaluation = self._cusp_evaluations[cusp]
         cusp_width = self.G.cusp_width(cusp)
         CBF = ComplexBallField(bit_prec)
+        CIF = ComplexIntervalField(bit_prec) #We have encountered cases in which CBF(QQbar) leads to infinite loops so we use CIF for an intermediate step
         L = LaurentSeriesRing(CBF,"x")
         pc_shifted_QQbar, p3_shifted_QQbar = self.pc_constructed.change_ring(QQbar), self.p3_constructed.change_ring(QQbar)
         x = pc_shifted_QQbar.parent().gen()
@@ -600,25 +601,25 @@ class BelyiMap():
             else:
                 if i == cusp_width: #If imag or real are empty then this can cause problems too...
                     if pc_shifted_QQbar[i].real() == 0:
-                        pc_shifted_coeffs.append(CBF(0,pc_shifted_QQbar[i].imag()))
+                        pc_shifted_coeffs.append(CBF(CIF(0,pc_shifted_QQbar[i].imag())))
                     elif pc_shifted_QQbar[i].imag() == 0:
-                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i].real(),0))
+                        pc_shifted_coeffs.append(CBF(CIF(pc_shifted_QQbar[i].real(),0)))
                     else:
-                        pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
+                        pc_shifted_coeffs.append(CBF(CIF(pc_shifted_QQbar[i])))
                 else:
-                    pc_shifted_coeffs.append(CBF(pc_shifted_QQbar[i]))
+                    pc_shifted_coeffs.append(CBF(CIF(pc_shifted_QQbar[i])))
         pc_shifted = L(pc_shifted_coeffs).O(trunc_order)
         p3_shifted_coeffs = []
         for i in range(p3_shifted_QQbar.degree()+1):
             if i == 0: #Again, zeros can cause problems...
                 if p3_shifted_QQbar[i].real() == 0:
-                        p3_shifted_coeffs.append(CBF(0,p3_shifted_QQbar[i].imag()))
+                        p3_shifted_coeffs.append(CBF(CIF(0,p3_shifted_QQbar[i].imag())))
                 elif p3_shifted_QQbar[i].imag() == 0:
-                    p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i].real(),0))
+                    p3_shifted_coeffs.append(CBF(CIF(p3_shifted_QQbar[i].real(),0)))
                 else:
-                    p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i]))
+                    p3_shifted_coeffs.append(CBF(CIF(p3_shifted_QQbar[i])))
             else:
-                p3_shifted_coeffs.append(CBF(p3_shifted_QQbar[i]))
+                p3_shifted_coeffs.append(CBF(CIF(p3_shifted_QQbar[i])))
         p3_shifted = L(p3_shifted_coeffs).O(trunc_order)
 
         s_no_nth_root = pc_shifted/p3_shifted
@@ -674,6 +675,7 @@ class BelyiMap():
             j_G = (CBF(cusp_evaluation) + P(tmp)).O(trunc_order)
             if get_decimal_digit_prec(j_G[j_G.degree()].rad()) < min_digits_last_coeff: #Result is not correct up to desired accuracy, therefore we need redo the computations with higher precision
                 working_bit_prec = int(round(1.2*working_bit_prec)) #Obviously we could try to come up with a more sophisticated choice
+                print("Increased digit_prec to new precision: ", int(working_bit_prec/3.33))
             else:
                 return j_G
 
