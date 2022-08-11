@@ -34,7 +34,7 @@ def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_wei
     storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
     Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
     if genus == 0 and rigorous_trunc_order == None:
-        rigorous_trunc_order = int(2000/(len(passport)+G.cusp_width(Cusp(1,0)))+50) #Heuristic choice that runs in reasonable amount of CPU time
+        rigorous_trunc_order = int(1000/(len(passport)+G.cusp_width(Cusp(1,0)))+50) #Heuristic choice that runs in reasonable amount of CPU time
     entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
     unresolved_passport_path = os.path.join(storage_path,entry_name+"_unresolved_passport.sobj") #Path were we store unresolved passport elements in case the passport decays
     if os.path.exists(unresolved_passport_path) == True:
