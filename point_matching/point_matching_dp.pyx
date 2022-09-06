@@ -92,17 +92,16 @@ cpdef get_V_tilde_matrix_cuspform_dp(S,int M,double Y):
                 _subtract_diagonal_terms(V_view,Ms,Mf,weight,Y)
     return V
 
-cpdef get_V_tilde_matrix_b_cuspform_dp(S,int M,double Y):
+cpdef get_V_tilde_matrix_b_cuspform_dp(S,int M,double Y,multiplicity=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     """
     cdef int weight = S.weight()
     G = S.group()
-    cdef int multiplicity = G.dimension_cusp_forms(weight) #!!!Might not always work (consider using dimension_cuspforms from MySubgroup)
     cdef int Q = M+8
     pb = my_pullback_pts_dp(S,1-Q,Q,Y)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization_cuspforms(S)
+    normalization = _get_normalization_cuspforms(S,multiplicity)
     V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
     b = np.zeros(shape=(nc*M,1),dtype=np.complex_)
     cdef int cii,cjj
@@ -171,7 +170,7 @@ cpdef get_V_tilde_matrix_b_haupt_dp(S,int M,double Y):
     np.negative(b,out=b)
     return V,b
 
-cpdef get_V_matrix_dp(S,int M,double Y):
+cpdef get_V_matrix_cuspform_dp(S,int M,double Y):
     cdef int weight = S.weight()
     cdef int Ms = 1
     cdef int Mf = M

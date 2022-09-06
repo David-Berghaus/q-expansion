@@ -19,12 +19,12 @@ from point_matching.point_matching_arb_wrap import (
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v, convert_from_Kv_to_Kw
 from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
 
-def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True):
+def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True, multiplicity=None):
     """
     Computes q-expansion of cuspform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 1
-    normalization = _get_normalization_cuspforms(S,label=label)
+    normalization = _get_normalization_cuspforms(S,multiplicity,label=label)
     if c_vec == None: #We compute c_vec from scratch
         c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
@@ -36,12 +36,12 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
     base_ring = cusp_expansions[Cusp(1,0)].base_ring()
     return FourierExpansion(S.group(),S.weight(),cusp_expansions,"CuspForm",base_ring)
 
-def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True):
+def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=None, prec_loss=None, use_FFT=True, use_splitting=True, use_scipy_lu=True, multiplicity=None):
     """
     Computes q-expansion of modform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 0
-    normalization = _get_normalization_modforms(S,label=label)
+    normalization = _get_normalization_modforms(S,multiplicity,label=label)
     if c_vec == None: #We compute c_vec from scratch
         c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
@@ -73,12 +73,13 @@ def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None)
     Computes a basis of cuspforms numerically (in reduced row echelon form) and returns results as instances of "FourierExpansion".
     This function is more efficient than iterating over "get_cuspform_q_expansion_approx".
     """
+    multiplicity = None #Currently we don't support other choices
     c_vecs, M_0, labels = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
     starting_order = 1
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization = _get_normalization_cuspforms(S,label=labels[i])
+        normalization = _get_normalization_cuspforms(S,multiplicity,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
@@ -90,12 +91,13 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
     Computes a basis of modforms numerically (in reduced row echelon form) and returns results as instances of "FourierExpansion".
     This function is more efficient than iterating over "get_modform_q_expansion_approx".
     """
+    multiplicity = None #Currently we don't support other choices
     c_vecs, M_0, labels = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
     starting_order = 0
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization = _get_normalization_modforms(S,label=labels[i])
+        normalization = _get_normalization_modforms(S,multiplicity,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
