@@ -603,9 +603,12 @@ cpdef get_V_tilde_matrix_factored_b_modform_arb_wrap(S,int M,int Q,Y,int bit_pre
                         normalization = normalizations[ni]
                         b_view = b_vecs[ni].get_window(cii*M,0,(cii+1)*M,1)
                         l_normalized = _get_l_normalized(cjj,normalization,0)
-                        if len(l_normalized) != 1: #This would be a normalization like [1,1,0]
-                            raise ArithmeticError("We have not implemented this scenario for cuspforms yet.")
-                        _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,l_normalized[0],weight,coordinates,bit_prec)
+                        if len(l_normalized) == 1: #This would be a normalization like [1,1,0]
+                            _compute_V_block_matrix_normalized_column_arb_wrap(b_view.value,J,l_normalized[0],weight,coordinates,bit_prec)
+                        else:
+                            for l in l_normalized:
+                                _compute_V_block_matrix_normalized_column_arb_wrap(tmp.value,J,l,weight,coordinates,bit_prec)
+                                acb_mat_add(b_view.value,b_view.value,tmp.value,bit_prec)
                         sig_on()
                         acb_mat_neg(b_view.value, b_view.value)
                         sig_off()
@@ -828,7 +831,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
 
 cpdef get_coefficients_gmres_modform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=False,multiplicity=None,maxiter=None):
     """ 
-    Computes expansion coefficients using GMRES without a preconditioner (but with V_scaled).
+    Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
     use_scipy_lu = False #For GMRES we cannot use the scipy LU because we need to cast the LU matrix to working precision
     bit_prec = digits_to_bits(digit_prec)
