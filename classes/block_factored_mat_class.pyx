@@ -216,7 +216,7 @@ cdef class Block_Factored_Mat():
     diag : A list of size ncusps which later gets filled with Mx1 matrices that are diagonal elements
     diag_inv : A list of size ncusps which contains the inverses of diag
     """
-    def __init__(self, int nc):
+    def __init__(self, int nc, normalization_zeros=[]):
         A = [[None for cjj in range(nc)] for cii in range(nc)]
         diag = [None for cii in range(nc)]
         diag_inv = [None for cii in range(nc)]
@@ -224,6 +224,7 @@ cdef class Block_Factored_Mat():
         self.diag = diag
         self.diag_inv = diag_inv
         self.nc = nc
+        self.normalization_zeros = normalization_zeros
         self.max_len = 0
 
         #Now to some parameters that we need to construct V_sc_dp
@@ -402,11 +403,18 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
+        cdef Acb_Mat x_prime = Acb_Mat(x.nrows(), x.ncols())
+        for i in range(x.nrows()):
+            for j in range(x.ncols()):
+                acb_set(acb_mat_entry(x_prime.value,i,j), acb_mat_entry(x.value,i,j))
+        for normalization_zero in self.normalization_zeros:
+            acb_zero(acb_mat_entry(x_prime.value, normalization_zero, 0))
+
         #Slice vectors x & b into blocks
         x_blocks = []
         b_blocks = []
         for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
+            x_blocks.append(x_prime.get_window(cii*M,0,(cii+1)*M,1))
             b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
 
         for cii in range(nc):
@@ -470,11 +478,19 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
+        nrows, ncols = acb_mat_nrows(x.value), acb_mat_ncols(x.value)
+        cdef Acb_Mat x_prime = Acb_Mat(nrows, ncols)
+        for i in range(nrows):
+            for j in range(ncols):
+                acb_set(acb_mat_entry(x_prime.value,i,j), acb_mat_entry(x.value,i,j))
+        for normalization_zero in self.normalization_zeros:
+            acb_zero(acb_mat_entry(x_prime.value, normalization_zero, 0))
+
         #Slice vectors x & b into blocks
         x_blocks = []
         b_blocks = []
         for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
+            x_blocks.append(x_prime.get_window(cii*M,0,(cii+1)*M,1))
             b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
 
         for cii in range(nc):

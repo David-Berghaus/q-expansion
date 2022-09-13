@@ -37,6 +37,7 @@ cdef class Block_Factored_Mat():
     cdef list A
     cdef list diag
     cdef list diag_inv
+    cdef list normalization_zeros
     cdef int nc
     cdef int max_len
     cdef object S
