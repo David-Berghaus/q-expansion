@@ -4,7 +4,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, get_horo_height_arb_wrap, get_coefficients_gmres_modform_arb_wrap, get_modform_basis_gmres_arb_wrap
+from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, get_horo_height_arb_wrap, get_coefficients_gmres_modform_arb_wrap, get_coefficients_gmres_cuspform_arb_wrap, get_modform_basis_gmres_arb_wrap, get_cuspform_basis_gmres_arb_wrap
 from classes.gamma_2_subgroup import Gamma_2_Subgroup
 from classes.modform_class import ModForm
 from classes.belyi_map import BelyiMap
@@ -21,7 +21,38 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 load("subgroups.sage")
 load("passports.sage")
 
-def get_M_2_H_5(digit_prec, maxiter):
+def get_H_5_passport():
+    modforms_fl_w2 = load("modforms.sobj")
+    cuspforms_fl_w2 = load("cuspforms.sobj")
+    eisforms_fl_w2, scaling_constants_fl_w2 = compute_eisenstein_series(cuspforms_fl_w2,modforms_fl_w2,return_scaling_constants=True)
+
+    #Now identify the algebraic expressions
+    cuspforms_rig, modforms_rig, eisforms_rig, scaling_constants_rig = {}, {}, {}, {}
+    cuspforms_rig[2], modforms_rig[2], eisforms_rig[2], scaling_constants_rig[2] = [], [], [], []
+    L.<w> = NumberField(x-1)
+    P.<q_1> = PowerSeriesRing(L)
+    for (i,modform_fl) in enumerate(modforms_fl_w2):
+        expansion = modform_fl.get_cusp_expansion(Cusp(1,0))
+        recognized_coeffs = []
+        for j in range(expansion.degree()):
+            expr = to_K(expansion[j]*5**j,L) #Absorb some of the powers of 5 to make the recognition easier
+            if expr is None: #We reached the limiting precision after which we are unable to recognize coeffs
+                break
+            recognized_coeffs.append(expr/(5**j))
+        modforms_rig[2].append(P(recognized_coeffs).O(len(recognized_coeffs)))
+
+    cuspforms_rig[2] = [P(CuspForms(11,2,prec=1000).q_echelon_basis()[0])] #This is an oldform so you can choose any prec you like
+
+    for i in range(len(scaling_constants_fl_w2)):
+        scaling_constants_rig[2].append([to_K(scaling_constants_fl_w2[i][j],L) for j in range(len(scaling_constants_fl_w2[i]))])
+    
+    for i in range(len(scaling_constants_rig[2])):
+        #This is probably better than attempting to recognize the Eisenstein Fourier coeffs
+        eisform_rig = sum([modforms_rig[2][j]*scaling_constants_rig[2][i][j] for j in range(len(modforms_rig[2]))])
+        eisforms_rig[2].append(eisform_rig)
+    return modforms_rig[2], eisforms_rig[2]
+
+def get_M_2_H_5(digit_prec, maxiter, label=None):
     from classes.fourier_expansion import FourierExpansion, c_vec_to_cusp_expansions
     from point_matching.point_matching_arb_wrap import _get_normalization_modforms
     
@@ -51,6 +82,30 @@ def get_M_2_H_5(digit_prec, maxiter):
     basis.append(FourierExpansion(S.group(),S.weight(),cusp_expansions,"ModForm",base_ring))
 
     return basis
+
+def get_M_4_H_5(digit_prec, maxiter):
+    from classes.fourier_expansion import FourierExpansion, c_vec_to_cusp_expansions
+    from point_matching.point_matching_arb_wrap import _get_normalization_modforms
+    
+    S = AutomorphicFormSpace(H_5,4)
+
+    if digit_prec < 150:
+        raise ArithmeticError("Digit precision must be at least 150.")
+    c_vec_m_19 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,multiplicity=21,label=20,maxiter=maxiter)
+    c_vec_m_18 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,label=18,multiplicity=19,normalization_zeros=[2],maxiter=maxiter)
+    c_vec_m_17 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,label=17,multiplicity=19,normalization_zeros=[2],maxiter=maxiter)
+
+def get_S_4_H_5(digit_prec, maxiter):
+    from classes.fourier_expansion import FourierExpansion, c_vec_to_cusp_expansions
+    from point_matching.point_matching_arb_wrap import _get_normalization_modforms
+    
+    S = AutomorphicFormSpace(H_5,4)
+
+    if digit_prec < 150:
+        raise ArithmeticError("Digit precision must be at least 150.")
+    c_vec_m_9 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,multiplicity=11,label=10,maxiter=maxiter)
+    c_vec_m_8 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,multiplicity=9,label=8,normalization_zeros=[1],maxiter=maxiter)
+    c_vec_m_0 = get_coefficients_gmres_modform_arb_wrap(S,digit_prec,multiplicity=9,label=0,normalization_zeros=[1],maxiter=maxiter)
 
 def test():
     # for d in range(100,120):

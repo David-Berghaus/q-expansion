@@ -417,7 +417,7 @@ cpdef get_V_tilde_matrix_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,multip
     sig_off()
     return V, b
 
-cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_splitting,labels=None,multiplicity=None):
+cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_splitting,labels=None,multiplicity=None,normalization_zeros=[]):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -432,7 +432,7 @@ cpdef get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,int M,int Q,Y,int bit_pr
         labels = range(multiplicity)
     normalizations = [_get_normalization_cuspforms(S,multiplicity,label=i) for i in labels]
 
-    cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
+    cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc,normalization_zeros=normalization_zeros)
     if use_FFT == True:
         DFT_precomp = Acb_DFT(2*Q, bit_prec)
         inv_roots_of_unity = get_inv_roots_of_unity(2*Q, bit_prec)
@@ -694,7 +694,7 @@ cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     sig_off()
     return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=True):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=True,multiplicity=None,maxiter=None,normalization_zeros=[]):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
@@ -716,19 +716,22 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,labels=[label])
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,labels=[label],multiplicity=multiplicity,normalization_zeros=normalization_zeros)
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
     plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu)
+    x_gmres_arb_wrap = gmres_mgs_arb_wrap(V, b, bit_prec, tol, PLU=plu, maxiter=maxiter)
 
     res = x_gmres_arb_wrap[0]
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    return res.get_window(0,0,M_0,1)
+    for normalization_zero in normalization_zeros:
+        acb_zero(acb_mat_entry(res.value,normalization_zero,0))
+
+    return res
 
 cpdef get_coefficients_gmres_non_scaled_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,prec_loss=None):
     """
@@ -1072,6 +1075,48 @@ cpdef get_modform_basis_gmres_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,re
     cdef Acb_Mat b, res
 
     V, b_vecs = get_V_tilde_matrix_factored_b_modform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,labels=labels,multiplicity=multiplicity,normalization_zeros=normalization_zeros)
+    tol = RBF(10.0)**(-digit_prec+1)
+
+    V_dp = V.construct_sc_np()
+    plu = PLU_Mat(V_dp,53,use_scipy_lu)
+
+    res_vec = []
+    for i in range(len(b_vecs)):
+        res = gmres_mgs_arb_wrap(V, b_vecs[i], bit_prec, tol, PLU=plu, maxiter=maxiter)[0]
+        V.diag_inv_scale_vec(res, res, bit_prec)
+        for normalization_zero in normalization_zeros:
+            acb_zero(acb_mat_entry(res.value,normalization_zero,0))
+        res_vec.append(res)
+
+    if return_M_and_labels == False:
+        return res_vec
+    else:
+        if labels == None:
+            labels = range(multiplicity)
+        return res_vec, M_0, labels
+
+cpdef get_cuspform_basis_gmres_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,multiplicity=None,maxiter=None,normalization_zeros=[]):
+    """ 
+    Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
+    """
+    use_scipy_lu = False #For GMRES we cannot use the scipy LU because we need to cast the LU matrix to working precision
+    bit_prec = digits_to_bits(digit_prec)
+    RBF = RealBallField(bit_prec)
+    CBF = ComplexBallField(bit_prec)
+    if M_0 == 0:
+        M_0 = get_M_0(S,digit_prec,is_cuspform=True)
+    if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
+        Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=True,prec_loss=prec_loss)
+    if Q == 0:
+        Q = get_Q(Y,S.weight(),digit_prec,is_cuspform=True)
+    print("Y = ", Y)
+    print("M_0 = ", M_0)
+    print("Q = ", Q)
+    print("ncusps = ", S.group().ncusps())
+    cdef Block_Factored_Mat V
+    cdef Acb_Mat b, res
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,labels=labels,multiplicity=multiplicity,normalization_zeros=normalization_zeros)
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
