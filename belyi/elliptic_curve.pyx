@@ -1,3 +1,12 @@
+# ****************************************************************************
+#       Copyright (C) 2022 David Berghaus <berghaus@th.physik.uni-bonn.de>
+#
+#  Distributed under the terms of the GNU General Public License (GPL)
+#  as published by the Free Software Foundation; either version 2 of
+#  the License, or (at your option) any later version.
+#                  https://www.gnu.org/licenses/
+# ****************************************************************************
+
 from sage.rings.rational_field import QQ
 from sage.rings.integer_ring import ZZ
 from sage.schemes.elliptic_curves.constructor import EllipticCurve_from_j
