@@ -706,7 +706,7 @@ def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp
         G = passport[i]
         perms = (str(G.permS),str(G.permR),str(G.permT))
         embedding, diff = other_embeddings_and_diffs[i-1]
-        if diff < 1e-16: #This seems to be a true embedding
+        if diff < 1e-12 and embedding.abs() > 1e-6: #This seems to be a true embedding
             res[perms] = embedding
     embeddings = list(res.values())
     if len(embeddings) != len(set(embeddings)):
