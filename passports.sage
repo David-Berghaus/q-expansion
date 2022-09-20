@@ -1,6 +1,8 @@
 from copy import deepcopy
 from sys import exit
 import os
+import json
+from textwrap import indent
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
@@ -727,3 +729,30 @@ def get_unresolved_passport_elements(passport, embeddings):
             print("perms: ", perms)
             unresolved_embeddings.append(G)
     return unresolved_embeddings
+
+def to_JSON(passport_data, filename=None):
+    """
+    Convert passport to JSON format.
+    If filename is specified, store the JSON data in the file.
+    """
+    res = {}
+    indent = 4
+    for k in passport_data.keys():
+        if isinstance(passport_data[k], dict):
+            res[str(k)] = {}
+            for k2 in passport_data[k].keys():
+                if isinstance(passport_data[k][k2], dict):
+                    res[str(k)][str(k2)] = {}
+                    for k3 in passport_data[k][k2].keys():
+                        res[str(k)][str(k2)][str(k3)] = str(passport_data[k][k2][k3])
+                else:
+                    res[str(k)][str(k2)] = str(passport_data[k][k2])
+        else:
+            res[str(k)] = str(passport_data[k])
+    L = passport_data["q_expansions"][6]["cuspforms_raw"][0].base_ring()
+    res["L"] = str(L)
+    del res["v"] #This just returns v = v and is hence obsolete
+    if filename is not None:
+        with open(filename, 'w') as outfile:
+            json.dump(res, outfile, indent=indent)
+    return json.dumps(res, indent=indent)
