@@ -1,3 +1,12 @@
+# ****************************************************************************
+#       Copyright (C) 2022 David Berghaus <berghaus@th.physik.uni-bonn.de>
+#
+#  Distributed under the terms of the GNU General Public License (GPL)
+#  as published by the Free Software Foundation; either version 2 of
+#  the License, or (at your option) any later version.
+#                  https://www.gnu.org/licenses/
+# ****************************************************************************
+
 def example_relations():
     #G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
     pp = load("rm_me.sobj")

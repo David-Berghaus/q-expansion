@@ -1,3 +1,12 @@
+# ****************************************************************************
+#       Copyright (C) 2022 David Berghaus <berghaus@th.physik.uni-bonn.de>
+#
+#  Distributed under the terms of the GNU General Public License (GPL)
+#  as published by the Free Software Foundation; either version 2 of
+#  the License, or (at your option) any later version.
+#                  https://www.gnu.org/licenses/
+# ****************************************************************************
+
 #This is an implementation of GMRES MGS for acb-matrices. 
 #It is based on: https://github.com/pyamg/pyamg/blob/main/pyamg/krylov/_gmres_mgs.py
 
