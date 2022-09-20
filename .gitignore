@@ -16,4 +16,5 @@ MANIFEST
 *.log
 *.toc
 *.so
+*.sobj
 !/arblib_helpers/*.c
