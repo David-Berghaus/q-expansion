@@ -18,7 +18,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from belyi.elliptic_curve import get_elliptic_curve
-from eisenstein.eisenstein_computation import compute_eisenstein_series
+from eisenstein.eisenstein_computation import compute_eisenstein_series, echelon_basis_to_eisenstein_basis
 from point_matching.point_matching_arb_wrap import _get_echelon_normalization_from_label, digits_to_bits, get_M_0, get_horo_height_arb_wrap
 from classes.fourier_expansion import get_hauptmodul_q_expansion_approx, get_cuspform_basis_approx, get_cuspform_q_expansion_approx, get_modform_basis_approx, recognize_cusp_expansion_using_u, to_reduced_row_echelon_form
 from classes.belyi_map import BelyiMap, get_u_str
@@ -70,6 +70,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     j_G_fl = B.get_hauptmodul_q_expansion_approx(eisenstein_trunc_orders,eisenstein_digit_prec)
     cuspforms_fl, modforms_fl = dict(), dict()
     eis_scaling_constants = dict()
+    eis_scaling_constants_canonical = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
             modforms_fl[weight] = B.get_modforms(weight,eisenstein_trunc_orders,digit_prec=eisenstein_digit_prec,j_G=j_G_fl)
@@ -81,9 +82,10 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                         if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*eisenstein_digit_prec))) == True:
                             eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
             else:
-                eisforms_fl = modforms_fl #In this case the eisforms are equivalent to modforms
+                eisforms_fl = modforms_fl[weight] #In this case the eisforms are equivalent to modforms
                 eis_scaling_constant_list = [_get_echelon_normalization_from_label(i,len(eisforms_fl)) for i in range(len(eisforms_fl))]
             eis_scaling_constants[weight] = eis_scaling_constant_list
+            _, eis_scaling_constants_canonical[weight] = echelon_basis_to_eisenstein_basis(eisforms_fl,return_scaling_constants=True)
 
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,B.u_QQbar,numerics_digit_prec,tol)#Verify results by comparing them to numerical values
@@ -107,6 +109,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
+                res["q_expansions"][weight]["eisenstein_canonical_normalizations"] = eis_scaling_constants_canonical[weight]
                 if G.dimension_cusp_forms(weight) != 0:
                     res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                     res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
@@ -190,6 +193,7 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
+    eis_scaling_constants_canonical = dict()
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_eis(weight) != 0:
             if G.dimension_cusp_forms(weight) != 0:
@@ -199,9 +203,10 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
                         if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*digit_prec))) == True:
                             eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
             else:
-                eisforms_fl = modforms_fl #In this case the eisforms are equivalent to modforms
+                eisforms_fl = modforms_fl[weight] #In this case the eisforms are equivalent to modforms
                 eis_scaling_constant_list = [_get_echelon_normalization_from_label(i,len(eisforms_fl)) for i in range(len(eisforms_fl))]
             eis_scaling_constants[weight] = eis_scaling_constant_list
+            _, eis_scaling_constants_canonical[weight] = echelon_basis_to_eisenstein_basis(eisforms_fl,return_scaling_constants=True)
 
     u_QQbar = QQbar(u)
     if compare_result_to_numerics == True:
@@ -229,6 +234,7 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
+                res["q_expansions"][weight]["eisenstein_canonical_normalizations"] = eis_scaling_constants_canonical[weight]
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
