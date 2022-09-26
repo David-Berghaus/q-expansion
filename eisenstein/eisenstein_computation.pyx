@@ -87,7 +87,7 @@ def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=Fals
     else:
         return eisforms, scaling_constants
 
-def echelon_basis_to_eisenstein_basis(eisforms):
+def echelon_basis_to_eisenstein_basis(eisforms, return_scaling_constants=False):
     """
     Given a basis of Eisenstein series in reduced row echelon form, transform basis to a form
     in which the zeroth coefficient is one for one cusp and zero for the other ones.
@@ -114,7 +114,10 @@ def echelon_basis_to_eisenstein_basis(eisforms):
             new_eisform = eisforms[i]*scaling_constants[j][i] + new_eisform
         new_eisforms.append(new_eisform)
     
-    return new_eisforms
+    if return_scaling_constants == False:
+        return new_eisforms
+    else:
+        return new_eisforms, scaling_constants
 
 def get_monomial_products(list_of_vars, d):
     """
