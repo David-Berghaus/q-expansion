@@ -861,7 +861,7 @@ def to_sage_script(passport_data, file_path=None):
     cg.write_line("u_str = \"{}\"".format(passport_data["u_str"]))
     cg.write_line("res[\"u_str\"] = u_str")
     cg.write_line("# With embedding")
-    if res["G"].cusp_width(Cusp(1,0)) == 1:
+    if passport_data["G"].cusp_width(Cusp(1,0)) == 1:
         cg.write_line("res[\"u\"] = QQbar({})".format(passport_data["u_str"]))
     else:
         cg.write_line("res[\"u\"] = QQbar(L.gen())")
@@ -878,21 +878,31 @@ def to_sage_script(passport_data, file_path=None):
     cg.dedent()
     for weight in weights:
         if "hauptmodul_pretty" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["hauptmodul_pretty"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_pretty\"] = Pq({}).O({})".format(weight, coefficients_to_list(passport_data["q_expansions"][weight]["hauptmodul_pretty"]), passport_data["q_expansions"][weight]["hauptmodul_pretty"].prec()))
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_pretty\"] += Pq.gen()**(-1) #Don't forget the first coeff, which we cannot construct from a list".format(weight))
         if "cuspforms_pretty" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["cuspforms_pretty"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_pretty\"] = []".format(weight))
+            for cuspform in passport_data["q_expansions"][weight]["cuspforms_pretty"]:
+                cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_pretty\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(cuspform), cuspform.prec()))
         if "modforms_pretty" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["modforms_pretty"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"] = []".format(weight))
+            for modform in passport_data["q_expansions"][weight]["modforms_pretty"]:
+                cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(modform), modform.prec()))
     cg.write_line("")
     cg.write_line("# Now consider the q-expansions in raw format defined over L")
     cg.write_line("Pq.<{}> = LaurentSeriesRing(L)".format(passport_data["q_expansions"][4]["modforms_raw"][0].parent().variable_name()))
     for weight in weights:
         if "hauptmodul_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["hauptmodul_raw"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] = Pq({}).O({})".format(weight, coefficients_to_list(passport_data["q_expansions"][weight]["hauptmodul_raw"]), passport_data["q_expansions"][weight]["hauptmodul_raw"].prec()))
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] += Pq.gen()**(-1) #Don't forget the first coeff, which we cannot construct from a list".format(weight))
         if "cuspforms_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["cuspforms_raw"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"] = []".format(weight))
+            for cuspform in passport_data["q_expansions"][weight]["cuspforms_raw"]:
+                cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(cuspform), cuspform.prec()))
         if "modforms_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["modforms_raw"]))
+            cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"] = []".format(weight))
+            for modform in passport_data["q_expansions"][weight]["modforms_raw"]:
+                cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(modform), modform.prec()))
     cg.write_line("")
     cg.write_line("# Add the Eisenstein scaling constants as well")
     for weight in weights:
