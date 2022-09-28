@@ -805,7 +805,7 @@ def coefficients_to_list(polynomial):
     """
     return [polynomial[i] for i in range(polynomial.degree()+1)]
 
-def to_sage_script(passport_data):
+def to_sage_script(passport_data, file_path=None):
     """
     Convert passport to a sage script.
     """
@@ -882,4 +882,4 @@ def to_sage_script(passport_data):
     cg.write_line("")
     cg.write_line("# Now add the embeddings")
     cg.write_line("res[\"embeddings\"] = {}".format(str(passport_data["embeddings"]).replace("?","")))
-    cg.print_code(file="remove_me.sage")
+    cg.print_code(file=file_path)
