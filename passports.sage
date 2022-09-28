@@ -839,6 +839,8 @@ def coefficients_to_list(polynomial):
     Somehow Sage currently does not support this because ".coefficients" neglects zero coefficients,
     while ".list()" does not start at valuation 0.
     """
+    if isinstance(polynomial,sage.rings.integer.Integer): #Sometimes the polynomial is an integer
+        return [polynomial]
     return [polynomial[i] for i in range(polynomial.degree()+1)]
 
 def to_sage_script(passport_data, file_path=None):
