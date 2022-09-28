@@ -767,6 +767,42 @@ def to_JSON(passport_data, filename=None):
     L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
     res["L"] = str(L)
     del res["v"] #This just returns v = v and is hence obsolete
+    if passport_data["G"].genus() == 0: #Store Belyi map in a prettier form
+        del res["curve"]
+        res["curve"] = {}
+        pc = 1
+        for (p,n) in passport_data["curve"]["pc_factored_raw"]:
+            pc *= p**n
+        p2 = 1
+        for (p,n) in passport_data["curve"]["p2_factored_raw"]:
+            p2 *= p**n
+        p3 = 1
+        for (p,n) in passport_data["curve"]["p3_factored_raw"]:
+            p3 *= p**n
+        res["curve"]["belyi_map_raw"] = "(" + str(p3) + ")" + "/" + "(" + str(pc) + ")" + " = 1728 + " + "(" + str(p2) + ")" + "/" + "(" + str(pc) + ")"
+        pc_factored_pretty = ""
+        for (p,n) in passport_data["curve"]["pc_factored_pretty"]:
+            pc_factored_pretty += "(" + str(p) + ")"
+            if n != 1:
+                pc_factored_pretty += "^" + str(n)
+            pc_factored_pretty += "*"
+        pc_factored_pretty = pc_factored_pretty[:-1] #Remove last "*"
+        p3_factored_pretty = ""
+        for (p,n) in passport_data["curve"]["p3_factored_pretty"]:
+            p3_factored_pretty += "(" + str(p) + ")"
+            if n != 1:
+                p3_factored_pretty += "^" + str(n)
+            p3_factored_pretty += "*"
+        p3_factored_pretty = p3_factored_pretty[:-1] #Remove last "*"
+        p2_factored_pretty = ""
+        for (p,n) in passport_data["curve"]["p2_factored_pretty"]:
+            p2_factored_pretty += "(" + str(p) + ")"
+            if n != 1:
+                p2_factored_pretty += "^" + str(n)
+            p2_factored_pretty += "*"
+        p2_factored_pretty = p2_factored_pretty[:-1] #Remove last "*"
+        res["curve"]["belyi_map_pretty"] = "(" + p3_factored_pretty + ")" + "/" + "(" + pc_factored_pretty + ")" + " = 1728 + " + "(" + p2_factored_pretty + ")" + "/" + "(" + pc_factored_pretty + ")"
+
     if filename is not None:
         with open(filename, 'w') as outfile:
             json.dump(res, outfile, indent=indent)
