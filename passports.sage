@@ -764,10 +764,122 @@ def to_JSON(passport_data, filename=None):
                     res[str(k)][str(k2)] = str(passport_data[k][k2])
         else:
             res[str(k)] = str(passport_data[k])
-    L = passport_data["q_expansions"][6]["cuspforms_raw"][0].base_ring()
+    L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
     res["L"] = str(L)
     del res["v"] #This just returns v = v and is hence obsolete
     if filename is not None:
         with open(filename, 'w') as outfile:
             json.dump(res, outfile, indent=indent)
     return json.dumps(res, indent=indent)
+
+#Inspired by: https://stackoverflow.com/questions/1364640/python-generating-python
+class CodeGenerator:
+    def __init__(self, tab='    '):
+        self.code = ''
+        self.tab = tab
+        self.indent_level = 0
+
+    def print_code(self, file=None):
+        if file is None:
+            print(self.code)
+        else:
+            with open(file, 'w') as outfile:
+                outfile.write(self.code)
+
+    def write_line(self, string):
+        self.code += self.tab * self.indent_level + string + '\n'
+
+    def indent(self):
+        self.indent_level = self.indent_level + 1
+
+    def dedent(self):
+        if self.indent_level == 0:
+            raise SyntaxError("internal error in code generator")
+        self.indent_level = self.indent_level - 1
+
+def coefficients_to_list(polynomial):
+    """
+    Convert a polynomial to a list of coefficients.
+    Somehow Sage currently does not support this because ".coefficients" neglects zero coefficients,
+    while ".list()" does not start at valuation 0.
+    """
+    return [polynomial[i] for i in range(polynomial.degree()+1)]
+
+def to_sage_script(passport_data):
+    """
+    Convert passport to a sage script.
+    """
+    cg = CodeGenerator()
+    cg.write_line("res = {} #The dictionary in which we store the results")
+    cg.write_line("res[\"G\"] = ArithmeticSubgroup_Permutation(S2=\"{}\",S3=\"{}\")".format(passport_data["G"].S2(),passport_data["G"].S3()))
+    cg.write_line("res[\"monodromy_group\"] = \"{}\"".format(passport_data["monodromy_group"]))
+    cg.write_line("P.<T> = PolynomialRing(QQ)")
+    K = passport_data["Kv"]
+    cg.write_line("K.<v> = NumberField(P({}),embedding={}+{}*1j)".format(coefficients_to_list(K.polynomial()),CC(K.gen()).real(),CC(K.gen()).imag())) #Somehow sage does not support x+y*I embedding syntax...
+    cg.write_line("res[\"K\"] = K")
+    cg.write_line("res[\"v\"] = K.gen()")
+    L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
+    cg.write_line("L.<w> = NumberField(P({}),embedding={}+{}*1j) #Base ring of the q-expansions in raw format".format(coefficients_to_list(L.polynomial()),CC(L.gen()).real(),CC(L.gen()).imag())) #Somehow sage does not support x+y*I embedding syntax...
+    cg.write_line("")
+    cg.write_line("# The pretty form of q-expansions involves powers of u, where u is given by")
+    cg.write_line("u_str = \"{}\"".format(passport_data["u_str"]))
+    cg.write_line("res[\"u_str\"] = u_str")
+    cg.write_line("# With embedding")
+    if res["G"].cusp_width(Cusp(1,0)) == 1:
+        cg.write_line("res[\"u\"] = QQbar({})".format(passport_data["u_str"]))
+    else:
+        cg.write_line("res[\"u\"] = QQbar(L.gen())")
+    cg.write_line("Pu.<u> = PolynomialRing(K)")
+    cg.write_line("Pq.<{}> = LaurentSeriesRing(Pu)".format(passport_data["q_expansions"][4]["modforms_raw"][0].parent().variable_name()))
+    cg.write_line("")
+    cg.write_line("# Store the q-expansions in pretty form into res")
+    cg.write_line("res[\"q_expansions\"] = {}")
+    weights = sorted(list(passport_data["q_expansions"].keys()))
+    cg.write_line("weights = {}".format(weights))
+    cg.write_line("for weight in weights:")
+    cg.indent()
+    cg.write_line("res[\"q_expansions\"][weight] = {}")
+    cg.dedent()
+    for weight in weights:
+        if "hauptmodul_pretty" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["hauptmodul_pretty"]))
+        if "cuspforms_pretty" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["cuspforms_pretty"]))
+        if "modforms_pretty" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"] = {}".format(weight, passport_data["q_expansions"][weight]["modforms_pretty"]))
+    cg.write_line("")
+    cg.write_line("# Now consider the q-expansions in raw format defined over L")
+    cg.write_line("Pq.<{}> = LaurentSeriesRing(L)".format(passport_data["q_expansions"][4]["modforms_raw"][0].parent().variable_name()))
+    for weight in weights:
+        if "hauptmodul_raw" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["hauptmodul_raw"]))
+        if "cuspforms_raw" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["cuspforms_raw"]))
+        if "modforms_raw" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"] = {}".format(weight, passport_data["q_expansions"][weight]["modforms_raw"]))
+    cg.write_line("")
+    cg.write_line("# Add the Eisenstein scaling constants as well")
+    for weight in weights:
+        if "eisenstein_basis_factors" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"eisenstein_basis_factors\"] = {}".format(weight, passport_data["q_expansions"][weight]["eisenstein_basis_factors"]))
+        if "eisenstein_canonical_normalizations" in passport_data["q_expansions"][weight]:
+            cg.write_line("res[\"q_expansions\"][{}][\"eisenstein_canonical_normalizations\"] = {}".format(weight, passport_data["q_expansions"][weight]["eisenstein_canonical_normalizations"]))
+    cg.write_line("")
+    cg.write_line("# Now add the curve")
+    if passport_data["G"].genus() == 0:
+        pc = 1
+        for (p,n) in passport_data["curve"]["pc_factored_raw"]:
+            pc *= p**n
+        p3 = 1
+        for (p,n) in passport_data["curve"]["p3_factored_raw"]:
+            p3 *= p**n
+        cg.write_line("F.<x> = FunctionField(L)")
+        cg.write_line("res[\"curve\"] = (F({}))/(F({}))".format(coefficients_to_list(p3),coefficients_to_list(pc)))
+    elif passport_data["G"].genus() == 1:
+        cg.write_line("res[\"curve\"] = EllipticCurve({})".format(passport_data["curve"].a_invariants()))
+    else:
+        raise NotImplementedError("Not implemented for genus > 1")
+    cg.write_line("")
+    cg.write_line("# Now add the embeddings")
+    cg.write_line("res[\"embeddings\"] = {}".format(str(passport_data["embeddings"]).replace("?","")))
+    cg.print_code(file="remove_me.sage")
