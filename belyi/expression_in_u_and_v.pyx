@@ -105,11 +105,10 @@ def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width
         u_pow += 1
     return res.O(trunc_order)
 
-def transform_u_v_factored_q_expansion_to_Kw(q_expansion, v_Kw, u_interior_Kv, principal_cusp_width):
+def transform_u_v_factored_q_expansion_to_Kw(q_expansion, Kw, v_Kw, u_interior_Kv, principal_cusp_width):
     """
     Given a q_expansion that has coefficients of the form (expression_in_Kv)*u**u_pow, convert the coefficients to Kw.
     """
-    Kw = v_Kw.parent()
     if principal_cusp_width == 1:
         u = Kw(u_interior_Kv)
     else:
