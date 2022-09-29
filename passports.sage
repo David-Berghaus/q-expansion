@@ -96,6 +96,8 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     res["Kv"] = B._Kv
     res["v"] = B._Kv.gen()
     res["u"] = B.u_QQbar
+    res["u_interior_Kv"] = B._u_interior_Kv
+    res["v_Kw"] = B._v_Kw
     res["u_str"] = B.get_u_str()
     res["curve"] = B._return_res_as_dict()
     res["q_expansions"] = dict()
@@ -219,6 +221,8 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     res["v"] = Kv.gen()
     res["u"] = u_QQbar
     res["u_str"] = get_u_str(u_interior_Kv,principal_cusp_width)
+    res["u_interior_Kv"] = u_interior_Kv
+    res["v_Kw"] = v_Kw
     if G.genus() == 1:
         res["curve"] = get_elliptic_curve(cuspforms_fl[2][0],Kv,digit_prec)
     else:
