@@ -770,6 +770,13 @@ def to_JSON(passport_data, filename=None):
             res[str(k)] = str(passport_data[k])
     L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
     res["L"] = str(L)
+    for weight in res["q_expansions"]: #Remove data defined over Kw because it creates very large JSON files
+        if 'hauptmodul_raw' in res["q_expansions"][weight]:
+            del res["q_expansions"][weight]['hauptmodul_raw']
+        if 'modforms_raw' in res["q_expansions"][weight]:
+            del res["q_expansions"][weight]['modforms_raw']
+        if 'cuspforms_raw' in res["q_expansions"][weight]:
+            del res["q_expansions"][weight]['cuspforms_raw']
     del res["v"] #This just returns v = v and is hence obsolete
     if passport_data["G"].genus() == 0: #Store Belyi map in a prettier form
         del res["curve"]
@@ -852,16 +859,74 @@ def to_sage_script(passport_data, file_path=None):
     Convert passport to a sage script.
     """
     cg = CodeGenerator()
+    cg.write_line("# Sage script to reproduce the database data")
+    cg.write_line("")
+    cg.write_line("# Define some helper functions that are needed to transform u-v-factored expansions to L")
+    cg.write_line("def convert_from_K_to_L(expression_in_K, v_L):")
+    cg.indent()
+    cg.write_line("\"\"\"")
+    cg.write_line("Given an expression in K, convert the expression efficiently to L by plugging in v(w).")
+    cg.write_line("\"\"\"")
+    cg.write_line("if expression_in_K == 0:")
+    cg.indent()
+    cg.write_line("return 0")
+    cg.dedent()
+    cg.write_line("coeffs = list(expression_in_K.polynomial())")
+    cg.write_line("res = coeffs[-1]")
+    cg.write_line("for i in range(len(coeffs)-2,-1,-1): #Horner's method")
+    cg.indent()
+    cg.write_line("res = res*v_L+coeffs[i]")
+    cg.dedent()
+    cg.write_line("return res")
+    cg.dedent()
+    cg.write_line("")
+    cg.write_line("def transform_u_v_factored_q_expansion_to_L(q_expansion, v_L, u_interior_K, principal_cusp_width):")
+    cg.indent()
+    cg.write_line("\"\"\"")
+    cg.write_line("Given a q_expansion that has coefficients of the form (expression_in_K)*u**u_pow, convert the coefficients to L.")
+    cg.write_line("\"\"\"")
+    cg.write_line("L = v_L.parent()")
+    cg.write_line("if principal_cusp_width == 1:")
+    cg.indent()
+    cg.write_line("u = L(u_interior_K)")
+    cg.dedent()
+    cg.write_line("else:")
+    cg.indent()
+    cg.write_line("u = L.gen()")
+    cg.dedent()
+    cg.write_line("leading_order_exponent = q_expansion.valuation()")
+    cg.write_line("coeffs = list(q_expansion)")
+    cg.write_line("coeffs_L = []")
+    cg.write_line("for coeff in coeffs:")
+    cg.indent()
+    cg.write_line("if coeff == 0 or coeff == 1:")
+    cg.indent()
+    cg.write_line("u_pow = 0")
+    cg.dedent()
+    cg.write_line("else:")
+    cg.indent()
+    cg.write_line("u_pow = coeff.degree()")
+    cg.dedent()
+    cg.write_line("coeffs_L.append(convert_from_K_to_L(coeff[u_pow],v_L)*u**u_pow)")
+    cg.dedent()
+    cg.write_line("P = LaurentSeriesRing(L,q_expansion.variable())")
+    cg.write_line("return P(coeffs_L).shift(leading_order_exponent).O(q_expansion.prec())")
+    cg.dedent()
+    cg.write_line("")
+
     cg.write_line("res = {} #The dictionary in which we store the results")
     cg.write_line("res[\"G\"] = ArithmeticSubgroup_Permutation(S2=\"{}\",S3=\"{}\")".format(passport_data["G"].S2(),passport_data["G"].S3()))
+    cg.write_line("principal_cusp_width = {}".format(passport_data["G"].cusp_width(Cusp(1,0))))
     cg.write_line("res[\"monodromy_group\"] = \"{}\"".format(passport_data["monodromy_group"]))
     cg.write_line("P.<T> = PolynomialRing(QQ)")
     K = passport_data["Kv"]
     cg.write_line("K.<v> = NumberField(P({}),embedding={}+{}*1j)".format(coefficients_to_list(K.polynomial()),CC(K.gen()).real(),CC(K.gen()).imag())) #Somehow sage does not support x+y*I embedding syntax...
     cg.write_line("res[\"K\"] = K")
     cg.write_line("res[\"v\"] = K.gen()")
+    cg.write_line("u_interior_K = {}".format(passport_data["u_interior_Kv"]))
     L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
     cg.write_line("L.<w> = NumberField(P({}),embedding={}+{}*1j) #Base ring of the q-expansions in raw format".format(coefficients_to_list(L.polynomial()),CC(L.gen()).real(),CC(L.gen()).imag())) #Somehow sage does not support x+y*I embedding syntax...
+    cg.write_line("v_L = {}".format(passport_data["v_Kw"]))
     cg.write_line("")
     cg.write_line("# The pretty form of q-expansions involves powers of u, where u is given by")
     cg.write_line("u_str = \"{}\"".format(passport_data["u_str"]))
@@ -873,6 +938,7 @@ def to_sage_script(passport_data, file_path=None):
         cg.write_line("res[\"u\"] = QQbar(L.gen())")
     cg.write_line("Pu.<u> = PolynomialRing(K)")
     cg.write_line("Pq.<{}> = LaurentSeriesRing(Pu)".format(passport_data["q_expansions"][4]["modforms_raw"][0].parent().variable_name()))
+
     cg.write_line("")
     cg.write_line("# Store the q-expansions in pretty form into res")
     cg.write_line("res[\"q_expansions\"] = {}")
@@ -894,21 +960,26 @@ def to_sage_script(passport_data, file_path=None):
             cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"] = []".format(weight))
             for modform in passport_data["q_expansions"][weight]["modforms_pretty"]:
                 cg.write_line("res[\"q_expansions\"][{}][\"modforms_pretty\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(modform), modform.prec()))
+    
     cg.write_line("")
     cg.write_line("# Now consider the q-expansions in raw format defined over L")
     cg.write_line("Pq.<{}> = LaurentSeriesRing(L)".format(passport_data["q_expansions"][4]["modforms_raw"][0].parent().variable_name()))
-    for weight in weights:
-        if "hauptmodul_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] = Pq({}).O({})".format(weight, coefficients_to_list(passport_data["q_expansions"][weight]["hauptmodul_raw"]), passport_data["q_expansions"][weight]["hauptmodul_raw"].prec()))
-            cg.write_line("res[\"q_expansions\"][{}][\"hauptmodul_raw\"] += Pq.gen()**(-1) #Don't forget the first coeff, which we cannot construct from a list".format(weight))
-        if "cuspforms_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"] = []".format(weight))
-            for cuspform in passport_data["q_expansions"][weight]["cuspforms_raw"]:
-                cg.write_line("res[\"q_expansions\"][{}][\"cuspforms_raw\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(cuspform), cuspform.prec()))
-        if "modforms_raw" in passport_data["q_expansions"][weight]:
-            cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"] = []".format(weight))
-            for modform in passport_data["q_expansions"][weight]["modforms_raw"]:
-                cg.write_line("res[\"q_expansions\"][{}][\"modforms_raw\"].append(Pq({}).O({}))".format(weight, coefficients_to_list(modform), modform.prec()))
+    cg.write_line("for weight in weights:")
+    cg.indent()
+    cg.write_line("if \"hauptmodul_pretty\" in res[\"q_expansions\"][weight]:")
+    cg.indent()
+    cg.write_line("res[\"q_expansions\"][weight][\"hauptmodul_raw\"] = transform_u_v_factored_q_expansion_to_L(res[\"q_expansions\"][weight][\"hauptmodul_pretty\"],v_L,u_interior_K,principal_cusp_width)")
+    cg.dedent()
+    cg.write_line("if \"cuspforms_pretty\" in res[\"q_expansions\"][weight]:")
+    cg.indent()
+    cg.write_line("res[\"q_expansions\"][weight][\"cuspforms_raw\"] = [transform_u_v_factored_q_expansion_to_L(cuspform,v_L,u_interior_K,principal_cusp_width) for cuspform in res[\"q_expansions\"][weight][\"cuspforms_pretty\"]]")
+    cg.dedent()
+    cg.write_line("if \"modforms_pretty\" in res[\"q_expansions\"][weight]:")
+    cg.indent()
+    cg.write_line("res[\"q_expansions\"][weight][\"modforms_raw\"] = [transform_u_v_factored_q_expansion_to_L(modform,v_L,u_interior_K,principal_cusp_width) for modform in res[\"q_expansions\"][weight][\"modforms_pretty\"]]")
+    cg.dedent()
+    cg.dedent()
+
     cg.write_line("")
     cg.write_line("# Add the Eisenstein scaling constants as well")
     for weight in weights:
