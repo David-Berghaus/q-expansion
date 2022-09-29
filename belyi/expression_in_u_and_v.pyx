@@ -104,3 +104,24 @@ def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width
             res += factor_into_u_v(expression_in_Ku,u_pow,u_interior_Kv,principal_cusp_width)*q**i
         u_pow += 1
     return res.O(trunc_order)
+
+def transform_u_v_factored_q_expansion_to_Kw(q_expansion, v_Kw, u_interior_Kv, principal_cusp_width):
+    """
+    Given a q_expansion that has coefficients of the form (expression_in_Kv)*u**u_pow, convert the coefficients to Kw.
+    """
+    Kw = v_Kw.parent()
+    if principal_cusp_width == 1:
+        u = Kw(u_interior_Kv)
+    else:
+        u = Kw.gen()
+    leading_order_exponent = q_expansion.valuation()
+    coeffs = list(q_expansion)
+    coeffs_Kw = []
+    for coeff in coeffs:
+        if coeff == 0 or coeff == 1:
+            u_pow = 0
+        else:
+            u_pow = coeff.degree()
+        coeffs_Kw.append(convert_from_Kv_to_Kw(coeff[u_pow],v_Kw)*u**u_pow)
+    L = LaurentSeriesRing(Kw,q_expansion.variable())
+    return L(coeffs_Kw).shift(leading_order_exponent).O(q_expansion.prec())
