@@ -66,3 +66,22 @@ def optimized_ir_benchmark(S,digit_prec):
     res = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,use_FFT=True,use_splitting=True,use_scipy_lu=True)._get_mcbd(bit_prec)
     print("res[:5]", res[:5].str())
     return res
+
+def benchmark_U1_eisenstein(digit_prec):
+    from psage.modform.arithgroup.mysubgroup import MySubgroup
+    from classes.belyi_map import BelyiMap
+    from eisenstein.eisenstein_computation import compute_eisenstein_series
+    U1 = MySubgroup(o2='(1 2)(3 4)(5)(6 7)',o3='(1)(2 3 5)(4 6 7)')
+    B = BelyiMap(U1)
+    weight = 4
+    eisenstein_trunc_orders = B._get_trunc_orders_convergence(weight,digit_prec)
+    import time
+    t1 = time.time()
+    j_G_fl = B.get_hauptmodul_q_expansion_approx(eisenstein_trunc_orders,digit_prec)
+    modforms = B.get_modforms(weight,eisenstein_trunc_orders,digit_prec=digit_prec,j_G=j_G_fl)
+    cuspforms = B.get_cuspforms(weight,eisenstein_trunc_orders,digit_prec=digit_prec,j_G=j_G_fl)
+    print("Computing modforms took: ", time.time()-t1)
+    t2 = time.time()
+    eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms,modforms,return_scaling_constants=True)
+    print("Computing Petersson products: ", time.time()-t2)
+    print("Total time: ", time.time()-t1)
