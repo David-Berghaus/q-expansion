@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.sage": "python",
+        "*.pyx": "python",
+        "*.pxd": "python"
+    }
+}

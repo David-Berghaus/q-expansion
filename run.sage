@@ -21,6 +21,129 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 load("subgroups.sage")
 load("passports.sage")
 
+def identify_canonical_eisforms():
+    canonical_scaling_constants = load("canonical_basis_scaling_constants_fl_w_2.sobj")
+    CC = ComplexField(int(3.33*8000))
+    K.<v> = NumberField(x^4 - x^3 + x^2 - x + 1,embedding=CC(-0.3090169943749474,-0.9510565162951536))
+    recognized_scaling_constants = {}
+    #First try to recognize the scaling constants over K
+    for i in canonical_scaling_constants.keys():
+        recognized_scaling_constants[i] = []
+        for j in range(len(canonical_scaling_constants[i])):
+            expr = to_K(canonical_scaling_constants[i][j],K)
+            #if expr is None:
+                #raise ArithmeticError(f"Unable to recognize {canonical_scaling_constants[i][j]}")
+            recognized_scaling_constants[i].append(expr)
+    
+    #Now look at the remaining ones
+    im = QQbar(sqrt(-1))
+    L.<z_5> = NumberField(x^4 + x^3 + x^2 + x + 1, embedding=CC(exp(2*pi*I/5)))
+    P.<a> = L[]
+    fiveth_root_of_eleven = QQbar(11).nth_root(5)
+    l = []
+    for n in range(5):
+        for m in range(4):
+            l.append(fiveth_root_of_eleven**n*QQbar(exp(2*pi*I/5))**m)
+    for i in canonical_scaling_constants.keys():
+        if None in recognized_scaling_constants[i]:
+            recognized_scaling_constants[i] = []
+            for scaling_constant in canonical_scaling_constants[i]:
+                lindep_res = pari(f"lindep({[scaling_constant] + [CC(el) for el in l]})").sage()
+                factors = [QQ(lindep_res[i])/(-lindep_res[0]) for i in range(1,len(lindep_res))]
+                expr = 0
+                for n in range(5):
+                    tmp = 0
+                    for m in range(4):
+                        tmp += factors[n*4+m]*z_5**m
+                    expr += tmp*a**n
+                assert abs(expr(CC(fiveth_root_of_eleven)) - scaling_constant) < 10**(-350)
+                recognized_scaling_constants[i].append(expr)
+    return recognized_scaling_constants
+
+def get_embedding(embeddings, expr):
+    diffs = [abs(el - expr) for el in embeddings]
+    return embeddings[diffs.index(min(diffs))]
+
+def QQ_to_tfrac(qq_expr):
+    return "\\tfrac{" + str(qq_expr.numerator()) + "}{" + str(qq_expr.denominator()) +"}"
+
+def K_expr_to_tex(K_expr):
+    res = latex(K_expr)
+    res = res.replace("frac","tfrac")
+    return res
+
+def print_scaling_constants(sc_consts):
+    res = ""
+    K_indices = [0,6,7,8] #Indices of the scaling constants that are over K
+    for i in range(len(sc_consts)):
+        tmp = sc_consts[i]
+        res += "\\tilde{e}_" + str(i) + " &= "
+        for j in range(len(tmp)):
+            if tmp[j] is None:
+                raise ArithmeticError("Cannot convert None values to LaTeX")
+            if tmp[j] != 0:
+                if i in K_indices:
+                    res += "(" + K_expr_to_tex(tmp[j]) + f")e_{j}"
+                else:
+                    res += "(" + polynomial_to_tex(tmp[j]) + f")e_{j}"
+                if j != len(tmp)-1:
+                    res += " + "
+        res += "\n"
+    print(res)
+
+def polynomial_to_tex(poly):
+    res = latex(poly)
+    res = res.replace("frac","tfrac")
+    res = res.replace("z_{5}","\\zeta_5")
+    return res
+
+def get_canonical_eisforms(weight):
+    if weight == 2:
+        can_scaling_constants = load("canonical_basis_scaling_constants_rig_w_2.sobj")
+        K_indices = [0,6,7,8] #Indices of the scaling constants that are over K
+        eisforms = load("eisforms_rig_w_2.sobj")
+        can_eisforms = [0]*len(can_scaling_constants.keys())
+        for i in can_scaling_constants.keys():
+            for j in range(len(can_scaling_constants[i])):
+                can_eisforms[i] += eisforms[j].change_ring(can_scaling_constants[i][j].parent())*can_scaling_constants[i][j]
+        return can_eisforms
+    else:
+        raise NotImplementedError("Only implemented for weight 2")
+
+def print_q_exps(q_exps, trunc_order):
+    res = ""
+    K_indices = [0,6,7,8] #Indices of the scaling constants that are over K
+    for i in range(len(q_exps)):
+        q_exp = q_exps[i]
+        res += "\\tilde{e}_" + str(i) + " &= "
+        for j in range(trunc_order):
+            if q_exp[j] == 0:
+                continue
+            if q_exp[j] != 1:
+                if i in K_indices:
+                    res += "(" + K_expr_to_tex(q_exp[j]) + ")" + f"q^{j}"
+                else:
+                    res += "(" + polynomial_to_tex(q_exp[j]) + ")" + f"q^{j}"
+            else:
+                res += f"q^{j}"
+            if j != trunc_order-1:
+                res += " + "
+        res += " + ...\n"
+    print(res)
+
+def check_for_eta_products():
+    """
+    Check if any of the modular objects can be expressed as quotients of eta products.
+    """
+    from sage.modular.etaproducts import qexp_eta #Return prod(1-q^n) for n in range(1,prec)
+    N = 100
+    P.<q_24> = PowerSeriesRing(QQ)
+    eta = qexp_eta(P,N).V(24).shift(1)
+    modular_function = (eta.V(11)**12/eta**12).nth_root(5)
+    e = EtaProduct(11, {11:12, 1:-12})
+    print(P(e.q_expansion(N)).nth_root(5))
+    #To do: How do we get expansions at other cusps which we need to transform to the desired valuation at infinity?
+
 def get_H_5_passport():
     modforms_fl_w2 = load("modforms.sobj")
     cuspforms_fl_w2 = load("cuspforms.sobj")
