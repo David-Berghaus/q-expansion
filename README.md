@@ -122,6 +122,8 @@ sage: echelon_basis_to_eisenstein_basis(eisenstein_series)
 ### Computing Passports (experimental)
 Functions for computing full passports are implemented in `passports.sage`. For example to compute the passport [7_0_2_1_1_0_a](https://github.com/David-Berghaus/noncong_database/blob/main/7/0/7_0_2_1_1_0_a.sage) with 50 Fourier expansion terms, Eisenstein series with 100 digits precision, up to weight 6, run
 ```python
-sage: from psage.modform.arithgroup.mysubgroup import MySubgroup                               
-sage: passport_els = [MySubgroup(o2="(1 6)(2)(3 4)(5 7)",o3="(1 7 6)(2 3 5)(4)"),MySubgroup(o2="(1 4)(2)(3 5)(6 7)",o3="(1 5 4)(2 3 6)(7)")]                           sage: load("passports.sage")                                                                                                                                            sage: res = compute_passport_data_genus_zero(passport_els,50,100,6)
+sage: from psage.modform.arithgroup.mysubgroup import MySubgroup
+sage: passport_els = [MySubgroup(o2="(1 6)(2)(3 4)(5 7)",o3="(1 7 6)(2 3 5)(4)"),MySubgroup(o2="(1 4)(2)(3 5)(6 7)",o3="(1 5 4)(2 3 6)(7)")]    
+sage: load("passports.sage")
+sage: res = compute_passport_data_genus_zero(passport_els,50,100,6)
 ```
