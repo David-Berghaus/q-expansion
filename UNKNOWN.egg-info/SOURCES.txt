@@ -101,6 +101,7 @@ psage/groups/permutation_alg.pxd
 psage/groups/permutation_alg.pyx
 psage/modform/__init__.py
 psage/modform/arithgroup/__init__.py
+psage/modform/arithgroup/all.py
 psage/modform/arithgroup/mysubgroup.c
 psage/modform/arithgroup/mysubgroup.pyx
 psage/modform/arithgroup/mysubgroups_alg.c
