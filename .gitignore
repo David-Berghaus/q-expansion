@@ -17,3 +17,4 @@ MANIFEST
 *.toc
 *.so
 !/arblib_helpers/*.c
+/.vscode
