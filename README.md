@@ -7,7 +7,7 @@ The code has been developed using [SageMath](https://www.sagemath.org/) version 
 ## Installation
 To install the code run
 ```bash
-sage setup.py develop `psage`
+sage setup.py develop
 ```
 Once the compilation is finished, go to the folder `unit_tests` and run
 ```python
