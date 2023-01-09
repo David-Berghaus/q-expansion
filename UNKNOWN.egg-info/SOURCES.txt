@@ -4,6 +4,7 @@ benchmarks.sage
 create_database_entry.py
 database.sage
 elliptic_curve_from_relations.sage
+enumerate_sl2z_subgroups.sage
 passports.sage
 run.sage
 run_benchmark.py
@@ -70,6 +71,7 @@ classes/plu_class.pyx
 data/genus_one_passport_list.sobj
 data/genus_zero_passport_list.sobj
 data/noncong_reps.sobj
+data/sl2z_subgroups_17_18_19_20.sobj
 eisenstein/__init__.py
 eisenstein/eisenstein_computation.c
 eisenstein/eisenstein_computation.pyx

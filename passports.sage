@@ -340,7 +340,16 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
     """
     cuspforms_fl = dict()
     cuspforms_rig = dict()
-    Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight = None, None, None, None, None, None
+    #Unfortunately we needed to determine u for some subgroups by hand because the weight two cuspform had no coefficients linear in u
+    if G.perm_group().order() == 1008:
+        data = load("C2 x PSL(2,8).sobj")
+        Kv, Kw, v_Kw, u_interior_Kv, u = data["Kv"], data["Kw"], data["v_Kw"], data["u_interior_Kv"], data["u"]
+    elif G.perm_group().order() == 486:
+        data = load("((C3 x ((C3 x C3) ⁄ C3)) ⁄ C3) ⁄ C2.sobj")
+        Kv, Kw, v_Kw, u_interior_Kv, u = data["Kv"], data["Kw"], data["v_Kw"], data["u_interior_Kv"], data["u"]
+    else:
+        Kv, Kw, v_Kw, u_interior_Kv, u = None, None, None, None, None
+    lowest_non_zero_cuspform_weight = None
     for weight in range(2,100,2): #We only consider even weights
         dim_S = G.dimension_cusp_forms(weight)
         if dim_S != 0:
@@ -350,7 +359,8 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
                 #Note that we need to be careful to select a cusp_expansion that is not an oldform!
                 #For our examples we always used one of the lowest-weight cuspforms, which does however not always work in general!
                 cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
-                Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
+                #Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
+                #save({"Kv":Kv, "Kw":Kw, "v_Kw":v_Kw, "u_interior_Kv":u_interior_Kv, "u":u},"((C3 x ((C3 x C3) ⁄ C3)) ⁄ C3) ⁄ C2")
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
