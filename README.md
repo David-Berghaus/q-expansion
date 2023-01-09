@@ -2,7 +2,7 @@
 This repository hosts code that has been developed for my PhD-thesis. For further information, see [arXiv:2207.13365](https://arxiv.org/abs/2207.13365), [Noncongruence Database](https://github.com/David-Berghaus/noncong_database).
 
 ## Dependencies
-The code has been developed using [SageMath](https://www.sagemath.org/) version 9.2 (other versions of Sage might or might not work) as well as [Psage](https://github.com/fredstro/psage).
+The code has been developed using [SageMath](https://www.sagemath.org/) version 9.2 (other versions of Sage might or might not work) as well as [Psage](https://github.com/fredstro/psage). For the case that you cannot/do not want to install the later, we have also copied the required files into the folder `psage` to make this repository "self sufficient".
 
 ## Installation
 To install the code run
