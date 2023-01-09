@@ -7,8 +7,14 @@ The code has been developed using [SageMath](https://www.sagemath.org/) version 
 ## Installation
 To install the code run
 ```bash
-sage setup.py develop
+sage setup.py develop `psage`
 ```
+Once the compilation is finished, go to the folder `unit_tests` and run
+```python
+sage: load("unit_tests.sage")
+sage: run_unit_tests()
+```
+to make sure that everything works correctly.
 
 ## Example usage
 ### Belyi Maps
