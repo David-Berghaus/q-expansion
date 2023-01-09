@@ -4,6 +4,7 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
+import numpy
 
 from sage.env import cython_aliases
 
@@ -32,9 +33,15 @@ extensions = [
     Extension("belyi.elliptic_curve", ["belyi/elliptic_curve.pyx"]),
     Extension("eisenstein.haberland", ["eisenstein/haberland.pyx"]),
     Extension("eisenstein.eisenstein_computation", ["eisenstein/eisenstein_computation.pyx"]),
+    Extension("psage.groups.permutation_alg", ["psage/groups/permutation_alg.pyx"]),
+    Extension("psage.modform.arithgroup.mysubgroup", ["psage/modform/arithgroup/mysubgroup.pyx"]),
+    Extension("psage.modform.arithgroup.mysubgroups_alg", ["psage/modform/arithgroup/mysubgroups_alg.pyx"]),
+    Extension("psage.modform.maass.automorphic_forms_alg", ["psage/modform/maass/automorphic_forms_alg.pyx"]),
+    Extension("psage.rings.mp_cimports", ["psage/rings/mp_cimports.pyx"]),
 ]
 
 setup(
     ext_modules = cythonize(extensions,aliases=cython_aliases()),
+    include_dirs=[numpy.get_include()],
     zip_safe = False,
 )

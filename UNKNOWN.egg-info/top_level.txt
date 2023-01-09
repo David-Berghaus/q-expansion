@@ -3,4 +3,5 @@ classes
 eisenstein
 iterative_solvers
 point_matching
+psage
 pullback
