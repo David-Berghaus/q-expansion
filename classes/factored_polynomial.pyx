@@ -188,7 +188,8 @@ class Factored_Polynomial():
             res += ")"
             if order != 1:
                 res += "^" + str(order)
-        return res
+            res += "*"
+        return res[:-1]
 
     def construct(self):
         """

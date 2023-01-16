@@ -9,7 +9,6 @@ passports.sage
 run.sage
 run_benchmark.py
 setup.py
-ss.sage
 subgroups.sage
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/PKG-INFO (1)
