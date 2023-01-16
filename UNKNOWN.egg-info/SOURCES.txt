@@ -1,4 +1,6 @@
+((C3 x ((C3 x C3) ⁄ C3)) ⁄ C3) ⁄ C2.sobj
 .gitignore
+C2 x PSL(2,8).sobj
 README.md
 benchmarks.sage
 create_database_entry.py
@@ -11,6 +13,7 @@ run_benchmark.py
 setup.py
 ss.sage
 subgroups.sage
+.vscode/settings.json
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/PKG-INFO (1)
 UNKNOWN.egg-info/SOURCES (1).txt

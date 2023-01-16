@@ -4,6 +4,7 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
+import numpy
 
 from sage.env import cython_aliases
 
@@ -36,5 +37,6 @@ extensions = [
 
 setup(
     ext_modules = cythonize(extensions,aliases=cython_aliases()),
+    include_dirs=[numpy.get_include()],
     zip_safe = False,
 )
