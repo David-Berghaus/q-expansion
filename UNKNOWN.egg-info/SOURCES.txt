@@ -1,5 +1,7 @@
 ((C3 x ((C3 x C3) ⁄ C3)) ⁄ C3) ⁄ C2.sobj
 .gitignore
+C2 x PSL(2,8) curve.sobj
+C2 x PSL(2,8) pp.sobj
 C2 x PSL(2,8).sobj
 README.md
 benchmarks.sage
@@ -7,6 +9,7 @@ create_database_entry.py
 database.sage
 elliptic_curve_from_relations.sage
 enumerate_sl2z_subgroups.sage
+hyperelliptic_curve.sage
 passports.sage
 run.sage
 run_benchmark.py

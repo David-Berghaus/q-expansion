@@ -9,13 +9,16 @@ def get_derivative(f):
     return f_expansion_prime
 
 def get_monomials(X, Y):
-    monomials = []
+    monomials = [Y**2]
     for i in range(7):
         monomials.append(X**i)
     # for i in range(4):
     #     monomials.append(X**i*Y)
-    monomials.append(Y**2)
     return monomials
+
+def check_monomial_relation(kernel, monomials):
+    res = sum([kernel[0,i]*monomials[i] for i in range(len(monomials))])
+    return res
 
 def get_coefficient_matrix(monomials):
     min_prec = min([m.prec() for m in monomials])
@@ -40,14 +43,16 @@ def get_hyperelliptic_curve_genus_two(f_1, f_2):
     x = var("x")
     y = var("y")
     k = A.right_kernel_matrix()
+    if k.nrows() != 1:
+        return None
+    if check_monomial_relation(k,monomials) != 0:
+        return None
     L = f_1.base_ring()
     P.<x> = L[]
-    res = 0
-    for i in range(7):
-        res += k[0,i]*x**i
-    if A[0,7] == 0:
+    res = sum(k[0,i+1]*x**i for i in range(7))
+    if k[0,0] == 0:
         return None
-    res = res/(-A[0,7])
+    res = res/(-k[0,0])
     C = HyperellipticCurve(res)
     return C
 
