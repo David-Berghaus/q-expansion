@@ -17,7 +17,6 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
-from sage.rings.complex_field import ComplexField
 from sage.matrix.matrix_space import MatrixSpace
 from sage.arith.misc import prime_factors
 from sage.rings.real_double import RealDoubleElement

@@ -7,6 +7,8 @@
 #                  https://www.gnu.org/licenses/
 # ****************************************************************************
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.libs.arb.acb cimport *
 from sage.rings.complex_arb cimport *
 from sage.libs.arb.acb_poly cimport *
@@ -15,7 +17,10 @@ from sage.modular.cusps import Cusp
 from sage.rings.power_series_ring import PowerSeriesRing
 from sage.rings.power_series_poly import PowerSeries_poly
 from sage.modular.modform.j_invariant import j_invariant_qexp
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 from sage.rings.complex_interval_field import ComplexIntervalField
 from sage.rings.laurent_series_ring import LaurentSeriesRing
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing

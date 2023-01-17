@@ -7,10 +7,15 @@
 #                  https://www.gnu.org/licenses/
 # ****************************************************************************
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.rings.polynomial.polynomial_complex_arb import Polynomial_complex_arb
 from sage.rings.qqbar import QQbar
 from sage.rings.rational_field import QQ
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.number_field.number_field import NumberField, NumberField_generic
 from sage.arith.misc import factor, prime_factors

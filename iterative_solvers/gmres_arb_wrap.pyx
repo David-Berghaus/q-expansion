@@ -13,6 +13,8 @@
 import math
 from cysignals.signals cimport sig_on, sig_off
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.libs.arb.arb cimport *
 from sage.libs.arb.acb cimport *
 from sage.libs.arb.acb_mat cimport *
@@ -20,7 +22,10 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 from sage.matrix.matrix_space import MatrixSpace
 
 from arblib_helpers.acb_approx cimport *
@@ -174,6 +179,7 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
     if x0 != None:
         acb_mat_cast = x0
         acb_mat_set(x.value, acb_mat_cast.value)
+    cdef Acb_Mat update = Acb_Mat(dimen,1)
 
     cdef arb_t normr, normv, arb_tmp
     arb_init(normr)
@@ -387,11 +393,11 @@ cpdef gmres_mgs_arb_wrap(A, Acb_Mat b, int prec, RealBall tol, x0=None, restrt=N
         # update = np.ravel(V[:, :inner+1].dot(y.reshape(-1, 1)))
         acb_mat_win_cast = V.get_window(0, 0, dimen, inner+1)
         sig_on()
-        acb_mat_approx_mul(acb_mat_cast.value, acb_mat_win_cast.value, acb_mat_cast.value, prec) #acb_mat_cast is now update
+        acb_mat_approx_mul(update.value, acb_mat_win_cast.value, acb_mat_cast.value, prec)
         sig_off()
         # x = x + update
         sig_on()
-        acb_mat_approx_add(x.value, x.value, acb_mat_cast.value, prec)
+        acb_mat_approx_add(x.value, x.value, update.value, prec)
         sig_off()
         # r = b - np.ravel(A*x)
         sig_on()

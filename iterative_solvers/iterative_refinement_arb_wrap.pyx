@@ -10,6 +10,8 @@
 from cysignals.signals cimport sig_on, sig_off
 import math
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.libs.arb.arb cimport *
 from sage.libs.arb.acb cimport *
 from sage.libs.arb.acb_mat cimport *
@@ -17,7 +19,10 @@ from sage.rings.complex_arb cimport *
 from sage.matrix.matrix_complex_ball_dense cimport *
 from sage.rings.real_arb import RealBallField
 from sage.rings.complex_arb import ComplexBallField
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 
 from arblib_helpers.acb_approx cimport *
 from classes.acb_mat_class cimport Acb_Mat, Acb_Mat_Win

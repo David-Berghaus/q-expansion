@@ -9,12 +9,17 @@
 
 from copy import copy
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.complex_mpc import MPComplexField
 from sage.rings.real_mpfr import RealField
 from sage.rings.qqbar import QQbar
 from sage.rings.rational_field import QQ
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 from sage.interfaces.gp import gp
 from sage.interfaces.gp import pari
 from sage.symbolic.constants import pi

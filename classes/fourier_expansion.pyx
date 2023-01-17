@@ -9,8 +9,13 @@
 
 from copy import copy, deepcopy
 
+from sage.misc.banner import version_dict
+vers_dict = version_dict()
 from sage.modular.cusps import Cusp
-from sage.rings.complex_field import ComplexField
+if vers_dict['major'] == 9 and vers_dict['minor'] == 2: #We still need to support sage 9.2 for now
+    from sage.rings.complex_field import ComplexField
+else:
+    from sage.rings.complex_mpfr import ComplexField
 from sage.rings.complex_arb import ComplexBallField
 from sage.rings.qqbar import AlgebraicField
 from sage.rings.power_series_ring import PowerSeriesRing
