@@ -7,9 +7,13 @@
 #                  https://www.gnu.org/licenses/
 # ****************************************************************************
 
+load("run.sage")
+load("passports.sage")
+
 def example_relations():
-    #G, Kv = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)'), NumberField(x,'v')
-    pp = load("rm_me.sobj")
+    #Kv = NumberField(x,'v')
+    G = MySubgroup(o2='(1)(2 5)(3 7)(4 8)(6 9)',o3='(1 2 6)(3 8 5)(4 9 7)')
+    pp = compute_passport_data_higher_genera([G,None],100,100,6,compute_embeddings=False,return_floating_expansions=False)
     [X, Y, Z] = pp["q_expansions"][6]["cuspforms_raw"] #X,Y,Z now correspond to weight 6 cuspforms
     Kw = X.base_ring()
     w = Kw.gen()
