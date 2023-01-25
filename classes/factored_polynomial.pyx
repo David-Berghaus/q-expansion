@@ -157,14 +157,14 @@ def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, pri
                 polynomial_ring = PolynomialRing(coeff_u_v.parent(),p.parent().variable_name())
                 polygen = polynomial_ring.gen()
         coeff_tuples.append( (coeffs_u_v,order) )
-    return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples)
+    return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples,u_interior_Kv=u_interior_Kv)
 
 class Factored_Polynomial():
     """
     Class for working with polynomials that are factored like:
     p = p_1^(n_1)*...*p_N^(n_N)
     """
-    def __init__(self, polygen, root_tuples=None, coeff_tuples=None):
+    def __init__(self, polygen, root_tuples=None, coeff_tuples=None, u_interior_Kv=None):
         """
         root_tuples contains a list of tuples. 
         Each tuple is given by a list of ComplexBalls reflecting the roots as well as the order of each of the roots.
@@ -181,14 +181,18 @@ class Factored_Polynomial():
             for coeff_tuple in coeff_tuples:
                 factors.append(construct_poly_from_coeff_tuple(polygen,coeff_tuple))
         self.factors = factors
+        self.u_interior_Kv = u_interior_Kv
     
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
+        display_u = self.u_interior_Kv == None or self.u_interior_Kv != 1 #Don't display u because it is obsolete
         res = ""
         for (p,order) in self.factors:
             res += "("
+            if not display_u:
+                p = p.subs(u=1)
             res += p.__str__()
             res += ")"
             if order != 1:

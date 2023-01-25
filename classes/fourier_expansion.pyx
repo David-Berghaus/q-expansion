@@ -294,7 +294,8 @@ class FourierExpansion():
         trunc_order = min(10,self.cusp_expansions[Cusp(1,0)].prec())
         base_ring = self.cusp_expansions[Cusp(1,0)].base_ring()
         if isinstance(base_ring,NumberField_generic) == True: #q-expansion is defined over numberfield so we can factor it
-            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=True).__str__()
+            display_u = self._u_interior_Kv != 1
+            c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=display_u).__str__()
         else: #We only know the numerical values of the q-expansions
             c_str = self.get_cusp_expansion(Cusp(1,0),trunc_order=trunc_order,factor_into_u_v=False).__str__() #We only know the numerical values of the q-expansions
         return self.modform_type + " of weight " + str(self.weight) + " with leading order expansion at infinity given by:\n" + c_str
