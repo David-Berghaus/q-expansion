@@ -324,7 +324,10 @@ def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interi
                 product_formula = product_formulas[constructable_label]
                 cuspforms_fl_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_fl,cuspforms_fl)
                 cuspforms_rig_weight[constructable_label] = construct_form_from_product_formula(product_formula,modforms_rig,cuspforms_rig)
-            cuspforms_fl_computed = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
+            if len(computable_labels) != 0:
+                cuspforms_fl_computed = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec,labels=computable_labels)
+            else:
+                cuspforms_fl_computed = []
             for i in range(len(cuspforms_fl_computed)):
                 label = computable_labels[i]
                 cuspforms_fl_weight[label] = cuspforms_fl_computed[i]
