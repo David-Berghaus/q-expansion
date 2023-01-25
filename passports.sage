@@ -229,20 +229,21 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     else:
         res["curve"] = None
     res["q_expansions"] = dict()
+    diplay_u = u_interior_Kv != 1
     for weight in range(2,max_weight+1,2): #We only consider even weights
         res["q_expansions"][weight] = dict()
         if G.dimension_modular_forms(weight) != 0:
             if G.dimension_eis(weight) == 0: #The cuspforms form the modform basis and we don't have any eisenstein_basis_factors
                 res["q_expansions"][weight]["modforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
-                res["q_expansions"][weight]["modforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=diplay_u) for cuspform in cuspforms_rig[weight]]
             else:
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
-                res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for modform in modforms_rig[weight]]
+                res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=diplay_u) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
                 res["q_expansions"][weight]["eisenstein_canonical_normalizations"] = eis_scaling_constants_canonical[weight]
             if G.dimension_cusp_forms(weight) != 0:
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
-                res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=True) for cuspform in cuspforms_rig[weight]]
+                res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=diplay_u) for cuspform in cuspforms_rig[weight]]
     if compute_embeddings == True:
         res["embeddings"] = get_all_embeddings(passport,res["q_expansions"],res["Kv"],u_interior_Kv,principal_cusp_width)
     if state_file_path != None:
