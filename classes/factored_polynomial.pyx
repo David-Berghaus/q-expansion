@@ -157,7 +157,7 @@ def get_factored_polynomial_in_u_v(factored_polynomial_in_Ku, u_interior_Kv, pri
                 polynomial_ring = PolynomialRing(coeff_u_v.parent(),p.parent().variable_name())
                 polygen = polynomial_ring.gen()
         coeff_tuples.append( (coeffs_u_v,order) )
-    return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples)
+    return Factored_Polynomial(polygen,coeff_tuples=coeff_tuples,u_interior_Kv=u_interior_Kv)
 
 class Factored_Polynomial():
     """
@@ -187,7 +187,7 @@ class Factored_Polynomial():
         return self.__str__()
 
     def __str__(self):
-        display_u = self.u_interior_Kv != None and self.u_interior_Kv != 1 #Don't display u because it is obsolete
+        display_u = self.u_interior_Kv == None or self.u_interior_Kv != 1 #Don't display u because it is obsolete
         res = ""
         for (p,order) in self.factors:
             res += "("
