@@ -91,6 +91,15 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,B.u_QQbar,numerics_digit_prec,tol)#Verify results by comparing them to numerical values
 
+    #Convert numerical expressions of Eisenstein series to CC because we cannot hash CBFs
+    for weight in eis_scaling_constants:
+        for i in range(len(eis_scaling_constants[weight])):
+            for j in range(len(eis_scaling_constants[weight][i])):
+                eis_scaling_constants[weight][i][j] = CC(eis_scaling_constants[weight][i][j])
+        for i in range(len(eis_scaling_constants_canonical[weight])):
+            for j in range(len(eis_scaling_constants_canonical[weight][i])):
+                eis_scaling_constants_canonical[weight][i][j] = CC(eis_scaling_constants_canonical[weight][i][j])
+
     res = dict()
     res["G"] = B.G.as_permutation_group()
     res["is_congruence"] = G.is_congruence()
@@ -216,6 +225,15 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     u_QQbar = QQbar(u)
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,u_QQbar,numerics_digit_prec,tol,Y_fact=0.9)
+    
+    #Convert numerical expressions of Eisenstein series to CC because we cannot hash CBFs
+    for weight in eis_scaling_constants:
+        for i in range(len(eis_scaling_constants[weight])):
+            for j in range(len(eis_scaling_constants[weight][i])):
+                eis_scaling_constants[weight][i][j] = CC(eis_scaling_constants[weight][i][j])
+        for i in range(len(eis_scaling_constants_canonical[weight])):
+            for j in range(len(eis_scaling_constants_canonical[weight][i])):
+                eis_scaling_constants_canonical[weight][i][j] = CC(eis_scaling_constants_canonical[weight][i][j])
     
     res = dict()
     res["G"] = G.as_permutation_group()
