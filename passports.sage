@@ -43,6 +43,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     """
     max_extension_field_degree = get_max_extension_field_degree(passport)
     G = passport[0]
+    CC = ComplexField(digits_to_bits(eisenstein_digit_prec))
 
     if state_file_path != None and os.path.exists(state_file_path) == True:
         B, j_G_rig, cuspforms_rig, modforms_rig = dict_to_state_genus_zero(load(state_file_path))
@@ -90,8 +91,18 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,B.u_QQbar,numerics_digit_prec,tol)#Verify results by comparing them to numerical values
 
+    #Convert numerical expressions of Eisenstein series to CC because we cannot hash CBFs
+    for weight in eis_scaling_constants:
+        for i in range(len(eis_scaling_constants[weight])):
+            for j in range(len(eis_scaling_constants[weight][i])):
+                eis_scaling_constants[weight][i][j] = CC(eis_scaling_constants[weight][i][j])
+        for i in range(len(eis_scaling_constants_canonical[weight])):
+            for j in range(len(eis_scaling_constants_canonical[weight][i])):
+                eis_scaling_constants_canonical[weight][i][j] = CC(eis_scaling_constants_canonical[weight][i][j])
+
     res = dict()
     res["G"] = B.G.as_permutation_group()
+    res["is_congruence"] = G.is_congruence()
     res["monodromy_group"] = G.perm_group().structure_description()
     res["Kv"] = B._Kv
     res["v"] = B._Kv.gen()
@@ -215,8 +226,18 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     if compare_result_to_numerics == True:
         compare_results_to_numerics(G,max_weight,modforms_rig,cuspforms_rig,eis_scaling_constants,u_QQbar,numerics_digit_prec,tol,Y_fact=0.9)
     
+    #Convert numerical expressions of Eisenstein series to CC because we cannot hash CBFs
+    for weight in eis_scaling_constants:
+        for i in range(len(eis_scaling_constants[weight])):
+            for j in range(len(eis_scaling_constants[weight][i])):
+                eis_scaling_constants[weight][i][j] = CC(eis_scaling_constants[weight][i][j])
+        for i in range(len(eis_scaling_constants_canonical[weight])):
+            for j in range(len(eis_scaling_constants_canonical[weight][i])):
+                eis_scaling_constants_canonical[weight][i][j] = CC(eis_scaling_constants_canonical[weight][i][j])
+    
     res = dict()
     res["G"] = G.as_permutation_group()
+    res["is_congruence"] = G.is_congruence()
     res["monodromy_group"] = G.perm_group().structure_description()
     res["Kv"] = Kv
     res["v"] = Kv.gen()
@@ -771,6 +792,7 @@ def to_JSON(passport_data, filename=None):
                     res[str(k)][str(k2)] = str(passport_data[k][k2])
         else:
             res[str(k)] = str(passport_data[k])
+    res["is_congruence"] = passport_data["is_congruence"] #Store is_congruence as bool instead of string because it is supported by JSON
     L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
     res["L"] = str(L)
     for weight in res["q_expansions"]: #Remove data defined over Kw because it creates very large JSON files
@@ -918,6 +940,7 @@ def to_sage_script(passport_data, file_path=None):
 
     cg.write_line("res = {} #The dictionary in which we store the results")
     cg.write_line("res[\"G\"] = ArithmeticSubgroup_Permutation(S2=\"{}\",S3=\"{}\")".format(passport_data["G"].S2(),passport_data["G"].S3()))
+    cg.write_line("res[\"is_congruence\"] = {}".format(passport_data["is_congruence"]))
     cg.write_line("principal_cusp_width = {}".format(passport_data["G"].cusp_width(Cusp(1,0))))
     cg.write_line("res[\"monodromy_group\"] = \"{}\"".format(passport_data["monodromy_group"]))
     cg.write_line("P.<T> = PolynomialRing(QQ)")
