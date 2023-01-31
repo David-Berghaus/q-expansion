@@ -72,6 +72,10 @@ def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_wei
         os.remove(unresolved_passport_path)
     save(res,os.path.join(storage_path,entry_name))
     save(floating_expansions,os.path.join(storage_path,entry_name+"_floating_expansions"))
+    #Store JSON
+    to_JSON(res,os.path.join(storage_path,entry_name+".json"))
+    #Store Sage script
+    to_sage_script(res,os.path.join(storage_path,entry_name+".sage"))
 
 passport_index = int(sys.argv[1])
 genus = int(sys.argv[2])
