@@ -18,24 +18,33 @@ load("database.sage")
 # database_path = "/mnt/c/Users/machs/Desktop/database_test"
 database_path = "/cephfs/user/s6ddberg/noncong_database"
 
-def get_passport_list(genus):
-    if genus == 0:
-        return load("data/genus_zero_passport_list.sobj")
-    elif genus == 1:
-        return load("data/genus_one_passport_list.sobj")
+def get_passport_list(genus, is_congruence=False):
+    if is_congruence:
+        if genus == 0:
+            return load("data/genus_zero_passport_list_cong.sobj")
+        elif genus == 1:
+            return load("data/genus_one_passport_list_cong.sobj")
     else:
-        raise NotImplementedError("This case has not been implemented yet!")
+        if genus == 0:
+            return load("data/genus_zero_passport_list.sobj")
+        elif genus == 1:
+            return load("data/genus_one_passport_list.sobj")
+    raise NotImplementedError("This case has not been implemented yet!")
 
 def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_weight, rigorous_trunc_order=None):
     print(f"Computing passport of index {passport_index} and genus {genus} to {eisenstein_digit_prec} digits precision up to weight {max_weight}.")
-    passport_list = get_passport_list(genus)
+    passport_list = get_passport_list(genus, is_congruence=True)
+    passport_list_noncong = get_passport_list(genus, is_congruence=False)
     passport = passport_list[passport_index]
     G = passport[0]
     storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
     Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
     if genus == 0 and rigorous_trunc_order == None:
         rigorous_trunc_order = int(1000/(len(passport)+G.cusp_width(Cusp(1,0)))+50) #Heuristic choice that runs in reasonable amount of CPU time
-    entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
+    entry_pos = get_signature_pos(passport_index,passport_list)
+    if G.signature() in passport_list_noncong:
+        entry_pos += len(passport_list_noncong[G.signature()])
+    entry_name = get_signature_to_underscore(G.signature()) + "_" + str(entry_pos)
     unresolved_passport_path = os.path.join(storage_path,entry_name+"_unresolved_passport.sobj") #Path were we store unresolved passport elements in case the passport decays
     if os.path.exists(unresolved_passport_path) == True:
         passport = load(unresolved_passport_path)
