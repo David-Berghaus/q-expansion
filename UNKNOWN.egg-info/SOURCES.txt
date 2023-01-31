@@ -68,7 +68,9 @@ classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
 data/genus_one_passport_list.sobj
+data/genus_one_passport_list_cong.sobj
 data/genus_zero_passport_list.sobj
+data/genus_zero_passport_list_cong.sobj
 data/noncong_reps.sobj
 data/sl2z_subgroups_17_18_19_20.sobj
 eisenstein/__init__.py
