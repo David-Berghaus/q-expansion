@@ -114,7 +114,7 @@ def get_list_of_all_passports(max_index, genus=None, reverse_permT=True, optimiz
             permS_new, permR_new, permT_new = get_conjugate_permutation(permS,p), get_conjugate_permutation(permR,p), get_conjugate_permutation(permT,p)
             cycle_types = (tuple(permS_new.cycle_type()),tuple(permR_new.cycle_type()),tuple(permT_new.cycle_type())) #We need tuples for dict keys
             G = MySubgroup(o2=permS_new,o3=permR_new)
-            monodromy_group_order = G.perm_group().order() #It is probably better to recognize groups by order instead of some string...
+            monodromy_group_order = libgap.TransitiveIdentification(G.perm_group())
             if cycle_types in sorted_by_cycle_types: #Dict entry already exists
                 sorted_by_monodromy = sorted_by_cycle_types[cycle_types]
                 if monodromy_group_order in sorted_by_monodromy: #Dict entry already exists

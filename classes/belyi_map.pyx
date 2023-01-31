@@ -193,7 +193,10 @@ class BelyiMap():
         return self.__str__()
 
     def __str__(self):
-        return self.p3_u_v.__str__() + " / " + self.pc_u_v.__str__()
+        res = self.p3_u_v.__str__()
+        if self.pc_u_v.__str__() != "":
+            res += " / " + self.pc_u_v.__str__()
+        return res
     
     def _return_res_as_dict(self):
         """
