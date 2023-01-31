@@ -415,7 +415,7 @@ def get_simplest_non_zero_coeff(p3, p2, pc, digit_prec, coeff_shift=-1):
         return None
     return c
 
-def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
+def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index, G, max_extension_field_degree):
     """
     Return an expression that is linear in u and easy to recognize. 
     We usually choose the expression to be one of the second-leading order coefficients. 
@@ -430,7 +430,7 @@ def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
             res = get_simplest_non_zero_coeff(p3,p2,pc,digit_prec,coeff_shift=coeff_shift)
             if res != None:
                 return res
-        raise ArithmeticError("We should not get here!")
+        raise ArithmeticError("Found no suitable expression to recognize u!")
     else: #We have to construct quotients of coefficients
         for i in range(2,index):
             coeff_shift = -i
@@ -447,7 +447,9 @@ def get_expression_to_recognize(p3, p2, pc, digit_prec, cusp_width, index):
                 else:
                     res = num/den
                 return res
-        raise ArithmeticError("We should not get here!")
+        if G.is_congruence() and max_extension_field_degree == 1: #We are safe here because we can set u = 1
+            return 1
+        raise ArithmeticError("Found no suitable expression to recognize u!")
 
 def recognize_coeff_tuples_list(coeff_tuples_list, Kv, u, v_Kw, estimated_bit_prec, max_u_power=None):
     """
@@ -497,7 +499,7 @@ cpdef newton(factored_polynomials, G, int curr_bit_prec, int target_bit_prec, st
                 raise ArithmeticError("Please specify the maximal degree of the extension field of the Belyi map!")
             if u == None: #No algebraic coefficients have been recognized yet
                 principal_cusp_width = G.cusp_width(Cusp(1,0))
-                coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index())
+                coeff_fl = get_expression_to_recognize(p3,p2,pc,coeff_prec,principal_cusp_width,G.index(),G,max_extension_field_degree)
                 tmp = get_numberfield_of_coeff(coeff_fl,max_extension_field_degree,principal_cusp_width,estimated_bit_prec=coeff_bit_prec)
                 if tmp == None: #Failed to recognize coeffs as alg numbers
                     continue
