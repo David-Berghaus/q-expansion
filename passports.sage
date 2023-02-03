@@ -376,7 +376,7 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
                 #Note that we need to be careful to select a cusp_expansion that is not an oldform!
                 #For our examples we always used one of the lowest-weight cuspforms, which does however not always work in general!
                 cuspform_index = -1 #The last cuspform in row-echelon form has linear term in u as first non-trivial coefficient
-                Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width)
+                Kv, Kw, v_Kw, u_interior_Kv, u = get_u_from_q_expansion(cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0)),dim_S+1,digit_prec,max_extension_field_degree,principal_cusp_width,G)
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
@@ -384,13 +384,16 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
             break
     return cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight
 
-def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extension_field_degree, principal_cusp_width):
+def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extension_field_degree, principal_cusp_width, G):
     """
     Given a cusp_expansion defined over CC, try to determine u by recognizing a coefficient that is linear in u.
     """
     expression_linear_in_u = cusp_expansion[coeff_index]
     if is_effectively_zero(expression_linear_in_u,digit_prec-10) == True:
-        raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
+        if G.is_congruence() and max_extension_field_degree == 1: #We are safe here because we can set u = 1
+            expression_linear_in_u = expression_linear_in_u.parent(1)
+        else:
+            raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
     tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
     if tmp == None:
         raise ArithmeticError("Not enough precision to identify numberfield!")
