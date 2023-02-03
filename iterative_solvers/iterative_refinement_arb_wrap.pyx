@@ -61,7 +61,8 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
     arb_init(normr)
     RBF = RealBallField(53)
     CC = ComplexField(53)
-    cdef RealBall rbf_tmp = RBF(0) #we use this expression to print values properly in python
+    cdef RealBall rbf_normr, rbf_normr_old
+    rbf_normr, rbf_normr_old = RBF(0), RBF(0) #we use these expressions to print values properly in python
 
     cdef Acb_Mat r = Acb_Mat(dimen,1)
     cdef Acb_Mat d = Acb_Mat(dimen,1)
@@ -92,14 +93,19 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         sig_on()
         acb_mat_approx_norm(normr, r.value, low_prec)
         sig_off()
-        arb_set(rbf_tmp.value,normr)
-        # print(str(i) + ".iteration: " + str(CC(rbf_tmp)))
-        print(str(i) + ", " + str(CC(rbf_tmp)))
+        if i != 0:
+            arb_set(rbf_normr_old.value,rbf_normr.value)
+        arb_set(rbf_normr.value,normr)
+        # print(str(i) + ".iteration: " + str(CC(rbf_normr)))
+        print(str(i) + ", " + str(CC(rbf_normr)))
         # if normr < tol:
         if arb_lt(normr, tol.value) == 1:
             break
         if i == maxiter-1:
             raise ArithmeticError("Maximum amount of iterations reached without sufficient convergence!")
+        if i != 0 and (rbf_normr-rbf_normr_old).abs()/(rbf_normr+rbf_normr_old).abs() < RBF(1e-3):
+            print("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
+            raise ArithmeticError("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
     
     arb_clear(normr)
     return x
