@@ -190,20 +190,38 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     #We start with these before computing the remaining cuspforms because some of them can be used to construct cuspforms (while the reverse it not true)
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if weight not in modforms_fl and G.dimension_modular_forms(weight) != 0 and G.dimension_eis(weight) != 0:
-            compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_closed_form_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            stop = False
+            try:
+                compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_closed_form_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            except: #This usually happens if the basis does not allow a Victor Miller normalization
+                #In this case we ignore this space
+                modforms_fl[weight] = None
+                modforms_rig[weight] = None
+                stop = True
             if state_file_path != None:
                 curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
                 save(curr_state,state_file_path)
                 exit(1)
+            if stop:
+                break
 
     #Now compute remaining cuspforms
     for weight in range(lowest_non_zero_cuspform_weight+2,max_weight+1,2): #We only consider even weights
         if weight not in cuspforms_fl and G.dimension_cusp_forms(weight) != 0:
-            compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_closed_form_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            stop = False
+            try:
+                compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interior_Kv, modforms_fl, modforms_rig, cuspforms_fl, cuspforms_rig, max_closed_form_trunc_order, construct_higher_weight_from_lower_weight_forms)
+            except: #This usually happens if the basis does not allow a Victor Miller normalization
+                #In this case we ignore this space
+                cuspforms_fl[weight] = None
+                cuspforms_rig[weight] = None
+                stop = True
             if state_file_path != None:
                 curr_state = state_to_dict_higher_genera(cuspforms_fl, cuspforms_rig, modforms_fl, modforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight)
                 save(curr_state,state_file_path)
                 exit(1)
+            if stop:
+                break
 
     #Now to the Eisenstein series
     eis_scaling_constants = dict()
@@ -211,16 +229,25 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_eis(weight) != 0:
             if G.dimension_cusp_forms(weight) != 0:
-                eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms_fl[weight],modforms_fl[weight],return_scaling_constants=True)
-                for i in range(len(eis_scaling_constant_list)):
-                    for j in range(len(eis_scaling_constant_list[i])):
-                        if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*digit_prec))) == True:
-                            eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
+                try:
+                    eisforms_fl, eis_scaling_constant_list = compute_eisenstein_series(cuspforms_fl[weight],modforms_fl[weight],return_scaling_constants=True)
+                    for i in range(len(eis_scaling_constant_list)):
+                        for j in range(len(eis_scaling_constant_list[i])):
+                            if eis_scaling_constant_list[i][j] != 0 and eis_scaling_constant_list[i][j] != 1 and is_effectively_zero(eis_scaling_constant_list[i][j],int(round(0.99*digit_prec))) == True:
+                                eis_scaling_constant_list[i][j] = 0 #We have a numerical zero which we now set to a true zero
+                except:
+                    eisforms_fl, eis_scaling_constant_list = None, None
             else:
-                eisforms_fl = modforms_fl[weight] #In this case the eisforms are equivalent to modforms
-                eis_scaling_constant_list = [_get_echelon_normalization_from_label(i,len(eisforms_fl)) for i in range(len(eisforms_fl))]
+                try:
+                    eisforms_fl = modforms_fl[weight] #In this case the eisforms are equivalent to modforms
+                    eis_scaling_constant_list = [_get_echelon_normalization_from_label(i,len(eisforms_fl)) for i in range(len(eisforms_fl))]
+                except:
+                    eisforms_fl, eis_scaling_constant_list = None, None
             eis_scaling_constants[weight] = eis_scaling_constant_list
-            _, eis_scaling_constants_canonical[weight] = echelon_basis_to_eisenstein_basis(eisforms_fl,return_scaling_constants=True)
+            try:
+                _, eis_scaling_constants_canonical[weight] = echelon_basis_to_eisenstein_basis(eisforms_fl,return_scaling_constants=True)
+            except:
+                eis_scaling_constants_canonical[weight] = None
 
     u_QQbar = QQbar(u)
     if compare_result_to_numerics == True:
@@ -228,6 +255,8 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     
     #Convert numerical expressions of Eisenstein series to CC because we cannot hash CBFs
     for weight in eis_scaling_constants:
+        if eis_scaling_constants[weight] == None:
+            continue
         for i in range(len(eis_scaling_constants[weight])):
             for j in range(len(eis_scaling_constants[weight][i])):
                 eis_scaling_constants[weight][i][j] = CC(eis_scaling_constants[weight][i][j])
@@ -255,14 +284,20 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
         res["q_expansions"][weight] = dict()
         if G.dimension_modular_forms(weight) != 0:
             if G.dimension_eis(weight) == 0: #The cuspforms form the modform basis and we don't have any eisenstein_basis_factors
+                if cuspforms_rig[weight] == None:
+                    continue
                 res["q_expansions"][weight]["modforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=display_u) for cuspform in cuspforms_rig[weight]]
             else:
+                if modforms_rig[weight] == None or eis_scaling_constants[weight] == None:
+                    continue
                 res["q_expansions"][weight]["modforms_raw"] = [modform.get_cusp_expansion(Cusp(1,0)) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["modforms_pretty"] = [modform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=display_u) for modform in modforms_rig[weight]]
                 res["q_expansions"][weight]["eisenstein_basis_factors"] = eis_scaling_constants[weight]
                 res["q_expansions"][weight]["eisenstein_canonical_normalizations"] = eis_scaling_constants_canonical[weight]
             if G.dimension_cusp_forms(weight) != 0:
+                if cuspforms_rig[weight] == None:
+                    continue
                 res["q_expansions"][weight]["cuspforms_raw"] = [cuspform.get_cusp_expansion(Cusp(1,0)) for cuspform in cuspforms_rig[weight]]
                 res["q_expansions"][weight]["cuspforms_pretty"] = [cuspform.get_cusp_expansion(Cusp(1,0),factor_into_u_v=display_u) for cuspform in cuspforms_rig[weight]]
     if compute_embeddings == True:
@@ -274,8 +309,12 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
         for weight in range(2,max_weight+1,2): #We only consider even weights
             floating_expansions[weight] = dict()
             if weight in modforms_fl:
+                if modforms_fl[weight] == None:
+                    continue
                 floating_expansions[weight]["modforms_float"] = [modform_fl._convert_to_CC() for modform_fl in modforms_fl[weight]] #Note that we cannot store arbs
             if weight in cuspforms_fl:
+                if cuspforms_fl[weight] == None:
+                    continue
                 floating_expansions[weight]["cuspforms_float"] = [cuspform_fl._convert_to_CC() for cuspform_fl in cuspforms_fl[weight]] #Note that we cannot store arbs
         return res, floating_expansions
     return res
@@ -578,9 +617,9 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
     prec_loss = 10
     M_modform_rig_max, M_cuspform_rig_max = 0, 0
     for weight in range(2,max_weight+1,2):
-        if weight in modforms_rig:
+        if weight in modforms_rig and modforms_rig[weight] != None:
             M_modform_rig_max = max([modform_rig.get_cusp_expansion(Cusp(1,0)).degree() for modform_rig in modforms_rig[weight]]+[M_modform_rig_max])
-        if weight in cuspforms_rig:
+        if weight in cuspforms_rig and cuspforms_rig[weight] != None:
             M_cuspform_rig_max = max([cuspform_rig.get_cusp_expansion(Cusp(1,0)).degree() for cuspform_rig in cuspforms_rig[weight]]+[M_cuspform_rig_max])
     M_rig_max = max(M_modform_rig_max,M_cuspform_rig_max)
     S = AutomorphicFormSpace(G,max_weight)
@@ -593,6 +632,8 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
     for weight in range(2,max_weight+1,2): #We only consider even weights
         if G.dimension_modular_forms(weight) != 0:
             if G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
+                if modforms_rig[weight] == None:
+                    continue
                 modforms_num = get_modform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(modforms_num)):
                     if do_coefficients_match_the_numerics(modforms_rig[weight][i],modforms_num[i],tol,u_QQbar) == False:
@@ -600,6 +641,8 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                         print("label: ", i)
                         raise ArithmeticError("We detected a modform coefficient that does not match the numerical values!")
             if G.dimension_cusp_forms(weight) != 0:
+                if cuspforms_rig[weight] == None:
+                    continue
                 cuspforms_num = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),numerics_digit_prec,prec_loss=prec_loss,Y=Y,M_0=M_0_numerics)
                 for i in range(len(cuspforms_num)):
                     if do_coefficients_match_the_numerics(cuspforms_rig[weight][i],cuspforms_num[i],tol,u_QQbar) == False:
@@ -607,6 +650,8 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                         print("label: ", i)
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
                 if G.dimension_eis(weight) != 0:
+                    if eis_scaling_constants[weight] == None:
+                        continue
                     eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
                     for i in range(len(eis_scaling_constant_list_num)):
                         for j in range(len(eis_scaling_constant_list_num[i])):
@@ -796,7 +841,7 @@ def to_JSON(passport_data, filename=None):
         else:
             res[str(k)] = str(passport_data[k])
     res["is_congruence"] = passport_data["is_congruence"] #Store is_congruence as bool instead of string because it is supported by JSON
-    L = passport_data["q_expansions"][4]["modforms_raw"][0].base_ring()
+    L = passport_data["q_expansions"][list(passport_data["q_expansions"].keys())[0]]["modforms_raw"][0].base_ring()
     res["L"] = str(L)
     for weight in res["q_expansions"]: #Remove data defined over Kw because it creates very large JSON files
         if 'hauptmodul_raw' in res["q_expansions"][weight]:
