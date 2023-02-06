@@ -20,7 +20,7 @@ cdef extern from "complex.h":
 from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from pullback.my_pullback cimport my_pullback_pts_dp
-from point_matching.point_matching_arb_wrap import _get_l_normalized, _get_normalization_cuspforms
+from point_matching.point_matching_arb_wrap import _get_l_normalized, _get_normalization
 
 cpdef get_horo_height_dp(S):
     return S.group().minimal_height()*0.8
@@ -111,7 +111,7 @@ cpdef get_V_tilde_matrix_b_cuspform_dp(S,int M,double Y):
     cdef int Q = M+8
     pb = my_pullback_pts_dp(S,1-Q,Q,Y)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization_cuspforms(S)
+    normalization = _get_normalization(S,True)
     V = np.zeros(shape=(nc*M,nc*M),dtype=np.complex_)
     b = np.zeros(shape=(nc*M,1),dtype=np.complex_)
     cdef int cii,cjj
