@@ -8,6 +8,7 @@
 # ****************************************************************************
 
 import math
+import numpy as np
 from cysignals.signals cimport sig_on, sig_off
 
 from sage.libs.arb.arb cimport *
@@ -733,6 +734,9 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
+    if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
+        V_dp = np.delete(V_dp, imposed_zeros, 0)
+        V_dp = np.delete(V_dp, imposed_zeros, 1)
     plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
     res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, imposed_zeros=imposed_zeros)

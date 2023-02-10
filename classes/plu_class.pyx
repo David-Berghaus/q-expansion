@@ -92,14 +92,16 @@ cdef class PLU_Mat():
                 for i in range(nrows):
                     P[i] = piv[i]
 
-    def solve(self, Acb_Mat x, Acb_Mat b, bit_prec):
+    def solve(self, Acb_Mat x, Acb_Mat b, bit_prec, imposed_zeros=None):
         """
         Solve A*x=b by using a precomputed LU-decomposition.
         """
         if self.use_scipy_lu == False:
+            if imposed_zeros != None:
+                raise NotImplementedError("Imposed zeros not implemented for arb matrices yet!")
             self.solve_arb(x,b,bit_prec)
         else:
-            self.solve_scipy(x,b)
+            self.solve_scipy(x,b,imposed_zeros)
 
     def solve_arb(self, Acb_Mat x, Acb_Mat b, int bit_prec):
         """
@@ -117,7 +119,7 @@ cdef class PLU_Mat():
         acb_mat_approx_solve_lu_precomp(x.value,self.P,self.value,b.value,bit_prec)
         sig_off()
     
-    def solve_scipy(self, Acb_Mat x, Acb_Mat b):
+    def solve_scipy(self, Acb_Mat x, Acb_Mat b, imposed_zeros):
         """
         Solve A*x=b by using the LU-decomposition that is stored as a sparse scipy matrix.
         We first multiply b by 2^scaling_exponent to put all results in double exponent range.
@@ -140,7 +142,11 @@ cdef class PLU_Mat():
         cdef double complex [:] b_scaled_np_view = b_scaled_np
         for i in range(nrows): #Convert b to numpy
             b_scaled_np_view[i] = arf_get_d(arb_midref(acb_realref(acb_mat_entry(b.value,i,0))),ARF_RND_NEAR) + arf_get_d(arb_midref(acb_imagref(acb_mat_entry(b.value,i,0))),ARF_RND_NEAR)*1j
+        if imposed_zeros != None and len(imposed_zeros) > 0:
+            b_scaled_np = np.delete(b_scaled_np, imposed_zeros, 0)
         x_scaled_np = self.lu_sp.solve(b_scaled_np)
+        if imposed_zeros != None and len(imposed_zeros) > 0:
+            x_scaled_np = np.insert(x_scaled_np, imposed_zeros, 0, 0)
         cdef double complex [:] x_scaled_np_view = x_scaled_np
         for i in range(nrows): #Convert x to arb
             acb_set_d_d(acb_mat_entry(x.value,i,0),creal(x_scaled_np_view[i]),cimag(x_scaled_np_view[i]))

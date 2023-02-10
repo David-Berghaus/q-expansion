@@ -71,7 +71,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_cast = x0
         acb_mat_set(x.value, acb_mat_cast.value)
     else:
-        PLU.solve(x,b,low_prec)
+        PLU.solve(x,b,low_prec,imposed_zeros=imposed_zeros)
     if maxiter == None:
         maxiter = 2147483647
 
@@ -86,7 +86,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_approx_sub(r.value, b.value, r.value, iter_prec)
         sig_off()
         # d = A\r
-        PLU.solve(d,r,low_prec)
+        PLU.solve(d,r,low_prec,imposed_zeros=imposed_zeros)
         # x = x + d
         acb_mat_approx_add(x.value, x.value, d.value, iter_prec)
         #normr = norm(r)
