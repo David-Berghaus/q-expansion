@@ -1,12 +1,3 @@
-# ****************************************************************************
-#       Copyright (C) 2022 David Berghaus <berghaus@th.physik.uni-bonn.de>
-#
-#  Distributed under the terms of the GNU General Public License (GPL)
-#  as published by the Free Software Foundation; either version 2 of
-#  the License, or (at your option) any later version.
-#                  https://www.gnu.org/licenses/
-# ****************************************************************************
-
 from cysignals.signals cimport sig_on, sig_off
 import numpy as np
 import math
@@ -388,7 +379,7 @@ cdef class Block_Factored_Mat():
         
         return self.max_len
 
-    cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec):
+    cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec, imposed_zeros=[]):
         """
         Computes Block_Factored_Mat*Diag_inv*x = b
         """
@@ -411,11 +402,18 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
+        cdef Acb_Mat x_prime = Acb_Mat(x.nrows(), x.ncols())
+        for i in range(x.nrows()):
+            for j in range(x.ncols()):
+                acb_set(acb_mat_entry(x_prime.value,i,j), acb_mat_entry(x.value,i,j))
+        for imposed_zero in imposed_zeros:
+            acb_zero(acb_mat_entry(x_prime.value, imposed_zero, 0))
+
         #Slice vectors x & b into blocks
         x_blocks = []
         b_blocks = []
         for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
+            x_blocks.append(x_prime.get_window(cii*M,0,(cii+1)*M,1))
             b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
 
         for cii in range(nc):
@@ -447,16 +445,16 @@ cdef class Block_Factored_Mat():
                     acb_mat_approx_add(b_cast.value, b_cast.value, tmp2.value, prec)
                     sig_off()
 
-    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled):
+    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled, imposed_zeros=[]):
         """
         Computes action of self on vector x and stores result in b
         """
         if is_scaled == True:
-            return self.act_on_vec_sc(b, x, prec)
+            return self.act_on_vec_sc(b, x, prec, imposed_zeros=imposed_zeros)
         elif is_scaled == False:
             raise ArithmeticError("This functionality is not supported!")
 
-    cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec):
+    cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec, imposed_zeros=[]):
         """
         Computes Block_Factored_Mat*Diag_inv*x = b
         """
@@ -479,11 +477,19 @@ cdef class Block_Factored_Mat():
         cdef Acb_Mat_Win b_cast, x_cast
         cdef Block_Factored_Element block_factored_element
 
+        nrows, ncols = acb_mat_nrows(x.value), acb_mat_ncols(x.value)
+        cdef Acb_Mat x_prime = Acb_Mat(nrows, ncols)
+        for i in range(nrows):
+            for j in range(ncols):
+                acb_set(acb_mat_entry(x_prime.value,i,j), acb_mat_entry(x.value,i,j))
+        for imposed_zero in imposed_zeros:
+            acb_zero(acb_mat_entry(x_prime.value, imposed_zero, 0))
+
         #Slice vectors x & b into blocks
         x_blocks = []
         b_blocks = []
         for cii in range(nc):
-            x_blocks.append(x.get_window(cii*M,0,(cii+1)*M,1))
+            x_blocks.append(x_prime.get_window(cii*M,0,(cii+1)*M,1))
             b_blocks.append(b.get_window(cii*M,0,(cii+1)*M,1))
 
         for cii in range(nc):
@@ -586,7 +592,6 @@ cdef class Block_Factored_Mat():
             x_cast = x_blocks[cii] 
             diag_cast = diag_inv[cii]
             acb_mat_approx_left_mul_diag(res_cast.value, diag_cast.value, x_cast.value, prec)    
-
 
 
 

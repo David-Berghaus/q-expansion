@@ -78,7 +78,7 @@ cdef apply_givens(list Q, Acb_Mat_Win v, int k, int prec):
     acb_clear(v2)
     acb_clear(t)
 
-cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec, is_scaled):
+cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec, is_scaled, imposed_zeros=[]):
     """
     Computes A*x and stores result in b.
     A can be a 'Acb_Mat' or a 'Block_Factored_Mat'
@@ -90,11 +90,11 @@ cdef mat_vec_mul(Acb_Mat b, A, Acb_Mat x, int prec, is_scaled):
         acb_mat_approx_mul(b.value, acb_mat_cast.value, x.value, prec)
         sig_off()
     elif isinstance(A, Block_Factored_Mat):
-        A.act_on_vec(b, x, prec, is_scaled)
+        A.act_on_vec(b, x, prec, is_scaled, imposed_zeros=imposed_zeros)
     else:
         raise TypeError("A is of wrong type!")
 
-cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec, is_scaled):
+cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec, is_scaled, imposed_zeros=[]):
     """
     Computes A*x and stores result in b.
     A can be a 'Acb_Mat' or a 'Block_Factored_Mat'
@@ -108,7 +108,7 @@ cdef mat_vec_win_mul(Acb_Mat_Win b, A, Acb_Mat_Win x, int prec, is_scaled):
         acb_mat_approx_mul(b.value, acb_mat_cast.value, x.value, prec)
         sig_off()
     elif isinstance(A, Block_Factored_Mat):
-        A.act_on_vec_win(b, x, prec, is_scaled)
+        A.act_on_vec_win(b, x, prec, is_scaled, imposed_zeros=imposed_zeros)
     else:
         raise TypeError("A is of wrong type!")
 

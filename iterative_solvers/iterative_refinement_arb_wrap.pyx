@@ -32,7 +32,7 @@ from iterative_solvers.gmres_arb_wrap cimport mat_vec_mul
 from belyi.number_fields import get_decimal_digit_prec
 from point_matching.point_matching_arb_wrap import digits_to_bits
 
-cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=None, mix_prec=True, starting_prec=0, is_scaled=True):
+cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=None, mix_prec=True, starting_prec=0, is_scaled=True, imposed_zeros=[]):
     """Uses classical iterative refinement 
     to solve Ax = b
     Parameters
@@ -81,7 +81,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         else:
             iter_prec = prec
         # r = b - A*x
-        mat_vec_mul(r, A, x, iter_prec, is_scaled)
+        mat_vec_mul(r, A, x, iter_prec, is_scaled, imposed_zeros=imposed_zeros)
         sig_on()
         acb_mat_approx_sub(r.value, b.value, r.value, iter_prec)
         sig_off()

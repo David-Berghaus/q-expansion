@@ -267,11 +267,96 @@ def _get_echelon_normalization_from_label(label, multiplicity):
     res[label] = 1
     return res
 
-def _get_normalization(S,is_cuspform,label=0):
+def get_higher_genera_normalizations(S, is_cuspform): #NOT WORKING YET!
+    """
+    Get normalizations for all forms in S, where S is an automorphic space of a subgroup with g>0.
+    We determine the normalizations by verifying that the forms exist at a low precision.
+    """
+    G = S.group()
+    if is_cuspform:
+        dim = int(G.dimension_cusp_forms(S.weight()))
+    else:
+        dim = int(G.dimension_modular_forms(S.weight()))
+    if dim == 0:
+        raise NameError("The space of forms is of dimension zero for this weight!")
+    normalizations = []
+
+    #First determine the form with the highest valuation
+    valuation = dim
+    while True:
+        imposed_zeros = []
+        normalization = {}
+        normalization[0] = _get_echelon_normalization_from_label(valuation-1, valuation)
+        for i in range(1,G.ncusps()):
+            normalization[i] = []
+        if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
+            normalizations.append((normalization,imposed_zeros))
+            break
+        valuation += 1
+    
+    print("max_valuation = ", valuation)
+
+    #Now determine the other normalizations
+    d = len(normalizations[-1][0][0])
+    i = d-2
+    for label in range(dim-2,-1,-1):
+        normalization = {}
+        for j in range(1,G.ncusps()):
+            normalization[j] = []
+        while True:
+            imposed_zeros = normalizations[-1][1].copy()
+            if d < len(normalizations[-1][0][0])-1:
+                imposed_zeros.append(len(normalizations[-1][0][0])-d-1)
+            if i < 0:
+                d -= 1
+                if d == 0:
+                    raise ArithmeticError("Could not determine normalizations!")
+                i = d-1
+            normalization[0] = _get_echelon_normalization_from_label(i, d)
+            print("imposed_zeros = ", imposed_zeros)
+            print("i, d, label = ", i, d, label)
+            print("")
+            print("")
+            i -= 1
+            if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
+                normalizations.append((normalization,imposed_zeros))
+                raise ArithmeticError("Stop here for testing purposes")
+                break
+    if len(normalizations) != dim:
+        raise ArithmeticError("Could not determine normalizations!")
+    return normalizations
+
+def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
+    """
+    To Do:
+    We could make this function faster by searching if forms exist using the double precision functionalities.
+    """
+    digit_prec = 30
+    bit_prec = digits_to_bits(digit_prec)
+    M_0 = get_M_0(S,digit_prec,is_cuspform=is_cuspform)
+    RBF = RealBallField(bit_prec)
+    Y_fact = 0.9
+    eps = RBF(1e-10)
+    Y = get_horo_height_arb_wrap(S,RBF,M_0,is_cuspform=is_cuspform)*RBF(Y_fact)
+    
+    try:
+        if is_cuspform:
+            c_1 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
+            c_2 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
+        else:
+            raise NotImplementedError("Not implemented yet!")
+    except ArithmeticError: #IR didn't converge -> invalid normalization
+        return False
+    coeff_threshold = c_1.dimensions()[0]//4 #We only check the first 1/4 of the coefficients
+    avg_diff = sum([abs(x) for x in (c_1[:coeff_threshold]-c_2[:coeff_threshold]).list()])/coeff_threshold
+    print("avg_diff: ",avg_diff)
+    if avg_diff > eps:
+        return False
+    return True
+
+def _get_victor_miller_normalization(S, is_cuspform, label=0):
     """
     Returns normalization for each cusp. For modforms the first expansion coefficient is c_0, for cuspforms the first expansion coefficient is c_1.
-    A feature to be implemented in the future is to test if the normalization
-    works correctly (with a double-precision computation).
     """
     G = S.group()
     if is_cuspform:
@@ -285,7 +370,8 @@ def _get_normalization(S,is_cuspform,label=0):
         normalization[0] = _get_echelon_normalization_from_label(label, multiplicity)
     for i in range(1,G.ncusps()):
         normalization[i] = []
-    return normalization
+    imposed_zeros = []
+    return normalization, imposed_zeros
 
 def _get_normalization_hauptmodul(S):
     """
@@ -307,7 +393,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint is_cuspfor
     G = S.group()
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization = _get_normalization(S,is_cuspform)
+    normalization, _ = _get_victor_miller_normalization(S,is_cuspform)
 
     cdef Acb_Mat V = Acb_Mat(nc*M,nc*M)
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
@@ -347,7 +433,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint is_cuspfor
     sig_off()
     return V, b
 
-cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_splitting,bint is_cuspform,labels=None):
+cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint use_FFT,bint use_splitting,bint is_cuspform,normalizations,labels=None):
     """
     Returns V_tilde,b of V_tilde*x=b where b corresponds to (minus) the column at c_l_normalized.
     V_tilde is not explicitly computed but instead consists of block-matrices of the form J*W
@@ -362,7 +448,6 @@ cpdef get_V_tilde_matrix_factored_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint u
         else:
             multiplicity = int(G.dimension_modular_forms(S.weight()))
         labels = range(multiplicity)
-    normalizations = [_get_normalization(S,is_cuspform,label=i) for i in labels]
 
     cdef Block_Factored_Mat block_factored_mat = Block_Factored_Mat(nc)
     if use_FFT == True:
@@ -619,7 +704,7 @@ cpdef get_coefficients_gmres_non_scaled_cuspform_arb_wrap(S,int digit_prec,Y=0,i
     res = x_gmres_arb_wrap[0]
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,normalization=None,imposed_zeros=None):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -640,14 +725,19 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,labels=[label])
+    if normalization is None and imposed_zeros is None:
+        normalization, imposed_zeros = _get_victor_miller_normalization(S,True,label=label)
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,[normalization],labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
     plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, imposed_zeros=imposed_zeros)
+    for imposed_zero in imposed_zeros:
+        acb_zero(acb_mat_entry(res.value,imposed_zero,0))
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
