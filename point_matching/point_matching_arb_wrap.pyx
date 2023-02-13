@@ -361,7 +361,8 @@ def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
             c_1 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
             c_2 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,Y=Y,M_0=M_0,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
         else:
-            raise NotImplementedError("Not implemented yet!")
+            c_1 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
+            c_2 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,Y=Y,M_0=M_0,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
     except ArithmeticError: #IR didn't converge -> invalid normalization
         return False
     coeff_threshold = c_1.dimensions()[0]//4 #We only check the first 1/4 of the coefficients
@@ -765,7 +766,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     else:
         return res, M_0
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
     """ 
     Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
@@ -786,14 +787,22 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,labels=[label])
+    if normalization is None and imposed_zeros is None:
+        normalization, imposed_zeros = _get_victor_miller_normalization(S,False,label=label)
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,[normalization],labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
     V_dp = V.construct_sc_np()
+    if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
+        V_dp = np.delete(V_dp, imposed_zeros, 0)
+        V_dp = np.delete(V_dp, imposed_zeros, 1)
     plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu)
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, maxiter=max_iter, imposed_zeros=imposed_zeros)
+    for imposed_zero in imposed_zeros:
+        acb_zero(acb_mat_entry(res.value,imposed_zero,0))
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
