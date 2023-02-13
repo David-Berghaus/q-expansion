@@ -823,6 +823,8 @@ def to_JSON(passport_data, filename=None):
                 pc_factored_pretty += "^" + str(n)
             pc_factored_pretty += "*"
         pc_factored_pretty = pc_factored_pretty[:-1] #Remove last "*"
+        if pc_factored_pretty == "":
+            pc_factored_pretty = "1"
         p3_factored_pretty = ""
         for (p,n) in passport_data["curve"]["p3_factored_pretty"]:
             p3_factored_pretty += "(" + str(p) + ")"
@@ -830,6 +832,8 @@ def to_JSON(passport_data, filename=None):
                 p3_factored_pretty += "^" + str(n)
             p3_factored_pretty += "*"
         p3_factored_pretty = p3_factored_pretty[:-1] #Remove last "*"
+        if p3_factored_pretty == "":
+            p3_factored_pretty = "1"
         p2_factored_pretty = ""
         for (p,n) in passport_data["curve"]["p2_factored_pretty"]:
             p2_factored_pretty += "(" + str(p) + ")"
@@ -837,6 +841,8 @@ def to_JSON(passport_data, filename=None):
                 p2_factored_pretty += "^" + str(n)
             p2_factored_pretty += "*"
         p2_factored_pretty = p2_factored_pretty[:-1] #Remove last "*"
+        if p2_factored_pretty == "":
+            p2_factored_pretty = "1"
         res["curve"]["belyi_map_pretty"] = "(" + p3_factored_pretty + ")" + "/" + "(" + pc_factored_pretty + ")" + " = 1728 + " + "(" + p2_factored_pretty + ")" + "/" + "(" + pc_factored_pretty + ")"
 
     if filename is not None:
