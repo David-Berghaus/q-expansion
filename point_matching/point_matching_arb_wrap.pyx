@@ -749,7 +749,11 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     cdef PLU_Mat plu
 
     if normalization is None and imposed_zeros is None:
-        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
+        G = S.group()
+        if G.genus() == 0:
+            normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
+        else:
+            normalization, imposed_zeros = get_higher_genera_normalizations_and_imposed_zeros(S,True)[label]
 
     V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,[normalization],labels=[label])
     b = b_vecs[0]
@@ -794,7 +798,11 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     cdef PLU_Mat plu
 
     if normalization is None and imposed_zeros is None:
-        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
+        G = S.group()
+        if G.genus() == 0:
+            normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
+        else:
+            normalization, imposed_zeros = get_higher_genera_normalizations_and_imposed_zeros(S,False)[label]
 
     V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,[normalization],labels=[label])
     b = b_vecs[0]
