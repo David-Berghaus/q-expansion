@@ -103,7 +103,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
             break
         if i == maxiter-1:
             raise ArithmeticError("Maximum amount of iterations reached without sufficient convergence!")
-        if i != 0 and (rbf_normr-rbf_normr_old).abs()/(rbf_normr+rbf_normr_old).abs() < RBF(1e-3):
+        if i != 0 and (rbf_normr_old-rbf_normr)/(rbf_normr_old+rbf_normr) < RBF(1e-3):
             print("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
             raise ArithmeticError("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
     

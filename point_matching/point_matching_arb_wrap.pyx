@@ -268,7 +268,7 @@ def _get_echelon_normalization_from_label(label, multiplicity):
     res[label] = 1
     return res
 
-def get_higher_genera_normalizations(S, is_cuspform): #NOT WORKING YET!
+def get_higher_genera_normalizations(S, is_cuspform):
     """
     Get normalizations for all forms in S, where S is an automorphic space of a subgroup with g>0.
     We determine the normalizations by verifying that the forms exist at a low precision.
@@ -283,48 +283,63 @@ def get_higher_genera_normalizations(S, is_cuspform): #NOT WORKING YET!
     normalizations = []
 
     #First determine the form with the highest valuation
-    valuation = dim
+    max_valuation = dim
     while True:
         imposed_zeros = []
         normalization = {}
-        normalization[0] = _get_echelon_normalization_from_label(valuation-1, valuation)
+        normalization[0] = _get_echelon_normalization_from_label(max_valuation-1,max_valuation)
         for i in range(1,G.ncusps()):
             normalization[i] = []
         if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
             normalizations.append((normalization,imposed_zeros))
             break
-        valuation += 1
+        max_valuation += 1
     
-    print("max_valuation = ", valuation)
-
     #Now determine the other normalizations
-    d = len(normalizations[-1][0][0])
-    i = d-2
-    for label in range(dim-2,-1,-1):
+    if max_valuation == dim: #We can just use a Victor Miller basis
+        normalizations = []
+        for label in range(dim):
+            normalizations.append(_get_victor_miller_normalization(S,is_cuspform,label=label))
+        return normalizations
+
+    zero_coeffs = [max_valuation] #Indices of the coefficients which we normalize to be zero
+    d = max_valuation
+    j = d-2 #Because we already know that the form with valuation d-1 exists
+    while len(normalizations) < dim:
         normalization = {}
-        for j in range(1,G.ncusps()):
-            normalization[j] = []
-        while True:
-            imposed_zeros = normalizations[-1][1].copy()
-            if d < len(normalizations[-1][0][0])-1:
-                imposed_zeros.append(len(normalizations[-1][0][0])-d-1)
-            if i < 0:
-                d -= 1
-                if d == 0:
-                    raise ArithmeticError("Could not determine normalizations!")
-                i = d-1
-            normalization[0] = _get_echelon_normalization_from_label(i, d)
-            print("imposed_zeros = ", imposed_zeros)
-            print("i, d, label = ", i, d, label)
-            print("")
-            print("")
-            i -= 1
-            if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
-                normalizations.append((normalization,imposed_zeros))
-                raise ArithmeticError("Stop here for testing purposes")
-                break
+        for i in range(1,G.ncusps()):
+            normalization[i] = []
+
+        #First try reduced echelon normalization
+        #We do this because it might happen that the undetermined coefficients are zero,
+        #in which case our normalization works, but the conditioning of the linear system is bad.
+        normalization[0] = _get_echelon_normalization_from_label(j,max_valuation)
+        if is_normalization_valid(S,normalization,[],is_cuspform):
+            zero_coeffs.append(j+1)
+            normalizations.append((normalization,[]))
+            j -= 1
+            continue
+
+        #Now try normalization with imposed zeros
+        normalization[0] = _get_echelon_normalization_from_label(j,d)
+        imposed_zeros = []
+        for zero_coeff in zero_coeffs:
+            imposed_zero = zero_coeff-d-1
+            if imposed_zero > 0:
+                imposed_zeros.append(imposed_zero)
+        imposed_zeros.sort()
+        if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
+            zero_coeffs.append(j+1)
+            normalizations.append((normalization,imposed_zeros))
+            j -= 1
+        else:
+            d = j
+            j -= 1
+            if j < 0:
+                raise ArithmeticError("Could not determine normalizations...")
     if len(normalizations) != dim:
         raise ArithmeticError("Could not determine normalizations!")
+    normalizations.reverse() #We want the normalizations in increasing order of valuation
     return normalizations
 
 def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
@@ -333,6 +348,7 @@ def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
     We could make this function faster by searching if forms exist using the double precision functionalities.
     """
     digit_prec = 30
+    max_iter = 30
     bit_prec = digits_to_bits(digit_prec)
     M_0 = get_M_0(S,digit_prec,is_cuspform=is_cuspform)
     RBF = RealBallField(bit_prec)
@@ -342,15 +358,14 @@ def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
     
     try:
         if is_cuspform:
-            c_1 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
-            c_2 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
+            c_1 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
+            c_2 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,max_iter=max_iter,Y=Y,M_0=M_0,normalization=normalization,imposed_zeros=imposed_zeros)._get_mcbd(bit_prec)
         else:
             raise NotImplementedError("Not implemented yet!")
     except ArithmeticError: #IR didn't converge -> invalid normalization
         return False
     coeff_threshold = c_1.dimensions()[0]//4 #We only check the first 1/4 of the coefficients
     avg_diff = sum([abs(x) for x in (c_1[:coeff_threshold]-c_2[:coeff_threshold]).list()])/coeff_threshold
-    print("avg_diff: ",avg_diff)
     if avg_diff > eps:
         return False
     return True
@@ -705,7 +720,7 @@ cpdef get_coefficients_gmres_non_scaled_cuspform_arb_wrap(S,int digit_prec,Y=0,i
     res = x_gmres_arb_wrap[0]
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,normalization=None,imposed_zeros=None):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -739,7 +754,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
         V_dp = np.delete(V_dp, imposed_zeros, 1)
     plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, imposed_zeros=imposed_zeros)
+    res = iterative_refinement_arb_wrap(V, b, bit_prec, tol, plu, maxiter=max_iter, imposed_zeros=imposed_zeros)
     for imposed_zero in imposed_zeros:
         acb_zero(acb_mat_entry(res.value,imposed_zero,0))
 
