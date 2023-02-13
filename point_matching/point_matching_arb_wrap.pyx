@@ -928,18 +928,17 @@ cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=Fa
     else:
         return res, M_0
 
-def put_labels_into_V_tilde_classes(normalizations, labels):
+def put_labels_into_V_tilde_classes(normalizations_and_imposed_zeros_complete, labels):
     """
     Put labels into classes of (len(normalization),imposed_zeros) because all labels in the same class require only one V_tilde matrix.
     """
     label_classes = {}
-    for i in range(len(labels)):
-        label = labels[i]
-        normalization, imposed_zeros = normalizations[i]
-        if (len(normalization),tuple(imposed_zeros)) in label_classes:
-            label_classes[(len(normalization),tuple(imposed_zeros))].append(label)
+    for label in labels:
+        normalization, imposed_zeros = normalizations_and_imposed_zeros_complete[label]
+        if (len(normalization[0]),tuple(imposed_zeros)) in label_classes:
+            label_classes[(len(normalization[0]),tuple(imposed_zeros))].append(label)
         else:
-            label_classes[(len(normalization),tuple(imposed_zeros))] = [label]
+            label_classes[(len(normalization[0]),tuple(imposed_zeros))] = [label]
     return label_classes
 
 cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
@@ -974,10 +973,10 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
     cdef Acb_Mat res
 
     res_dict = {}
-    for labels in label_classes.values():
-        imposed_zeros = normalizations_and_imposed_zeros_complete[labels[0]][1]
-        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labels]
-        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,normalizations,labels=labels)
+    for labs in label_classes.values():
+        imposed_zeros = normalizations_and_imposed_zeros_complete[labs[0]][1]
+        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labs]
+        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,normalizations,labels=labs)
         V_dp = V.construct_sc_np()
         if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
             V_dp = np.delete(V_dp, imposed_zeros, 0)
@@ -985,7 +984,7 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
         plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
         for i in range(len(b_vecs)):
-            label = labels[i]
+            label = labs[i]
             res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu, imposed_zeros=imposed_zeros)
             for imposed_zero in imposed_zeros:
                 acb_zero(acb_mat_entry(res.value,imposed_zero,0))
@@ -1035,10 +1034,10 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     cdef Acb_Mat res
 
     res_dict = {}
-    for labels in label_classes.values():
-        imposed_zeros = normalizations_and_imposed_zeros_complete[labels[0]][1]
-        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labels]
-        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,normalizations,labels=labels)
+    for labs in label_classes.values():
+        imposed_zeros = normalizations_and_imposed_zeros_complete[labs[0]][1]
+        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labs]
+        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,normalizations,labels=labs)
         V_dp = V.construct_sc_np()
         if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
             V_dp = np.delete(V_dp, imposed_zeros, 0)
@@ -1046,7 +1045,7 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
         plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
         for i in range(len(b_vecs)):
-            label = labels[i]
+            label = labs[i]
             res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu, imposed_zeros=imposed_zeros)
             for imposed_zero in imposed_zeros:
                 acb_zero(acb_mat_entry(res.value,imposed_zero,0))

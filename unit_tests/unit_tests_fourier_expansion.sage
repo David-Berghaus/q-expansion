@@ -11,6 +11,7 @@ def run_unit_tests_fourier_expansion():
     test_fourier_expansion_modform()
     test_fourier_expansion_hauptmodul()
     test_fourier_expansion_basis_cuspform()
+    test_fourier_expansion_basis_cuspform_no_victor_miller()
     test_fourier_expansion_basis_modform()
 
 def test_fourier_expansion_cuspform():
@@ -56,6 +57,17 @@ def test_fourier_expansion_basis_cuspform():
     assert f1[0] == 0 and f1[1] == 0 and f1[2] == 0
     assert abs(f1[9]-72) < 1e-35
     print("test_fourier_expansion_basis_cuspform ok")
+
+def test_fourier_expansion_basis_cuspform_no_victor_miller():
+    G = MySubgroup(o2='(1 4)(2 5)(3 7)(6 10)(8 12)(9 13)(11 16)(14 17)(15 18)',o3='(1 2 3)(4 5 6)(7 8 9)(10 11 12)(13 14 15)(16 17 18)')
+    S = AutomorphicFormSpace(G,weight=6) #This is an example where a Victor-Miller normalization does not work
+    b = get_cuspform_basis_approx(S,50,labels=[1,6])
+    f0 = b[0].get_cusp_expansion(Cusp(1,0),trunc_order=30)
+    f1 = b[1].get_cusp_expansion(Cusp(1,0),trunc_order=30)
+    CC = f0.base_ring()
+    assert abs(f0[11]-CC(5.703802742243766936075989380552076894051090726674,9.879276145916893379172395589694104965256236758875)) < 1e-35
+    assert abs(f1[25]+12) < 1e-35
+    print("test_fourier_expansion_basis_cuspform_no_victor_miller ok")
 
 def test_fourier_expansion_basis_modform():
     S = AutomorphicFormSpace(Gamma0(4),weight=10) #Search for multiplicity three new-forms
