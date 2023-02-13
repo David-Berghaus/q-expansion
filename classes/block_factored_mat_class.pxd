@@ -50,15 +50,15 @@ cdef class Block_Factored_Mat():
 
     cpdef _get_max_len(self)
 
-    cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec)
+    cpdef act_on_vec_sc(self, Acb_Mat b, Acb_Mat x, int prec, imposed_zeros=*)
 
     cpdef construct_sc_np(self)
 
-    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled)
+    cpdef act_on_vec(self, Acb_Mat b, Acb_Mat x, int prec, is_scaled, imposed_zeros=*)
 
-    cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec)
+    cpdef act_on_vec_win_sc(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec, imposed_zeros=*)
 
-    cpdef act_on_vec_win(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec, is_scaled)
+    cpdef act_on_vec_win(self, Acb_Mat_Win b, Acb_Mat_Win x, int prec, is_scaled, imposed_zeros=*)
 
     cpdef nrows(self)
 

@@ -4,7 +4,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, get_horo_height_arb_wrap
+from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, digits_to_bits, get_horo_height_arb_wrap, get_higher_genera_normalizations_and_imposed_zeros
 from classes.gamma_2_subgroup import Gamma_2_Subgroup
 from classes.modform_class import ModForm
 from classes.belyi_map import BelyiMap
@@ -17,6 +17,15 @@ from classes.fourier_expansion import get_cuspform_q_expansion_approx, get_modfo
 
 load("subgroups.sage")
 load("passports.sage")
+
+def foo(G):
+    from point_matching.point_matching_arb_wrap import is_normalization_valid, _get_echelon_normalization_from_label
+    normalization = {}
+    for j in range(1,G.ncusps()):
+            normalization[j] = []
+    normalization[0] = _get_echelon_normalization_from_label(5,6)
+    imposed_zeros = [2]
+    return is_normalization_valid(AutomorphicFormSpace(G,6),normalization,imposed_zeros,True)
 
 def eisenstein_algebraics_test(passport, floating_expansions, weight, d):
     """

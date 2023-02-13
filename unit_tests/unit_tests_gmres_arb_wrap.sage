@@ -3,7 +3,7 @@ from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
 from iterative_solvers.gmres_arb_wrap import gmres_mgs_arb_wrap
-from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_cuspform_arb_wrap, get_coefficients_gmres_cuspform_arb_wrap, get_V_tilde_matrix_factored_b_cuspform_arb_wrap
+from point_matching.point_matching_arb_wrap import digits_to_bits, get_V_tilde_matrix_b_arb_wrap, get_coefficients_gmres_cuspform_arb_wrap, get_V_tilde_matrix_factored_b_arb_wrap, _get_victor_miller_normalization_and_imposed_zeros
 
 def run_unit_tests_gmres_arb_wrap():
     test_gmres_non_factored()
@@ -23,7 +23,7 @@ def test_gmres_non_factored():
     Y = RBF(S.group().minimal_height()*0.8)
     M = 30
     Q = 50
-    V, b = get_V_tilde_matrix_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec)
+    V, b = get_V_tilde_matrix_b_arb_wrap(S,M,Q,Y,bit_prec,True)
 
     tol = RBF(10.0)**(-digit_prec)
     low_prec = 64
@@ -47,7 +47,8 @@ def test_gmres_non_precond():
     Y = RBF(S.group().minimal_height()*0.8)
     M = 30
     Q = 50
-    V, b_vecs = get_V_tilde_matrix_factored_b_cuspform_arb_wrap(S,M,Q,Y,bit_prec,use_FFT=False,use_splitting=False,labels=[0])
+    normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=0)
+    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M,Q,Y,bit_prec,False,False,True,[normalization],labels=[0])
     b = b_vecs[0]
 
     tol = RBF(10.0)**(-digit_prec)

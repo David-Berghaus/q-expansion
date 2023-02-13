@@ -4,7 +4,7 @@ from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 from psage.groups.permutation_alg import MyPermutation
 from psage.modform.arithgroup.mysubgroup import MySubgroup
 
-from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_arb_wrap, get_V_tilde_matrix_b_cuspform_arb_wrap, get_V_tilde_matrix_cuspform_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap
+from point_matching.point_matching_arb_wrap import get_coefficients_cuspform_arb_wrap, get_V_tilde_matrix_b_arb_wrap, get_V_tilde_matrix_cuspform_arb_wrap, get_coefficients_haupt_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap
 
 def run_unit_tests_point_matching_arb_wrap():
     test_get_coefficients_cuspform_arb_wrap()
@@ -25,7 +25,7 @@ def test_get_V_tilde_matrix_b_cuspform_arb_wrap():
     S = AutomorphicFormSpace(Gamma0(8),4) #This example contains some empty coordinate lists
     prec = 64
     RBF = RealBallField(prec)
-    tmp = get_V_tilde_matrix_b_cuspform_arb_wrap(S,66,100,RBF(0.09742785792574934),prec)
+    tmp = get_V_tilde_matrix_b_arb_wrap(S,66,100,RBF(0.09742785792574934),prec,True)
     V,b = tmp[0]._get_mcbd(prec), tmp[1]._get_mcbd(prec)
     C = V\b
     assert abs(C[0][0]) < RBF(1e-12)

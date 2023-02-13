@@ -32,7 +32,7 @@ from iterative_solvers.gmres_arb_wrap cimport mat_vec_mul
 from belyi.number_fields import get_decimal_digit_prec
 from point_matching.point_matching_arb_wrap import digits_to_bits
 
-cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=None, mix_prec=True, starting_prec=0, is_scaled=True):
+cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, RealBall tol, PLU_Mat PLU, x0=None, maxiter=None, mix_prec=True, starting_prec=0, is_scaled=True, imposed_zeros=[]):
     """Uses classical iterative refinement 
     to solve Ax = b
     Parameters
@@ -61,7 +61,8 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
     arb_init(normr)
     RBF = RealBallField(53)
     CC = ComplexField(53)
-    cdef RealBall rbf_tmp = RBF(0) #we use this expression to print values properly in python
+    cdef RealBall rbf_normr, rbf_normr_old
+    rbf_normr, rbf_normr_old = RBF(0), RBF(0) #we use these expressions to print values properly in python
 
     cdef Acb_Mat r = Acb_Mat(dimen,1)
     cdef Acb_Mat d = Acb_Mat(dimen,1)
@@ -70,7 +71,7 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         acb_mat_cast = x0
         acb_mat_set(x.value, acb_mat_cast.value)
     else:
-        PLU.solve(x,b,low_prec)
+        PLU.solve(x,b,low_prec,imposed_zeros=imposed_zeros)
     if maxiter == None:
         maxiter = 2147483647
 
@@ -80,26 +81,31 @@ cpdef iterative_refinement_arb_wrap(Block_Factored_Mat A, Acb_Mat b, int prec, R
         else:
             iter_prec = prec
         # r = b - A*x
-        mat_vec_mul(r, A, x, iter_prec, is_scaled)
+        mat_vec_mul(r, A, x, iter_prec, is_scaled, imposed_zeros=imposed_zeros)
         sig_on()
         acb_mat_approx_sub(r.value, b.value, r.value, iter_prec)
         sig_off()
         # d = A\r
-        PLU.solve(d,r,low_prec)
+        PLU.solve(d,r,low_prec,imposed_zeros=imposed_zeros)
         # x = x + d
         acb_mat_approx_add(x.value, x.value, d.value, iter_prec)
         #normr = norm(r)
         sig_on()
         acb_mat_approx_norm(normr, r.value, low_prec)
         sig_off()
-        arb_set(rbf_tmp.value,normr)
-        # print(str(i) + ".iteration: " + str(CC(rbf_tmp)))
-        print(str(i) + ", " + str(CC(rbf_tmp)))
+        if i != 0:
+            arb_set(rbf_normr_old.value,rbf_normr.value)
+        arb_set(rbf_normr.value,normr)
+        # print(str(i) + ".iteration: " + str(CC(rbf_normr)))
+        print(str(i) + ", " + str(CC(rbf_normr)))
         # if normr < tol:
         if arb_lt(normr, tol.value) == 1:
             break
         if i == maxiter-1:
             raise ArithmeticError("Maximum amount of iterations reached without sufficient convergence!")
+        if i != 0 and (rbf_normr_old-rbf_normr)/(rbf_normr_old+rbf_normr) < RBF(1e-3):
+            print("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
+            raise ArithmeticError("Convergence is too slow, this probably happens because we cannot impose a Victor Miller normalization on the considered form!")
     
     arb_clear(normr)
     return x
