@@ -268,7 +268,7 @@ def _get_echelon_normalization_from_label(label, multiplicity):
     res[label] = 1
     return res
 
-def get_higher_genera_normalizations(S, is_cuspform):
+def get_higher_genera_normalizations_and_imposed_zeros(S, is_cuspform):
     """
     Get normalizations for all forms in S, where S is an automorphic space of a subgroup with g>0.
     We determine the normalizations by verifying that the forms exist at a low precision.
@@ -280,7 +280,7 @@ def get_higher_genera_normalizations(S, is_cuspform):
         dim = int(G.dimension_modular_forms(S.weight()))
     if dim == 0:
         raise NameError("The space of forms is of dimension zero for this weight!")
-    normalizations = []
+    normalizations_and_imposed_zeros = []
 
     #First determine the form with the highest valuation
     max_valuation = dim
@@ -291,21 +291,21 @@ def get_higher_genera_normalizations(S, is_cuspform):
         for i in range(1,G.ncusps()):
             normalization[i] = []
         if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
-            normalizations.append((normalization,imposed_zeros))
+            normalizations_and_imposed_zeros.append((normalization,imposed_zeros))
             break
         max_valuation += 1
     
     #Now determine the other normalizations
     if max_valuation == dim: #We can just use a Victor Miller basis
-        normalizations = []
+        normalizations_and_imposed_zeros = []
         for label in range(dim):
-            normalizations.append(_get_victor_miller_normalization(S,is_cuspform,label=label))
-        return normalizations
+            normalizations_and_imposed_zeros.append(_get_victor_miller_normalization_and_imposed_zeros(S,is_cuspform,label=label))
+        return normalizations_and_imposed_zeros
 
     zero_coeffs = [max_valuation] #Indices of the coefficients which we normalize to be zero
     d = max_valuation
     j = d-2 #Because we already know that the form with valuation d-1 exists
-    while len(normalizations) < dim:
+    while len(normalizations_and_imposed_zeros) < dim:
         normalization = {}
         for i in range(1,G.ncusps()):
             normalization[i] = []
@@ -316,7 +316,7 @@ def get_higher_genera_normalizations(S, is_cuspform):
         normalization[0] = _get_echelon_normalization_from_label(j,max_valuation)
         if is_normalization_valid(S,normalization,[],is_cuspform):
             zero_coeffs.append(j+1)
-            normalizations.append((normalization,[]))
+            normalizations_and_imposed_zeros.append((normalization,[]))
             j -= 1
             continue
 
@@ -330,17 +330,17 @@ def get_higher_genera_normalizations(S, is_cuspform):
         imposed_zeros.sort()
         if is_normalization_valid(S,normalization,imposed_zeros,is_cuspform):
             zero_coeffs.append(j+1)
-            normalizations.append((normalization,imposed_zeros))
+            normalizations_and_imposed_zeros.append((normalization,imposed_zeros))
             j -= 1
         else:
             d = j
             j -= 1
             if j < 0:
                 raise ArithmeticError("Could not determine normalizations...")
-    if len(normalizations) != dim:
+    if len(normalizations_and_imposed_zeros) != dim:
         raise ArithmeticError("Could not determine normalizations!")
-    normalizations.reverse() #We want the normalizations in increasing order of valuation
-    return normalizations
+    normalizations_and_imposed_zeros.reverse() #We want the normalizations in increasing order of valuation
+    return normalizations_and_imposed_zeros
 
 def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
     """
@@ -371,7 +371,7 @@ def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
         return False
     return True
 
-def _get_victor_miller_normalization(S, is_cuspform, label=0):
+def _get_victor_miller_normalization_and_imposed_zeros(S, is_cuspform, label=0):
     """
     Returns normalization for each cusp. For modforms the first expansion coefficient is c_0, for cuspforms the first expansion coefficient is c_1.
     """
@@ -410,7 +410,7 @@ cpdef get_V_tilde_matrix_b_arb_wrap(S,int M,int Q,Y,int bit_prec,bint is_cuspfor
     G = S.group()
     pb = my_pullback_pts_arb_wrap(S,1-Q,Q,Y,bit_prec)
     cdef int nc = G.ncusps()
-    normalization, _ = _get_victor_miller_normalization(S,is_cuspform)
+    normalization, _ = _get_victor_miller_normalization_and_imposed_zeros(S,is_cuspform)
 
     cdef Acb_Mat V = Acb_Mat(nc*M,nc*M)
     cdef Acb_Mat b = Acb_Mat(nc*M,1)
@@ -660,10 +660,13 @@ cpdef get_coefficients_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,
     sig_off()
     return b.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=False):
+cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,label=0,prec_loss=None,use_FFT=True,use_splitting=False,normalization=None,imposed_zeros=None):
     """ 
     Computes expansion coefficients using GMRES, preconditioned with low_prec LU-decomposition
     """
+    if imposed_zeros != None:
+        if len(imposed_zeros) > 0:
+            raise NotImplementedError("Imposed zeros not implemented for GMRES yet")
     use_scipy_lu = False #For GMRES we cannot use the scipy LU because we need to cast the LU matrix to working precision
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
@@ -682,7 +685,10 @@ cpdef get_coefficients_gmres_cuspform_arb_wrap(S,int digit_prec,Y=0,int M_0=0,in
     cdef Acb_Mat b, res
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,labels=[label])
+    if normalization is None and imposed_zeros is None:
+        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
+
+    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,[normalization],labels=[label])
     b = b_vecs[0]
     tol = RBF(10.0)**(-digit_prec+1)
 
@@ -743,7 +749,7 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
     cdef PLU_Mat plu
 
     if normalization is None and imposed_zeros is None:
-        normalization, imposed_zeros = _get_victor_miller_normalization(S,True,label=label)
+        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
 
     V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,[normalization],labels=[label])
     b = b_vecs[0]
@@ -788,7 +794,7 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
     cdef PLU_Mat plu
 
     if normalization is None and imposed_zeros is None:
-        normalization, imposed_zeros = _get_victor_miller_normalization(S,False,label=label)
+        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
 
     V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,[normalization],labels=[label])
     b = b_vecs[0]
@@ -914,13 +920,37 @@ cpdef get_coefficients_cuspform_ir_restarting_arb_wrap(S,digit_precs,return_M=Fa
     else:
         return res, M_0
 
+def put_labels_into_V_tilde_classes(normalizations, labels):
+    """
+    Put labels into classes of (len(normalization),imposed_zeros) because all labels in the same class require only one V_tilde matrix.
+    """
+    label_classes = {}
+    for i in range(len(labels)):
+        label = labels[i]
+        normalization, imposed_zeros = normalizations[i]
+        if (len(normalization),tuple(imposed_zeros)) in label_classes:
+            label_classes[(len(normalization),tuple(imposed_zeros))].append(label)
+        else:
+            label_classes[(len(normalization),tuple(imposed_zeros))] = [label]
+    return label_classes
+
 cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
+    G = S.group()
+    if labels == None:
+        labels = list(range(G.dimension_cusp_forms(S.weight())))
+    if G.genus() == 0:
+        normalizations_and_imposed_zeros_complete = [_get_victor_miller_normalization_and_imposed_zeros(S,True,label=label) for label in range(G.dimension_cusp_forms(S.weight()))]
+    else:
+        normalizations_and_imposed_zeros_complete = get_higher_genera_normalizations_and_imposed_zeros(S,True)
+    normalizations_and_imposed_zeros = [normalizations_and_imposed_zeros_complete[label] for label in labels]
+    label_classes = put_labels_into_V_tilde_classes(normalizations_and_imposed_zeros_complete,labels)
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
     if M_0 == 0:
         M_0 = get_M_0(S,digit_prec)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
@@ -933,18 +963,28 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
     print("ncusps = ", S.group().ncusps())
     cdef Block_Factored_Mat V
     cdef PLU_Mat plu
+    cdef Acb_Mat res
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,labels=labels)
-    tol = RBF(10.0)**(-digit_prec+1)
+    res_dict = {}
+    for labels in label_classes.values():
+        imposed_zeros = normalizations_and_imposed_zeros_complete[labels[0]][1]
+        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labels]
+        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,True,normalizations,labels=labels)
+        V_dp = V.construct_sc_np()
+        if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
+            V_dp = np.delete(V_dp, imposed_zeros, 0)
+            V_dp = np.delete(V_dp, imposed_zeros, 1)
+        plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,53,use_scipy_lu)
-
-    res_vec = []
-    for i in range(len(b_vecs)):
-        res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu)
-        V.diag_inv_scale_vec(res, res, bit_prec)
-        res_vec.append(res)
+        for i in range(len(b_vecs)):
+            label = labels[i]
+            res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu, imposed_zeros=imposed_zeros)
+            for imposed_zero in imposed_zeros:
+                acb_zero(acb_mat_entry(res.value,imposed_zero,0))
+            V.diag_inv_scale_vec(res, res, bit_prec)
+            res_dict[label] = res
+    
+    res_vec = [res_dict[label] for label in labels]
     
     if return_M_and_labels == False:
         return res_vec
@@ -958,9 +998,19 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
+    G = S.group()
+    if labels == None:
+        labels = list(range(G.dimension_modular_forms(S.weight())))
+    if G.genus() == 0:
+        normalizations_and_imposed_zeros_complete = [_get_victor_miller_normalization_and_imposed_zeros(S,False,label=label) for label in range(G.dimension_modular_forms(S.weight()))]
+    else:
+        normalizations_and_imposed_zeros_complete = get_higher_genera_normalizations_and_imposed_zeros(S,False)
+    normalizations_and_imposed_zeros = [normalizations_and_imposed_zeros_complete[label] for label in labels]
+    label_classes = put_labels_into_V_tilde_classes(normalizations_and_imposed_zeros_complete,labels)
     bit_prec = digits_to_bits(digit_prec)
     RBF = RealBallField(bit_prec)
     CBF = ComplexBallField(bit_prec)
+    tol = RBF(10.0)**(-digit_prec+1)
     if M_0 == 0:
         M_0 = get_M_0(S,digit_prec,is_cuspform=False)
     if float(Y) == 0: #This comparison does not seem to be defined for arb-types...
@@ -974,17 +1024,28 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     cdef Block_Factored_Mat V
     cdef PLU_Mat plu
 
-    V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,labels=labels)
-    tol = RBF(10.0)**(-digit_prec+1)
+    cdef Acb_Mat res
 
-    V_dp = V.construct_sc_np()
-    plu = PLU_Mat(V_dp,53,use_scipy_lu)
+    res_dict = {}
+    for labels in label_classes.values():
+        imposed_zeros = normalizations_and_imposed_zeros_complete[labels[0]][1]
+        normalizations = [normalizations_and_imposed_zeros_complete[label][0] for label in labels]
+        V, b_vecs = get_V_tilde_matrix_factored_b_arb_wrap(S,M_0,Q,Y,bit_prec,use_FFT,use_splitting,False,normalizations,labels=labels)
+        V_dp = V.construct_sc_np()
+        if imposed_zeros != None and len(imposed_zeros) > 0: #Delete the rows and columns corresponding to the imposed zeros
+            V_dp = np.delete(V_dp, imposed_zeros, 0)
+            V_dp = np.delete(V_dp, imposed_zeros, 1)
+        plu = PLU_Mat(V_dp,53,use_scipy_lu)
 
-    res_vec = []
-    for i in range(len(b_vecs)):
-        res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu)
-        V.diag_inv_scale_vec(res, res, bit_prec)
-        res_vec.append(res)
+        for i in range(len(b_vecs)):
+            label = labels[i]
+            res = iterative_refinement_arb_wrap(V, b_vecs[i], bit_prec, tol, plu, imposed_zeros=imposed_zeros)
+            for imposed_zero in imposed_zeros:
+                acb_zero(acb_mat_entry(res.value,imposed_zero,0))
+            V.diag_inv_scale_vec(res, res, bit_prec)
+            res_dict[label] = res
+    
+    res_vec = [res_dict[label] for label in labels]
 
     if return_M_and_labels == False:
         return res_vec

@@ -27,7 +27,7 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from point_matching.point_matching_arb_wrap import (
     get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap,
-    digits_to_bits, bits_to_digits, _get_victor_miller_normalization, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
+    digits_to_bits, bits_to_digits, _get_victor_miller_normalization_and_imposed_zeros, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
 )
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v, convert_from_Kv_to_Kw
 from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
@@ -37,7 +37,7 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
     Computes q-expansion of cuspform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 1
-    normalization = _get_victor_miller_normalization(S,True,label=label)
+    normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
     if c_vec == None: #We compute c_vec from scratch
         c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
@@ -54,7 +54,7 @@ def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=Non
     Computes q-expansion of modform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 0
-    normalization = _get_victor_miller_normalization(S,False,label=label)
+    normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
     if c_vec == None: #We compute c_vec from scratch
         c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
@@ -91,7 +91,7 @@ def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None)
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization = _get_victor_miller_normalization(S,True,label=labels[i])
+        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
@@ -108,7 +108,7 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization = _get_victor_miller_normalization(S,False,label=labels[i])
+        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=labels[i])
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
