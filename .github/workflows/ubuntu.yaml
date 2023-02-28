@@ -1,0 +1,29 @@
+name: CI ubuntu
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # allow manual triggering
+
+jobs:
+  local-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        os: [ ubuntu-latest ]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install sage
+        run: sudo apt install sagemath
+      - name: Compile code
+        run: sage setup.py develop
+      - name: Go to unit tests
+        run: cd unit_tests
+      - name: Run unit tests
+        run: sage unit_tests.sage
