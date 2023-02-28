@@ -10,7 +10,7 @@ on:
   workflow_dispatch: # allow manual triggering
 
 jobs:
-  local-macos:
+  macos-CI:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

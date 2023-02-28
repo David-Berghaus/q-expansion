@@ -10,7 +10,7 @@ on:
   workflow_dispatch: # allow manual triggering
 
 jobs:
-  local-macos:
+  ubuntu-CI:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,7 +22,7 @@ jobs:
       - name: Install sage
         run: sudo apt install sagemath
       - name: Compile code
-        run: sage setup.py develop
+        run: sudo sage setup.py develop
       - name: Go to unit tests
         run: cd unit_tests
       - name: Run unit tests
