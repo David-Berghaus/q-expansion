@@ -23,7 +23,6 @@ jobs:
         run: sudo apt install sagemath
       - name: Compile code
         run: sudo sage setup.py develop
-      - name: Go to unit tests
-        run: cd unit_tests
       - name: Run unit tests
+        working-directory: ./unit_tests
         run: sage unit_tests.sage
