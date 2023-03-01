@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install sage
-        run: brew install --build-from-source ./sage.rb
+        run: brew install --build-from-source --force ./sage.rb
       - name: Compile code
         run: sage setup.py develop
       - name: Run unit tests
