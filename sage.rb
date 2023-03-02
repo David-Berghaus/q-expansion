@@ -3,11 +3,11 @@
 cask "sage" do
   arch arm: "arm64", intel: "x86_64"
 
-  version "9.4"
+  version "9.2"
   sha256 arm:   "faae6f5c251c03e66ad70c58e61ae2f3d5f3894a133bd0b2b04f05ad230b8c91",
          intel: "70f315b7a47d95b45fe8902838fbe6dd3cfdfe4eb761dba2df644092d640cf68"
 
-  url "https://github.com/3-manifolds/Sage_macOS/releases/download/v1.2/SageMath-9.4.dmg",
+  url "https://github.com/3-manifolds/Sage_macOS/releases/tag/v1.0",
       verified: "github.com/3-manifolds/Sage_macOS/"
   name "Sage"
   desc "Mathematics software system"
