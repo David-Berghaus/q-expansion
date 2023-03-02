@@ -3,9 +3,9 @@
 cask "sage" do
   arch arm: "arm64", intel: "x86_64"
 
-  version "9.2"
+  version "9.3"
 
-  url "https://github.com/3-manifolds/Sage_macOS/releases/tag/v1.0",
+  url "https://github.com/3-manifolds/Sage_macOS/releases/tag/v1.1",
       verified: "github.com/3-manifolds/Sage_macOS/"
   name "Sage"
   desc "Mathematics software system"
