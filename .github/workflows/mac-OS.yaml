@@ -20,9 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install sage
-        run: brew install --build-from-source --force ./sage.rb
-      - name: Install ECL
-        run: brew install ecl
+        # run: brew install --build-from-source --force ./sage.rb
+        run: brew install --cask sage
       - name: Compile code
         run: sage setup.py develop
       - name: Run unit tests
