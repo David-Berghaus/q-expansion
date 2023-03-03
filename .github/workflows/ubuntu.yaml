@@ -38,16 +38,13 @@ jobs:
           cat environment.test.yml
           mamba env update --quiet -n test -f environment.test.yml
           conda list
-      - name: Conda activate
+      - name: Compile and test code
         shell: bash -l {0}
-        run: conda activate test
-      - name: Compile Code
-        shell: bash -l {0}
-        run: sudo sage setup.py develop
-      - name: Run unit tests
-        shell: bash -l {0}
-        working-directory: ./unit_tests
-        run: sage unit_tests.sage
+        run: |
+          conda activate test
+          sudo sage setup.py develop
+          cd unit_tests
+          sage unit_tests.sage
     env:
       MAKEFLAGS: -j2
       SAGE_NUM_THREADS: 2
