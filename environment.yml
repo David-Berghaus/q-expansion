@@ -8,3 +8,6 @@ dependencies:
   - scipy
   - gap-defaults
   - sagelib
+  - pip
+  - pip:
+    - pkgconfig
