@@ -2,7 +2,12 @@
 
 name: CI macOS
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   macOS-CI:
@@ -37,6 +42,9 @@ jobs:
       - name: Conda activate
         shell: bash -l {0}
         run: conda activate test
+      - name: Install pkgconfig
+        shell: bash -l {0}
+        run: pip install pkgconfig
       - name: Compile Code
         shell: bash -l {0}
         run: sage setup.py develop
