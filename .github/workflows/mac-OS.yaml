@@ -44,7 +44,7 @@ jobs:
         run: conda activate test
       - name: Install pkgconfig
         shell: bash -l {0}
-        run: pip install pkgconfig
+        run: sage -pip install pkgconfig
       - name: Compile Code
         shell: bash -l {0}
         run: sage setup.py develop
