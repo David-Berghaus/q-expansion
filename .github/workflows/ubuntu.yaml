@@ -40,7 +40,7 @@ jobs:
           conda list
       - name: Conda activate
         shell: bash -l {0}
-        run: source activate test
+        run: source test/bin/activate
       - name: Compile Code
         shell: bash -l {0}
         run: sudo sage setup.py develop
