@@ -45,6 +45,9 @@ jobs:
       - name: Install pkgconfig
         shell: bash -l {0}
         run: sage -pip install pkgconfig
+      - name: Install BLAS
+        shell: bash -l {0}
+        run: brew install openblas
       - name: Compile Code
         shell: bash -l {0}
         run: sage setup.py develop
