@@ -4,6 +4,10 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
+try:
+    import sage.env
+except ImportError:
+    raise ValueError("SageMath not found.")
 
 Cython.Compiler.Options.annotate = False #Set to "True" if html should be created that highlights python parts
 
