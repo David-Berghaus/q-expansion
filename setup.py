@@ -4,9 +4,6 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
-import numpy
-
-from sage.env import cython_aliases
 
 Cython.Compiler.Options.annotate = False #Set to "True" if html should be created that highlights python parts
 
@@ -40,8 +37,16 @@ extensions = [
     Extension("psage.rings.mp_cimports", ["psage/rings/mp_cimports.pyx"]),
 ]
 
+
+try:
+    from sage.misc.package_dir import cython_namespace_package_support
+    with cython_namespace_package_support():
+        extensions = cythonize(extensions,aliases=sage.env.cython_aliases())
+except ImportError:
+    extensions = cythonize(extensions,aliases=sage.env.cython_aliases())
+
 setup(
-    ext_modules = cythonize(extensions,aliases=cython_aliases()),
-    include_dirs=[numpy.get_include()],
+    ext_modules = extensions,
+    include_dirs = sage.env.sage_include_directories(),
     zip_safe = False,
 )
