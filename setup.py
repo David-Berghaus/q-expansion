@@ -6,8 +6,15 @@ from Cython.Build import cythonize
 import Cython.Compiler.Options
 try:
     import sage.env
-except ImportError:
-    raise ValueError("SageMath not found.")
+    sage.env.SAGE_SRC = os.getcwd()
+    from sage.env import *
+
+    sys.excepthook = excepthook
+
+    from sage_setup.setenv import setenv
+    setenv()
+except:
+    raise ValueError("SageMath not configured properly.")
 
 Cython.Compiler.Options.annotate = False #Set to "True" if html should be created that highlights python parts
 
@@ -41,16 +48,8 @@ extensions = [
     Extension("psage.rings.mp_cimports", ["psage/rings/mp_cimports.pyx"]),
 ]
 
-
-try:
-    from sage.misc.package_dir import cython_namespace_package_support
-    with cython_namespace_package_support():
-        extensions = cythonize(extensions,aliases=sage.env.cython_aliases())
-except ImportError:
-    extensions = cythonize(extensions,aliases=sage.env.cython_aliases())
-
 setup(
-    ext_modules = extensions,
+    ext_modules = cythonize(extensions,aliases=sage.env.cython_aliases()),
     include_dirs = sage.env.sage_include_directories(),
     zip_safe = False,
 )
