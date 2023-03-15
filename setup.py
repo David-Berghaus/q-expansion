@@ -4,6 +4,7 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
+import os, sys
 try:
     import sage.env
     sage.env.SAGE_SRC = os.getcwd()
