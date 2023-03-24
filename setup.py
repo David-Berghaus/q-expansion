@@ -4,18 +4,9 @@
 from setuptools import setup, Extension
 from Cython.Build import cythonize
 import Cython.Compiler.Options
-import os, sys
-try:
-    import sage.env
-    sage.env.SAGE_SRC = os.getcwd()
-    from sage.env import *
+import numpy
 
-    sys.excepthook = excepthook
-
-    from sage_setup.setenv import setenv
-    setenv()
-except:
-    raise ValueError("SageMath not configured properly.")
+from sage.env import cython_aliases
 
 Cython.Compiler.Options.annotate = False #Set to "True" if html should be created that highlights python parts
 
@@ -50,7 +41,7 @@ extensions = [
 ]
 
 setup(
-    ext_modules = cythonize(extensions,aliases=sage.env.cython_aliases()),
-    include_dirs = sage.env.sage_include_directories(),
+    ext_modules = cythonize(extensions,aliases=cython_aliases()),
+    include_dirs=[numpy.get_include()],
     zip_safe = False,
 )
