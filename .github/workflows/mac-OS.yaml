@@ -1,0 +1,63 @@
+#Inspired by: https://github.com/flatsurf/surface-dynamics/blob/master/.github/workflows/test.yml
+
+name: CI macOS
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macOS-CI:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        # os: [ macos-11, macos-12 ]
+        os: [macos-12]
+        include:
+          - optionals: "sage"
+            sagelib: "9.4"
+    steps:
+      - uses: actions/checkout@v2
+        with: { submodules: recursive }
+      - uses: conda-incubator/setup-miniconda@v2
+        with: { miniforge-variant: "Mambaforge", miniforge-version: "latest" }
+      - name: Install dependencies
+        shell: bash -l {0}
+        run: |
+          mamba install -n test sagelib=${{ matrix.sagelib }}
+          echo "sagelib ==${{ matrix.sagelib }}" >> $CONDA_PREFIX/conda-meta/pinned
+          while read; do
+            optional=$(echo "$REPLY" | grep -o '# optional: [^ ]*' | awk '{ print $3; }') || true
+            (test "$optional" == '' || (echo "${{ matrix.optionals }}" | grep -E '\b'"$optional"'\b') > /dev/null) && echo "$REPLY" || true
+          done < environment.yml > environment.test.yml
+          echo "Installing the following test environment"
+          cat environment.test.yml
+          mamba env update --quiet -n test -f environment.test.yml
+          conda list
+      - name: Conda activate
+        shell: bash -l {0}
+        run: conda activate test
+      - name: Install pkgconfig
+        shell: bash -l {0}
+        run: sage -pip install pkgconfig
+      - name: Install BLAS
+        shell: bash -l {0}
+        run: brew install openblas
+      - name: Some PkgConfig Command
+        shell: bash -l {0}
+        run: ln -s /usr/local/opt/openblas/lib/pkgconfig/openblas.pc  /usr/local/lib/pkgconfig/openblas.pc
+      - name: Compile Code
+        shell: bash -l {0}
+        run: sage setup.py develop
+      - name: Run unit tests
+        shell: bash -l {0}
+        working-directory: ./unit_tests
+        run: sage unit_tests.sage
+    env:
+      MAKEFLAGS: -j2
+      SAGE_NUM_THREADS: 2

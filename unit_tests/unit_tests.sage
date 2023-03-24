@@ -18,3 +18,5 @@ def run_unit_tests():
     run_unit_tests_eisenstein()
     run_unit_tests_belyi_map()
     run_unit_tests_passports()
+
+run_unit_tests()

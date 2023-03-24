@@ -1,0 +1,10 @@
+name: q-expansion
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - c-compiler
+  - cxx-compiler
+  - scipy
+  - gap-defaults
+  - sagelib
