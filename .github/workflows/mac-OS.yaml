@@ -51,6 +51,9 @@ jobs:
       - name: Compile Code
         shell: bash -l {0}
         run: sage setup.py develop
+      - name: Some PkgConfig Command
+        shell: bash -l {0}
+        run: ln -s /usr/local/lib/pkgconfig/openblas.pc /usr/local/opt/openblas/lib/pkgconfig/openblas.pc
       - name: Run unit tests
         shell: bash -l {0}
         working-directory: ./unit_tests
