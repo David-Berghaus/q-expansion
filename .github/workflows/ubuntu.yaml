@@ -1,0 +1,26 @@
+name: CI Ubuntu
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  Ubuntu-CI:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-20.04, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install sage
+        run: sudo apt install sagemath
+      - name: Compile code
+        run: sudo sage setup.py develop
+      - name: Run unit tests
+        working-directory: ./unit_tests
+        run: sage unit_tests.sage
