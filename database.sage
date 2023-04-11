@@ -105,7 +105,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
     """
     if not os.path.exists(file):
         header1 = "genus|psl2z_index|n_c|n_e2|n_e3|cusp_widths|permS|permR|permT|label|monodromy_group|K|v_L|belyi_map|elliptic_curve|hyperelliptic_curve|friends|passport_reps|L|passport_embeddings|is_congruence"
-        header2 = "int|int|int|int|int|int[]|text|text|text|text|text|text|text|text|text|text|text[]|text[]|numeric[]|double precision[]|bool"
+        header2 = "integer|integer|integer|integer|integer|integer[]|text|text|text|text|text|text|text|text|text|text|text[]|text[]|numeric[]|double precision[]|boolean"
         with open(file, "a") as f:
             f.write(header1 + "\n")
             f.write(header2 + "\n")
@@ -118,7 +118,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
         f.write(str(G.ncusps()) + "|")
         f.write(str(G.nu2()) + "|")
         f.write(str(G.nu3()) + "|")
-        f.write(str(G.cusp_widths()) + "|")
+        f.write("{" + str(G.cusp_widths())[1:-1] + "}|")
         f.write(str(G.S2()) + "|")
         f.write(str(G.S3()) + "|")
         f.write(str(G.S2()*G.S3()) + "|")
@@ -129,21 +129,21 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
         f.write(str(passport_data["v_L"]) + "|")
         if G.genus() == 0:
             f.write(str(passport_data["curve"]) + "|") #To Do: Print in pretty form
-            f.write('' + "|")
-            f.write('' + "|")
+            f.write('\\N' + "|")
+            f.write('\\N' + "|")
         elif G.genus() == 1:
-            f.write('' + "|")
+            f.write('\\N' + "|")
             f.write(str(passport_data["curve"]) + "|")
-            f.write('' + "|")
+            f.write('\\N' + "|")
         else:
-            f.write('' + "|")
-            f.write('' + "|")
+            f.write('\\N' + "|")
+            f.write('\\N' + "|")
             f.write(str(passport_data["curve"]) + "|")
         f.write(str(get_belyi_friend(G,monodromy_group_label,passport_data["K"])) + "|")
-        f.write(str(list(passport_data["embeddings"].keys())) + "|")
-        f.write(str(list(passport_data["L"].polynomial())) + "|")
-        f.write(str([complex_number_to_doubles(embedding) for embedding in passport_data["embeddings"].values()]) + "|")
-        f.write(str(passport_data["is_congruence"]))
+        f.write("{{" + ','.join(["{" + str(embedding)[1:-1] + "}" for embedding in passport_data["embeddings"].keys()])[1:-1] + "}}|") #We use ".join" in order not to print the quotes
+        f.write("{" + str(list(passport_data["L"].polynomial()))[1:-1] + "}|")
+        f.write("{" + ','.join(["{" + str(complex_number_to_doubles(embedding))[1:-1] + "}" for embedding in passport_data["embeddings"].values()])[1:-1] + "}|")
+        f.write("t" if passport_data["is_congruence"] else "f")
         f.write("\n")
         
 def get_monodromy_group_label(G):
@@ -186,7 +186,7 @@ def get_belyi_friend(G, monodromy_group_label, K): #NOT WORKING YET!
             return data["data"][0]["label"]
         except:
             print("Belyi friend not found in the LMFDB!")
-    return "" #If the Belyi friend is not in the LMFDB, we return the empty string
+    return "\\N" #If the Belyi friend is not in the LMFDB, we return the empty string
 
 def complex_number_to_doubles(z):
     return [float(z.real()), float(z.imag())]
@@ -197,7 +197,7 @@ def space_to_LMFDB_txt(passport_data, label, weight, modform_type, file="spaces.
     """
     if not os.path.exists(file):
         header1 = "dim|weight|label|mf_curve"
-        header2 = "int|int|text|text"
+        header2 = "integer|integer|text|text"
         with open(file, "a") as f:
             f.write(header1 + "\n")
             f.write(header2 + "\n")
@@ -222,7 +222,7 @@ def form_to_LMFDB_txt(passport_data, label, weight, modform_type, modform_pos, f
     """
     if not os.path.exists(file):
         header1 = "weight|cusp_width|valuation|label|K|u_str|mf_space|u|v|coefficient_numerators|coefficient_denominators"
-        header2 = "int|int|int|text|text|text|text|double precision[]|double precision[]|numeric[]|numeric[]"
+        header2 = "integer|integer|integer|text|text|text|text|double precision[]|double precision[]|numeric[]|numeric[]"
         with open(file, "a") as f:
             f.write(header1 + "\n")
             f.write(header2 + "\n")
@@ -243,11 +243,11 @@ def form_to_LMFDB_txt(passport_data, label, weight, modform_type, modform_pos, f
         f.write(get_number_field_LMFDB_label(passport_data["K"]) + "|")
         f.write(passport_data["u_str"] + "|")
         f.write(label + "." + str(weight) + "." + modform_type + "|")
-        f.write(str(complex_number_to_doubles(passport_data["u"])) + "|")
-        f.write(str(complex_number_to_doubles(passport_data["v"])) + "|")
+        f.write("{" + str(complex_number_to_doubles(passport_data["u"]))[1:-1] + "}|")
+        f.write("{" + str(complex_number_to_doubles(passport_data["v"]))[1:-1] + "}|")
         numerators, denominators = get_numerators_and_denominators(form)
-        f.write(str(numerators) + "|")
-        f.write(str(denominators))
+        f.write("{{" + ','.join(["{" + str(numerator)[1:-1] + "}" for numerator in numerators])[1:-1] + "}}|")
+        f.write("{{" + ','.join(["{" + str(denominators)[1:-1] + "}" for denominator in denominators])[1:-1] + "}}|")
         f.write("\n")
 
 def get_numerators_and_denominators_of_expression_in_K(x):

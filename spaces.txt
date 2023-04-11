@@ -1,5 +1,5 @@
 dim|weight|label|mf_curve
-int|int|text|text
+integer|integer|text|text
 
 1|0|7.0.2.1.1.0.a.0.H|7.0.2.1.1.0.a
 1|2|7.0.2.1.1.0.a.2.M|7.0.2.1.1.0.a
