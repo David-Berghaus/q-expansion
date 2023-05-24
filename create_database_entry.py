@@ -26,6 +26,18 @@ def get_passport_list(genus):
     else:
         raise NotImplementedError("This case has not been implemented yet!")
 
+def get_entry_name(G):
+    gap_label = str(G.index()) + "T" + str(libgap.TransitiveIdentification(G.perm_group()))
+    return gap_label + "-" + get_lambda(G.permT) + "_" + get_lambda(G.permR) + "_" + get_lambda(G.permS)
+
+def get_lambda(perm):
+    cycle_type = perm.cycle_type()
+    cycle_type.sort(reverse=True)
+    res = ""
+    for i in cycle_type:
+        res += str(i) + "."
+    return res[:-1]
+
 def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_weight, rigorous_trunc_order=None):
     print(f"Computing passport of index {passport_index} and genus {genus} to {eisenstein_digit_prec} digits precision up to weight {max_weight}.")
     passport_list = get_passport_list(genus)
@@ -35,17 +47,17 @@ def compute_database_entry(passport_index, genus, eisenstein_digit_prec, max_wei
     Path(storage_path).mkdir(parents=True, exist_ok=True) #Check if path exists, if not, create it
     if genus == 0 and rigorous_trunc_order == None:
         rigorous_trunc_order = int(1000/(len(passport)+G.cusp_width(Cusp(1,0)))+50) #Heuristic choice that runs in reasonable amount of CPU time
-    entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(passport_index,passport_list))
+    entry_name = get_entry_name(G)
     unresolved_passport_path = os.path.join(storage_path,entry_name+"_unresolved_passport.sobj") #Path were we store unresolved passport elements in case the passport decays
     if os.path.exists(unresolved_passport_path) == True:
         passport = load(unresolved_passport_path)
         G = passport[0]
         for letter in ascii_lowercase[1:]:
-            if os.path.exists(os.path.join(storage_path,entry_name+"_"+letter+".sobj")) == False:
-                entry_name += "_"+letter
+            if os.path.exists(os.path.join(storage_path,entry_name+"-"+letter+".sobj")) == False:
+                entry_name += "-"+letter
                 break
     else:
-        entry_name += "_a"
+        entry_name += "-a"
         if os.path.exists(os.path.join(storage_path,entry_name+".sobj")) == True: #Computation is finished
             return
     print(f"We are now computing the passport of label {entry_name}.")

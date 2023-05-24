@@ -22,7 +22,22 @@ def load_entry(database_path, entry_name, load_floating_expansions=False):
     """
     Given an entry_name (as a string), load data attached to this entry.
     """
-    index, genus = entry_name.split('_')[0], entry_name.split('_')[1]
+    index = ""
+    for i in entry_name:
+        if i == "T":
+            break
+        index += i
+
+    #Determine genus (we could in principle also compute it using the formula)
+    #Search for all folders in database_path/index and see where the entry exists
+    genus = None
+    for folder in os.listdir(os.path.join(database_path,index)):
+        if isfile(os.path.join(database_path,index,folder,entry_name+".sobj")):
+            genus = folder
+            break
+    if genus == None:
+        raise ValueError("Could not find entry in database!")
+
     storage_path = os.path.join(database_path,index,genus)
     file_path = storage_path + "/" + entry_name + ".sobj"
     passport = load(file_path)
@@ -31,6 +46,18 @@ def load_entry(database_path, entry_name, load_floating_expansions=False):
     else:
         file_path = storage_path + "/" + entry_name + "_floating_expansions.sobj"
         return passport, load(file_path)
+
+def get_entry_name(G): #We have to copy this function here to avoid circular imports
+    gap_label = str(G.index()) + "T" + str(libgap.TransitiveIdentification(G.perm_group()))
+    return gap_label + "-" + get_lambda(G.permT) + "_" + get_lambda(G.permR) + "_" + get_lambda(G.permS)
+
+def get_lambda(perm):
+    cycle_type = perm.cycle_type()
+    cycle_type.sort(reverse=True)
+    res = ""
+    for i in cycle_type:
+        res += str(i) + "."
+    return res[:-1]
 
 def load_database(database_path, index=None, genus=None, Kv_degree=None, load_floating_expansions=False):
     """
@@ -62,8 +89,9 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None, load_fl
         G = passport_list[i][0]
         if index == None or G.index() in index:
             if genus == None or G.genus() in genus:
+                entry_name_no_orbit = get_entry_name(G)
                 for letter in ascii_lowercase:
-                    entry_name = get_signature_to_underscore(G.signature()) + "_" + str(get_signature_pos(i,passport_list)) + "_" + letter
+                    entry_name = entry_name_no_orbit + "-" + letter
                     storage_path = os.path.join(database_path,str(G.index()),str(G.genus()))
                     file_path = storage_path + "/" + entry_name + ".sobj"
                     if isfile(file_path) == True:
