@@ -10,6 +10,7 @@ run.sage
 run_benchmark.py
 setup.py
 subgroups.sage
+.github/workflows/ubuntu.yaml
 UNKNOWN.egg-info/PKG-INFO
 UNKNOWN.egg-info/PKG-INFO (1)
 UNKNOWN.egg-info/SOURCES (1).txt
@@ -120,6 +121,7 @@ pullback/__init__.py
 pullback/my_pullback.c
 pullback/my_pullback.pxd
 pullback/my_pullback.pyx
+unit_tests/run_unit_tests.sage
 unit_tests/unit_tests.sage
 unit_tests/unit_tests_belyi_map.sage
 unit_tests/unit_tests_eisenstein.sage

@@ -17,6 +17,8 @@ jobs:
         os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v3
+      - name: Update packages
+        run: sudo apt-get -yq update
       - name: Install sage
         run: sudo apt install sagemath
       - name: Compile code
