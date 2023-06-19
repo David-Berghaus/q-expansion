@@ -342,6 +342,46 @@ def print_pending_passports(genus, database_path, max_passport_index=None):
                 print(i)
                 break
 
+def print_K_polynomials_latex(db_path):
+    """
+    Prints the polynomials of all number fields in the database in a latex table.
+    """
+    for index in range(2,18):
+        curr_path = db_path + "/" + str(index)
+        curr_els = []
+        for genus in [0,1]:
+            if os.path.isdir(curr_path + f"/{genus}"):
+                #Find all files ending with .sage
+                for file in os.listdir(curr_path + f"/{genus}"):
+                    if file.endswith(".sage"):
+                        #Open the file
+                        with open(curr_path + f"/{genus}/" + file, "r") as f:
+                            #Read the file
+                            data = f.readlines()
+                            if data[37][-3] == "u": #True -> congruence subgroup
+                                continue
+                            with open("dummy.sage", "w") as f2: #Very ugly but sage_eval(x = ...) does not work
+                                f2.write("P.<v> = PolynomialRing(QQ)\n")
+                                f2.write(data[41])
+                            load("dummy.sage")
+                            if K.degree() == 1:
+                                K_latex = "\\QQ"
+                            else:
+                                K_latex = latex(K.polynomial())
+                            #Get file name which is the name after the last / before .sage
+                            name = file.split("/")[-1][:-5]
+                            name = name.replace("_","\_")
+                            curr_els.append((name, K_latex))
+        curr_els.sort(key=lambda x: x[0])
+        print("")
+        print("\\section{$\\mu$ = " + str(index) + "}")
+        print("\\begin{longtable}{|c|c|}") 
+        print("\\hline")
+        for (name, K_latex) in curr_els:
+            print("\\emph{" + name + "} & $ " + K_latex + "$ \\\\")
+        print("\\hline")
+        print("\\end{longtable}")
+
 def print_missing_passports(genus, database_path, max_orbit_size, max_passport_index=None):
     """
     Print indicies of all passports up to max_passport_index that have not been computed yet (and are also not pending).
