@@ -11,6 +11,7 @@
 Routines for loading and working database entries
 """
 
+import itertools
 import os
 from os.path import isfile
 import re
@@ -182,6 +183,8 @@ def get_number_field_LMFDB_label(K):
     """
     Call the lmfdb API to get the label of the number field K.
     """
+    if K.degree() == 1:
+        return "1.1.1.1"
     query = "https://www.lmfdb.org/api/nf_fields/?coeffs=li"
     for coeff in list(K.polynomial()):
         query += str(coeff) + ","
@@ -196,25 +199,27 @@ def get_number_field_LMFDB_label(K):
             print("Number field not found in the LMFDB!")
     return list(K.polynomial()) #If the number field is not in the LMFDB, we return the polynomial
 
-def get_belyi_friend(G, monodromy_group_label, K): #NOT WORKING YET!
-    """
-    Given a subgroup G, return the LMFDB Belyi friend if it exists.
-    """
-    lambda_2 = G.S2().cycle_type()
-    lambda_3 = G.S3().cycle_type()
-    lambda_T = (G.S2()*G.S3()).cycle_type()
-    query = "https://beta.lmfdb.org/api/belyi_galmaps/?group=" + monodromy_group_label + "&lambdas=li" + str(lambda_2)[1:-1] + "," + str(lambda_3)[1:-1] + "," + str(lambda_T)[1:-1]
-    query += "&base_field=li" + str(list(K.polynomial()))[1:-1] + "&_format=json"
-    #!!! THIS SHOULD NOT IN GENERAL BE SUFFICIENT TO IDENTIFY THE BELYI MAP UNIQUELY !!!
+#Dont forget to run export PYTHONPATH=${PYTHONPATH}:<path to lmfdb> in the terminal in advance
+def get_belyi_friend(passport_data, lmfdb_path):
+    from lmfdb import db
+    belyi_galmaps = db.belyi_galmaps
 
-    response = requests.get(query)
-    if response.status_code == 200:
-        data = response.json()
-        try:
-            return data["data"][0]["label"]
-        except:
-            print("Belyi friend not found in the LMFDB!")
-    return "\\N" #If the Belyi friend is not in the LMFDB, we return the empty string
+    G = passport_data["G"]
+    P = G.perm_group()
+    mu = int(G.index())
+    [a_s, b_s, c_s] = sorted([int(G.S2().order()),int(G.S3().order()),int((G.S2()*G.S3()).order())])
+    if K.degree() == 1:
+        base_field = list(map(lambda x: int(x),[-1,1]))
+    else:
+        base_field = list(map(lambda x: int(x),list(passport_data["K"].polynomial())))
+    for [a,b,c] in itertools.permutations([a_s, b_s, c_s]): #BelyiDB doesn't have this canonical atm so we have to check all permutations
+        for belyi_map in belyi_galmaps.search({'a_s': a, 'b_s': b, 'c_s': c, 'base_field': base_field, 'deg': mu}, projection=['label','triples']):
+            for triple in belyi_map['triples']:
+                P_belyi = PermutationGroup([Permutation(triple[2]), Permutation(triple[1])])
+                conj = libgap.RepresentativeAction(gap(f"SymmetricGroup({mu})"), gap(P), gap(P_belyi)) #Check for conjugacy, see: https://ask.sagemath.org/question/44357/determining-if-two-subgroups-of-a-symmetric-group-are-conjugate/?answer=47983#post-id-47983
+                if conj != gap("fail"):
+                    return belyi_map['label']
+    return "\\N" 
 
 def complex_number_to_doubles(z):
     return [float(z.real()), float(z.imag())]
