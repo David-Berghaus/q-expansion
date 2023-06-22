@@ -342,7 +342,7 @@ def print_pending_passports(genus, database_path, max_passport_index=None):
                 print(i)
                 break
 
-def print_K_polynomials_latex(db_path):
+def print_K_polynomials_latex(db_path, only_noncongruence_subgroups=False):
     """
     Prints the polynomials of all number fields in the database in a latex table.
     """
@@ -358,7 +358,7 @@ def print_K_polynomials_latex(db_path):
                         with open(curr_path + f"/{genus}/" + file, "r") as f:
                             #Read the file
                             data = f.readlines()
-                            if data[37][-3] == "u": #True -> congruence subgroup
+                            if only_noncongruence_subgroups and data[37][-3] == "u": #True -> congruence subgroup
                                 continue
                             with open("dummy.sage", "w") as f2: #Very ugly but sage_eval(x = ...) does not work
                                 f2.write("P.<v> = PolynomialRing(QQ)\n")
@@ -381,6 +381,29 @@ def print_K_polynomials_latex(db_path):
             print("\\emph{" + name + "} & $ " + K_latex + "$ \\\\")
         print("\\hline")
         print("\\end{longtable}")
+
+def get_paths_of_all_labels(db_path, only_noncongruence_subgroups=False):
+    """
+    Get list of paths of all labels in the database.
+    """
+    paths = []
+    for index in range(2,18):
+        curr_path = db_path + "/" + str(index)
+        for genus in [0,1]:
+            if os.path.isdir(curr_path + f"/{genus}"):
+                #Find all files ending with .sage
+                for file in os.listdir(curr_path + f"/{genus}"):
+                    if file.endswith(".sage"):
+                        #Open the file
+                        with open(curr_path + f"/{genus}/" + file, "r") as f:
+                            #Read the file
+                            if only_noncongruence_subgroups:
+                                data = f.readlines()
+                                if data[37][-3] == "u": #True -> congruence subgroup
+                                    continue
+                            path = curr_path + f"/{genus}/" + file
+                            paths.append(path[:-5]) #Remove .sage
+    return paths
 
 def print_missing_passports(genus, database_path, max_orbit_size, max_passport_index=None):
     """
