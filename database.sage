@@ -155,7 +155,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
         monodromy_group_label = get_monodromy_group_label(G)
         f.write(monodromy_group_label + "|")
         f.write(str(get_number_field_LMFDB_label(passport_data["K"])) + "|")
-        f.write(str(passport_data["v_L"]) + "|")
+        f.write(str(passport_data["v"]) + "|")
         if G.genus() == 0:
             f.write(str(passport_data["curve"]) + "|") #To Do: Print in pretty form
             f.write('\\N' + "|")
@@ -168,7 +168,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
             f.write('\\N' + "|")
             f.write('\\N' + "|")
             f.write(str(passport_data["curve"]) + "|")
-        f.write(str(get_belyi_friend(G,monodromy_group_label,passport_data["K"])) + "|")
+        f.write(str(get_belyi_friend(passport_data)) + "|")
         f.write("{{" + ','.join(["{" + str(embedding)[1:-1] + "}" for embedding in passport_data["embeddings"].keys()])[1:-1] + "}}|") #We use ".join" in order not to print the quotes
         f.write("{" + str(list(passport_data["L"].polynomial()))[1:-1] + "}|")
         f.write("{" + ','.join(["{" + str(complex_number_to_doubles(embedding))[1:-1] + "}" for embedding in passport_data["embeddings"].values()])[1:-1] + "}|")
@@ -199,8 +199,25 @@ def get_number_field_LMFDB_label(K):
             print("Number field not found in the LMFDB!")
     return list(K.polynomial()) #If the number field is not in the LMFDB, we return the polynomial
 
-#Dont forget to run export PYTHONPATH=${PYTHONPATH}:<path to lmfdb> in the terminal in advance
-def get_belyi_friend(passport_data, lmfdb_path):
+def get_elliptic_curve_LMFDB_label(E, K):
+    if K.degree() != 1:
+        return "\\N" #We only search for elliptic curves over Q for now
+    query = "https://www.lmfdb.org/api/ec_curvedata/?ainvs=li"
+    for a_inv in E.a_invariants():
+        query += str(a_inv) + ","
+    query = query[:-1] + "&_format=json"
+
+    response = requests.get(query)
+    if response.status_code == 200:
+        data = response.json()
+        try:
+            return data["data"][0]["lmfdb_label"]
+        except:
+            print("Elliptic curve not found in the LMFDB!")
+    return "\\N" #If the elliptic curve is not in the LMFDB, we return NULL
+
+#Dont forget to run 'export PYTHONPATH=${PYTHONPATH}:<path to lmfdb>' in the terminal in advance
+def get_belyi_friend(passport_data):
     from lmfdb import db
     belyi_galmaps = db.belyi_galmaps
 
