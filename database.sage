@@ -330,7 +330,7 @@ def get_numerators_and_denominators_of_expression_in_K(x):
         x *= x[i].denominator()
     return denominator, list(x)
 
-def get_numerators_and_denominators(form, u_QQbar):
+def get_numerators_and_denominators(form):
     numerators, denominators = [], []
     for (i,coeff) in enumerate(list(form)):
         if coeff[i] == 0:
