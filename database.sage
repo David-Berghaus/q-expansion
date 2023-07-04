@@ -163,12 +163,12 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
             f.write('\\N' + "|")
         elif G.genus() == 1:
             f.write('\\N' + "|")
-            f.write(str(passport_data["curve"]) + "|")
+            f.write(str(passport_data["curve"]._latex_()) + "|")
             f.write('\\N' + "|")
         else:
             f.write('\\N' + "|")
             f.write('\\N' + "|")
-            f.write(str(passport_data["curve"]) + "|")
+            f.write(str(passport_data["curve"]._latex_()) + "|")
         friends = []
         belyi_friend = get_belyi_friend(passport_data,label,lookup=lookup_belyi_friend)
         if belyi_friend != "\\N":
