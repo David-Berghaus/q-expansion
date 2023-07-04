@@ -109,11 +109,11 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None, load_fl
     else:
         return res, res_fl
 
-def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_file="spaces.txt", forms_file="forms.txt"):
+def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_file="spaces.txt", forms_file="forms.txt", lookup_belyi_friend=True):
     """
     Store passport_data into a txt file that can be easily inserted into the LMFDB.
     """
-    curve_to_LMFDB_txt(passport_data, label, file=curves_file)
+    curve_to_LMFDB_txt(passport_data, label, file=curves_file, lookup_belyi_friend=lookup_belyi_friend)
     G = passport_data["G"]
     if G.genus() == 0:
         space_to_LMFDB_txt(passport_data,label,0,"H",file=spaces_file)
