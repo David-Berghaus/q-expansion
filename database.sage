@@ -128,7 +128,7 @@ def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_fil
                 for modform_pos in range(G.dimension_cusp_forms(weight)):
                     form_to_LMFDB_txt(passport_data,label,weight,"C",modform_pos,file=forms_file)
 
-def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
+def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_friend=True):
     """
     Given passport_data (as a dict), create a txt for the curve that can be easily inserted into the LMFDB.
     """
@@ -168,7 +168,15 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt"):
             f.write('\\N' + "|")
             f.write('\\N' + "|")
             f.write(str(passport_data["curve"]) + "|")
-        f.write(str(get_belyi_friend(passport_data)) + "|")
+        friends = []
+        belyi_friend = get_belyi_friend(passport_data,label,lookup=lookup_belyi_friend)
+        if belyi_friend != "\\N":
+            friends.append(belyi_friend)
+        if G.genus() == 1:
+            ec_friend = get_elliptic_curve_friend(passport_data["curve"],passport_data["K"])
+            if ec_friend != "\\N":
+                friends.append(ec_friend)
+        f.write("{" + str(friends)[1:-1] + "}|")
         f.write("{{" + ','.join(["{" + str(embedding)[1:-1] + "}" for embedding in passport_data["embeddings"].keys()])[1:-1] + "}}|") #We use ".join" in order not to print the quotes
         f.write("{" + str(list(passport_data["L"].polynomial()))[1:-1] + "}|")
         f.write("{" + ','.join(["{" + str(complex_number_to_doubles(embedding))[1:-1] + "}" for embedding in passport_data["embeddings"].values()])[1:-1] + "}|")
@@ -199,7 +207,7 @@ def get_number_field_LMFDB_label(K):
             print("Number field not found in the LMFDB!")
     return list(K.polynomial()) #If the number field is not in the LMFDB, we return the polynomial
 
-def get_elliptic_curve_LMFDB_label(E, K):
+def get_elliptic_curve_friend(E, K):
     if K.degree() != 1:
         return "\\N" #We only search for elliptic curves over Q for now
     query = "https://www.lmfdb.org/api/ec_curvedata/?ainvs=li"
@@ -211,13 +219,21 @@ def get_elliptic_curve_LMFDB_label(E, K):
     if response.status_code == 200:
         data = response.json()
         try:
-            return data["data"][0]["lmfdb_label"]
+            ec_friend = data["data"][0]["lmfdb_label"]
+            return "EllipticCurve/Q/" + ec_friend
         except:
             print("Elliptic curve not found in the LMFDB!")
     return "\\N" #If the elliptic curve is not in the LMFDB, we return NULL
 
 #Dont forget to run 'export PYTHONPATH=${PYTHONPATH}:<path to lmfdb>' in the terminal in advance
-def get_belyi_friend(passport_data):
+def get_belyi_friend(passport_data, label, lookup=True):
+    if not lookup: #Try to find the Belyi friend in a precomputed database, for example if a local copy of the LMFDB is not installed
+        try:
+            d = load("data/belyi_friends.sobj")
+            return d[label]
+        except:
+            return "\\N"
+
     from lmfdb import db
     belyi_galmaps = db.belyi_galmaps
 
@@ -235,7 +251,8 @@ def get_belyi_friend(passport_data):
                 P_belyi = PermutationGroup([Permutation(triple[2]), Permutation(triple[1])])
                 conj = libgap.RepresentativeAction(gap(f"SymmetricGroup({mu})"), gap(P), gap(P_belyi)) #Check for conjugacy, see: https://ask.sagemath.org/question/44357/determining-if-two-subgroups-of-a-symmetric-group-are-conjugate/?answer=47983#post-id-47983
                 if conj != gap("fail"):
-                    return belyi_map['label']
+                    belyi_friend_label = belyi_map['label']
+                    return "Belyi/" + belyi_friend_label
     return "\\N" 
 
 def complex_number_to_doubles(z):
