@@ -133,8 +133,8 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
     Given passport_data (as a dict), create a txt for the curve that can be easily inserted into the LMFDB.
     """
     if not os.path.exists(file):
-        header1 = "genus|psl2z_index|n_c|n_e2|n_e3|cusp_widths|permS|permR|permT|label|monodromy_group|K|v_L|belyi_map|elliptic_curve|hyperelliptic_curve|friends|passport_reps|L|passport_embeddings|is_congruence"
-        header2 = "integer|integer|integer|integer|integer|integer[]|text|text|text|text|text|text|text|text|text|text|text[]|text[]|numeric[]|double precision[]|boolean"
+        header1 = "genus|psl2z_index|n_c|n_e2|n_e3|cusp_widths|permS|permR|permT|label|monodromy_group|K|u_str|v_L|belyi_map|elliptic_curve|hyperelliptic_curve|friends|passport_reps|L|passport_embeddings|is_congruence"
+        header2 = "integer|integer|integer|integer|integer|integer[]|text|text|text|text|text|text|text|text|text|text|text|text[]|text[]|numeric[]|double precision[]|boolean"
         with open(file, "a") as f:
             f.write(header1 + "\n")
             f.write(header2 + "\n")
@@ -155,6 +155,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
         monodromy_group_label = get_monodromy_group_label(G)
         f.write(monodromy_group_label + "|")
         f.write(str(get_number_field_LMFDB_label(passport_data["K"])) + "|")
+        f.write(str(passport_data["u_str"]) + "|")
         f.write(str(passport_data["v"]) + "|")
         if G.genus() == 0:
             f.write(str(passport_data["curve"]) + "|") #To Do: Print in pretty form
@@ -288,8 +289,8 @@ def form_to_LMFDB_txt(passport_data, label, weight, modform_type, modform_pos, f
     Create a txt for the form f_{modform_pos} that can be easily inserted into the LMFDB.
     """
     if not os.path.exists(file):
-        header1 = "weight|cusp_width|valuation|label|K|u_str|mf_space|u|v|coefficient_numerators|coefficient_denominators"
-        header2 = "integer|integer|integer|text|text|text|text|double precision[]|double precision[]|numeric[]|numeric[]"
+        header1 = "weight|cusp_width|valuation|label|K|u_str|v_L|mf_space|u|v|L|coefficient_numerators|coefficient_denominators"
+        header2 = "integer|integer|integer|text|text|text|text|text|double precision[]|double precision[]|numeric[]|numeric[]|numeric[]"
         with open(file, "a") as f:
             f.write(header1 + "\n")
             f.write(header2 + "\n")
@@ -309,9 +310,11 @@ def form_to_LMFDB_txt(passport_data, label, weight, modform_type, modform_pos, f
         f.write(label + "." + str(weight) + "." + modform_type + "." + ascii_lowercase[modform_pos] + "|")
         f.write(get_number_field_LMFDB_label(passport_data["K"]) + "|")
         f.write(passport_data["u_str"] + "|")
+        f.write(str(passport_data["v"]) + "|")
         f.write(label + "." + str(weight) + "." + modform_type + "|")
         f.write("{" + str(complex_number_to_doubles(passport_data["u"]))[1:-1] + "}|")
         f.write("{" + str(complex_number_to_doubles(passport_data["v"]))[1:-1] + "}|")
+        f.write("{" + str(list(passport_data["L"].polynomial()))[1:-1] + "}|")
         numerators, denominators = get_numerators_and_denominators(form)
         f.write("{{" + ','.join(["{" + str(numerator)[1:-1] + "}" for numerator in numerators])[1:-1] + "}}|")
         f.write("{{" + ','.join(["{" + str(denominators)[1:-1] + "}" for denominator in denominators])[1:-1] + "}}|")
