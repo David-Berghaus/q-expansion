@@ -330,10 +330,13 @@ def get_numerators_and_denominators_of_expression_in_K(x):
         x *= x[i].denominator()
     return denominator, list(x)
 
-def get_numerators_and_denominators(form):
+def get_numerators_and_denominators(form, u_QQbar):
     numerators, denominators = [], []
     for (i,coeff) in enumerate(list(form)):
-        coeff_denominator, coeff_numerators = get_numerators_and_denominators_of_expression_in_K(coeff[i]) #We need to take the i-th index to get rid of "u"
+        if coeff[i] == 0:
+            coeff_denominator, coeff_numerators = get_numerators_and_denominators_of_expression_in_K(coeff[0]) #For u=1, we only have powers of u^0
+        else:
+            coeff_denominator, coeff_numerators = get_numerators_and_denominators_of_expression_in_K(coeff[i]) #We need to take the i-th index to get rid of "u"
         numerators.append(coeff_numerators)
         denominators.append(coeff_denominator)
     return numerators, denominators
