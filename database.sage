@@ -19,6 +19,8 @@ import requests
 import sys
 from string import ascii_lowercase
 
+from classes.factored_polynomial import Factored_Polynomial, get_factored_polynomial_in_u_v
+
 def load_entry(database_path, entry_name, load_floating_expansions=False):
     """
     Given an entry_name (as a string), load data attached to this entry.
@@ -158,7 +160,13 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
         f.write(str(passport_data["u_str"]) + "|")
         f.write(str(passport_data["v"]) + "|")
         if G.genus() == 0:
-            f.write(str(passport_data["curve"]) + "|") #To Do: Print in pretty form
+            B_raw = passport_data["curve"]
+            Pl.<l> = PolynomialRing(L)
+            p3_factored_raw = Factored_Polynomial(Pl.gen(),coeff_tuples=list(factor(B_raw.numerator())))
+            pc_factored_raw = Factored_Polynomial(Pl.gen(),coeff_tuples=list(factor(B_raw.denominator())))
+            p3_factored_pretty = get_factored_polynomial_in_u_v(p3_factored_raw,u_interior_K,principal_cusp_width)
+            pc_factored_pretty = get_factored_polynomial_in_u_v(pc_factored_raw,u_interior_K,principal_cusp_width)
+            f.write(str(p3_factored_pretty) + " / " + str(pc_factored_pretty) + "|")
             f.write('\\N' + "|")
             f.write('\\N' + "|")
         elif G.genus() == 1:
