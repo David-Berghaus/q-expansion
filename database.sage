@@ -12,6 +12,7 @@ Routines for loading and working database entries
 """
 
 import itertools
+import json
 import os
 from os.path import isfile
 import re
@@ -160,13 +161,11 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
         f.write(str(passport_data["u_str"]) + "|")
         f.write(str(passport_data["v"]) + "|")
         if G.genus() == 0:
-            B_raw = passport_data["curve"]
-            Pl.<l> = PolynomialRing(L)
-            p3_factored_raw = Factored_Polynomial(Pl.gen(),coeff_tuples=list(factor(B_raw.numerator())))
-            pc_factored_raw = Factored_Polynomial(Pl.gen(),coeff_tuples=list(factor(B_raw.denominator())))
-            p3_factored_pretty = get_factored_polynomial_in_u_v(p3_factored_raw,u_interior_K,principal_cusp_width)
-            pc_factored_pretty = get_factored_polynomial_in_u_v(pc_factored_raw,u_interior_K,principal_cusp_width)
-            f.write(str(p3_factored_pretty) + " / " + str(pc_factored_pretty) + "|")
+            json_path = f"<db_path>/{G.index()}/{G.genus()}/{label}.json"
+            with open(json_path, "r") as read_file:
+                json_data = json.load(read_file)
+                f.write(str(json_data["curve"]["belyi_map_pretty"]) + "|")
+
             f.write('\\N' + "|")
             f.write('\\N' + "|")
         elif G.genus() == 1:
@@ -214,7 +213,7 @@ def get_number_field_LMFDB_label(K):
             return data["data"][0]["label"]
         except:
             print("Number field not found in the LMFDB!")
-    return list(K.polynomial()) #If the number field is not in the LMFDB, we return the polynomial
+    return str(list(K.polynomial())) #If the number field is not in the LMFDB, we return the polynomial
 
 def get_elliptic_curve_friend(E, K):
     if K.degree() != 1:
