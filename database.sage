@@ -22,6 +22,8 @@ from string import ascii_lowercase
 
 from classes.factored_polynomial import Factored_Polynomial, get_factored_polynomial_in_u_v
 
+db_path = "<enter_db_path_here>" #Enter the path to the database here
+
 def load_entry(database_path, entry_name, load_floating_expansions=False):
     """
     Given an entry_name (as a string), load data attached to this entry.
@@ -112,7 +114,7 @@ def load_database(database_path, index=None, genus=None, Kv_degree=None, load_fl
     else:
         return res, res_fl
 
-def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_file="spaces.txt", forms_file="forms.txt", lookup_belyi_friend=True):
+def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_file="spaces.txt", forms_file="forms.txt", eisenstein_file="eisenstein_basis_factors.txt", lookup_belyi_friend=True):
     """
     Store passport_data into a txt file that can be easily inserted into the LMFDB.
     """
@@ -130,7 +132,11 @@ def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_fil
                 space_to_LMFDB_txt(passport_data,label,weight,"C",file=spaces_file)
                 for modform_pos in range(G.dimension_cusp_forms(weight)):
                     form_to_LMFDB_txt(passport_data,label,weight,"C",modform_pos,file=forms_file)
-
+            if "eisenstein_basis_factors" in passport_data["q_expansions"][weight]:
+                space_to_LMFDB_txt(passport_data,label,weight,"E",file=spaces_file)
+                for eisform_pos in range(G.dimension_eis(weight)):
+                    eisenstein_basis_factors_to_LMFDB_txt(passport_data,label,weight,eisform_pos,file=eisenstein_file)
+                    
 def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_friend=True):
     """
     Given passport_data (as a dict), create a txt for the curve that can be easily inserted into the LMFDB.
@@ -161,7 +167,7 @@ def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_fri
         f.write(str(passport_data["u_str"]) + "|")
         f.write(str(passport_data["v"]) + "|")
         if G.genus() == 0:
-            json_path = f"<db_path>/{G.index()}/{G.genus()}/{label}.json"
+            json_path = f"{db_path}/{G.index()}/{G.genus()}/{label}.json"
             with open(json_path, "r") as read_file:
                 json_data = json.load(read_file)
                 f.write(str(json_data["curve"]["belyi_map_pretty"]) + "|")
@@ -281,13 +287,15 @@ def space_to_LMFDB_txt(passport_data, label, weight, modform_type, file="spaces.
         mf_space = passport_data["q_expansions"][weight]["modforms_pretty"]
     elif modform_type == "C":
         mf_space = passport_data["q_expansions"][weight]["cuspforms_pretty"]
+    elif modform_type == "E":
+        mf_space = passport_data["q_expansions"][weight]["eisenstein_basis_factors"]
     else:
         mf_space = [passport_data["q_expansions"][weight]["hauptmodul_pretty"]]
 
     with open(file, "a") as f:
         f.write(str(len(mf_space)) + "|")
         f.write(str(weight) + "|")
-        f.write(label + "." + str(weight) + "." + modform_type + "|")
+        f.write(label + "_" + str(weight) + "_" + modform_type + "|")
         f.write(label)
         f.write("\n")
 
@@ -314,17 +322,39 @@ def form_to_LMFDB_txt(passport_data, label, weight, modform_type, modform_pos, f
         f.write(str(weight) + "|")
         f.write(str(passport_data["G"].cusp_width(Cusp(1,0))) + "|")
         f.write(str(form.valuation()) + "|")
-        f.write(label + "." + str(weight) + "." + modform_type + "." + ascii_lowercase[modform_pos] + "|")
+        f.write(label + "_" + str(weight) + "_" + modform_type + "-" + ascii_lowercase[modform_pos] + "|")
         f.write(get_number_field_LMFDB_label(passport_data["K"]) + "|")
         f.write(passport_data["u_str"] + "|")
         f.write(str(passport_data["v"]) + "|")
-        f.write(label + "." + str(weight) + "." + modform_type + "|")
-        f.write("{" + str(complex_number_to_doubles(passport_data["u"]))[1:-1] + "}|")
-        f.write("{" + str(complex_number_to_doubles(passport_data["v"]))[1:-1] + "}|")
+        f.write(label + "_" + str(weight) + "_" + modform_type + "|")
+        f.write("{" + str(complex_number_to_doubles(CC(passport_data["u"])))[1:-1] + "}|")
+        f.write("{" + str(complex_number_to_doubles(CC(passport_data["v"])))[1:-1] + "}|")
         f.write("{" + str(list(passport_data["L"].polynomial()))[1:-1] + "}|")
         numerators, denominators = get_numerators_and_denominators(form)
         f.write("{{" + ','.join(["{" + str(numerator)[1:-1] + "}" for numerator in numerators])[1:-1] + "}}|")
         f.write("{{" + ','.join(["{" + str(denominators)[1:-1] + "}" for denominator in denominators])[1:-1] + "}}|")
+        f.write("\n")
+
+def eisenstein_basis_factors_to_LMFDB_txt(passport_data, label, weight, eisform_pos, file="eisenstein_basis_factors.txt"):
+    """
+    Create a txt for the Eisenstein basis factors corresponding to the form f_{eisform_pos} that can be easily inserted into the LMFDB.
+    """
+    if "eisenstein_basis_factors" not in passport_data["q_expansions"][weight]:
+        return
+    if not os.path.exists(file):
+        header1 = "weight|label|mf_space|eisenstein_basis_factors"
+        header2 = "integer|text|text|numeric[]"
+        with open(file, "a") as f:
+            f.write(header1 + "\n")
+            f.write(header2 + "\n")
+            f.write("\n")
+    
+    eisenstein_basis_factors_list = passport_data["q_expansions"][weight]["eisenstein_basis_factors"]
+    with open(file, "a") as f:
+        f.write(str(weight) + "|")
+        f.write(label + "_" + str(weight) + "_E-" + ascii_lowercase[eisform_pos] + "|")
+        f.write(label + "_" + str(weight) + "_M|")
+        f.write("{" + str(eisenstein_basis_factors_list[eisform_pos])[1:-1] + "}")
         f.write("\n")
 
 def get_numerators_and_denominators_of_expression_in_K(x):
@@ -394,7 +424,7 @@ def print_pending_passports(genus, database_path, max_passport_index=None):
                 print(i)
                 break
 
-def print_K_polynomials_latex(db_path, only_noncongruence_subgroups=False):
+def print_K_polynomials_latex(only_noncongruence_subgroups=False):
     """
     Prints the polynomials of all number fields in the database in a latex table.
     """
@@ -434,7 +464,7 @@ def print_K_polynomials_latex(db_path, only_noncongruence_subgroups=False):
         print("\\hline")
         print("\\end{longtable}")
 
-def get_paths_of_all_labels(db_path, only_noncongruence_subgroups=False):
+def get_paths_of_all_labels(only_noncongruence_subgroups=False):
     """
     Get list of paths of all labels in the database.
     """
