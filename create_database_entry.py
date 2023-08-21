@@ -22,7 +22,7 @@ def get_passport_list(genus):
     if genus == 0:
         return load("data/genus_zero_passport_list.sobj")
     elif genus == 1:
-        return load("data/genus_one_passport_list.sobj")
+        return load("data/genus_one_subgroups_index_18_to_24_max_pp_size_5.sobj")
     else:
         raise NotImplementedError("This case has not been implemented yet!")
 

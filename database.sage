@@ -24,6 +24,35 @@ from classes.factored_polynomial import Factored_Polynomial, get_factored_polyno
 
 db_path = "<enter_db_path_here>" #Enter the path to the database here
 
+
+import os
+def remove_files_with_keywords(root_directory="."):
+    gram_matrices_congruence = []
+    gram_matrices_noncongruence = []
+    for foldername, _, filenames in os.walk(root_directory):
+        for filename in filenames:
+            if "gram_matrices_noncongruence" in filename:
+                d = load(os.path.join(foldername, filename))
+                gram_matrices_noncongruence.extend(d)
+            elif "gram_matrices_congruence" in filename:
+                d = load(os.path.join(foldername, filename))
+                gram_matrices_congruence.extend(d)
+    save(gram_matrices_congruence,"gram_matrices_congruence.sobj")
+    save(gram_matrices_noncongruence,"gram_matrices_noncongruence.sobj")
+
+def to_sage_script():
+    gram_matrices_list = load("gram_matrices_congruence.sobj")
+    with open("gram_matrices_congruence.sage","w") as f:
+        f.write("CC = ComplexField(4983)\n")
+        f.write("gram_matrices_congruence = []\n")
+        for d in gram_matrices_list:
+            label = d['label']
+            weight = d['weight']
+            gram_matrix = d['gram_matrix']
+            f.write(f"M = MatrixSpace(CC,{gram_matrix.nrows()},{gram_matrix.ncols()})\n")
+            f.write(f"gram_matrices_congruence.append({{'label': '{label}', 'weight': {weight}, 'gram_matrix': M({str(list(gram_matrix))})}})\n")
+
+
 def load_entry(database_path, entry_name, load_floating_expansions=False):
     """
     Given an entry_name (as a string), load data attached to this entry.
@@ -134,7 +163,7 @@ def data_to_LMFDB_txt(passport_data, label, curves_file="curves.txt", spaces_fil
                     form_to_LMFDB_txt(passport_data,label,weight,"C",modform_pos,file=forms_file)
             if "eisenstein_basis_factors" in passport_data["q_expansions"][weight]:
                 space_to_LMFDB_txt(passport_data,label,weight,"E",file=spaces_file)
-                for eisform_pos in range(G.dimension_eis(weight)):
+                for eisform_pos in range(len(passport_data["q_expansions"][weight]["eisenstein_basis_factors"])):
                     eisenstein_basis_factors_to_LMFDB_txt(passport_data,label,weight,eisform_pos,file=eisenstein_file)
                     
 def curve_to_LMFDB_txt(passport_data, label, file="curves.txt", lookup_belyi_friend=True):

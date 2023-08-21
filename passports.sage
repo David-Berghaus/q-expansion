@@ -1030,7 +1030,10 @@ def to_sage_script(passport_data, file_path=None):
         cg.write_line("F.<x> = FunctionField(L)")
         cg.write_line("res[\"curve\"] = (F({}))/(F({}))".format(coefficients_to_list(p3),coefficients_to_list(pc)))
     elif passport_data["G"].genus() == 1:
-        cg.write_line("res[\"curve\"] = EllipticCurve({})".format(passport_data["curve"].a_invariants()))
+        if passport_data["curve"]:
+            cg.write_line("res[\"curve\"] = EllipticCurve({})".format(passport_data["curve"].a_invariants()))
+        else:
+            cg.write_line("res[\"curve\"] = None")
     else:
         raise NotImplementedError("Not implemented for genus > 1")
     cg.write_line("")
