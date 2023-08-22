@@ -15,7 +15,7 @@ from textwrap import indent
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
-from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
+from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K, get_v_Kw, get_u_minpoly
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from belyi.elliptic_curve import get_elliptic_curve
 from eisenstein.eisenstein_computation import compute_eisenstein_series, echelon_basis_to_eisenstein_basis
@@ -390,17 +390,44 @@ def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extensio
     """
     expression_linear_in_u = cusp_expansion[coeff_index]
     if is_effectively_zero(expression_linear_in_u,digit_prec-10) == True:
-        raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
-    tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
-    if tmp == None:
-        raise ArithmeticError("Not enough precision to identify numberfield!")
-    Kv, Kw, v_Kw, u_interior_Kv = tmp
+        first_non_zero_coeff_index = coeff_index+1
+        while is_effectively_zero(cusp_expansion[first_non_zero_coeff_index],digit_prec-10) == True:
+            first_non_zero_coeff_index += 1
+        u_pow = first_non_zero_coeff_index - coeff_index + 1
+        coeff_index = first_non_zero_coeff_index #We need this later in "try_to_improve_choice_of_u"
+        if principal_cusp_width%u_pow == 0: #Try to recognize u from u_interior^(u_pow//principal_cusp_width)
+            #We now re-use the function to try to get u_interior and Kv
+            tmp = get_numberfield_of_coeff(cusp_expansion[first_non_zero_coeff_index],max_extension_field_degree,principal_cusp_width//u_pow)
+            if tmp == None:
+                raise ArithmeticError("Not enough precision to identify numberfield!")
+            Kv, _, _, u_interior_Kv = tmp
+            CC = ComplexField(digits_to_bits(digit_prec))
+            minpoly = get_u_minpoly(QQbar(u_interior_Kv).nth_root(principal_cusp_width),principal_cusp_width,Kv.degree(),CC.prec())
+            #We now need to find a working embedding of u
+            for u in minpoly.roots(ring=QQbar,multiplicities=False):
+                c = cusp_expansion[first_non_zero_coeff_index]/u**u_pow
+                if to_K(c,Kv) == None: #Check if we can recognize the coefficient which indicates that u embedding is valid
+                    continue
+                Kw.<w> = NumberField(minpoly,embedding=u)
+                v_Kw = get_v_Kw(Kv,Kw,principal_cusp_width,CC.prec())
+                break
+            try:
+                Kw
+            except NameError:
+                raise ArithmeticError("Unable to find u that works!")
+        else:
+            raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
+    else:
+        tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
+        if tmp == None:
+            raise ArithmeticError("Not enough precision to identify numberfield!")
+        Kv, Kw, v_Kw, u_interior_Kv = tmp
     if principal_cusp_width == 1:
         u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
     else:
         u = Kw.gen()
     #Try to recognize second coeff to see if one can find a better denominator, otherwise leave parameters unchanged
-    Kw, v_Kw, u_interior_Kv, u = try_to_improve_choice_of_u(cusp_expansion,coeff_index+1,Kv,Kw,v_Kw,u_interior_Kv,u,principal_cusp_width, digit_prec)
+    Kw, v_Kw, u_interior_Kv, u = try_to_improve_choice_of_u(cusp_expansion,coeff_index+1,Kv,Kw,v_Kw,u_interior_Kv,u,principal_cusp_width,digit_prec)
     print("u_interior_Kv: ", u_interior_Kv)
     return Kv, Kw, v_Kw, u_interior_Kv, u
 
