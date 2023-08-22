@@ -162,7 +162,7 @@ def dict_to_state_genus_zero(curr_state):
     """
     return curr_state['B'], curr_state['j_G_rig'], curr_state['cuspforms_rig'], curr_state['modforms_rig']
 
-def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
+def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=False, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
     """
     Compute database entry for given passport.
     If state_file_path != None we store intermediate steps and exit the computation.
