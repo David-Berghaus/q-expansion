@@ -73,6 +73,7 @@ data/belyi_friends.sobj
 data/entry_paths.sobj
 data/genus_one_passport_list.sobj
 data/genus_one_passport_list_cong.sobj
+data/genus_one_subgroups_index_18_to_24_max_pp_size_5.sobj
 data/genus_zero_passport_list.sobj
 data/genus_zero_passport_list_cong.sobj
 data/noncong_reps.sobj

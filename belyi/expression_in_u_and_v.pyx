@@ -84,7 +84,7 @@ def factor_q_expansion_into_u_v(q_expansion, u_interior_Kv, principal_cusp_width
     Pq = LaurentSeriesRing(Pu,q_expansion.variable())
     q = Pq.gen()
     leading_order_exponent = q_expansion.valuation()
-    res, u_pow = 0, 0
+    res, u_pow = Pq(0), 0
     if trunc_order == None:
         trunc_order = q_expansion.prec()
     is_ZZ_form = True #Indicates if form can be defined over ZZ (which happens for oldforms)
