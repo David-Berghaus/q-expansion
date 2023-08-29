@@ -709,11 +709,11 @@ def has_equal_list_entry(list, index):
             return True
     return False
 
-def get_lin_u_v_term(q_expansions):
+def find_term_in_K(q_expansions, principal_cusp_width):
     """
-    Choose one coefficient of a cuspform that is linear in u.
+    Choose one coefficient of a cuspform such that coeff**coeff_pow is in K.
     """
-    for weight in range(2,10,2):
+    for weight in sorted(q_expansions.keys()):
         try:
             cuspform = q_expansions[weight]["cuspforms_pretty"][-1] #We are not guaranteed that this is a newform though
         except KeyError:
@@ -724,7 +724,26 @@ def get_lin_u_v_term(q_expansions):
         if cuspform[i][1] == 0:
             continue
         label = len(q_expansions[weight]["cuspforms_pretty"])-1
-        return cuspform[i], weight, i, label
+        return cuspform[i], weight, i, label, principal_cusp_width
+    #If we are here, we could not find an expression that is linear in, u so we try quadratic ones
+    cusp_expansion, weight, coeff_index, label, coeff_pow = None, None, None, None, None
+    for k in sorted(q_expansions.keys()):
+        try:
+            cusp_expansion = q_expansions[min(q_expansions.keys())]["cuspforms_pretty"][-1]
+            weight = k
+            label = len(q_expansions[weight]["cuspforms_pretty"])-1
+            break
+        except:
+            continue
+    first_non_zero_coeff_index = 0
+    while cusp_expansion[first_non_zero_coeff_index] == 0:
+        first_non_zero_coeff_index += 1
+    u_pow = 2
+    while cusp_expansion[first_non_zero_coeff_index+u_pow] == 0:
+        u_pow += 1
+    coeff_index = first_non_zero_coeff_index+u_pow
+    if principal_cusp_width%u_pow == 0:
+        return cusp_expansion[coeff_index], weight, coeff_index, label, principal_cusp_width//u_pow
     raise ArithmeticError("Did not find suitable term linear in u.")
 
 def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
@@ -737,7 +756,7 @@ def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
         expr_for_other_embeddings.append(expr_for_other_embedding)
     return expr_for_other_embeddings
 
-def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
+def identify_other_embeddings_and_diffs(non_zero_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, coeff_pow, digit_prec=30):
     """
     Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'
     as well as the corresponding differences of the floating expressions to the embedded expressions.
@@ -750,11 +769,14 @@ def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embe
             remaining_embeddings.append(embedding)
     nth_power_of_embedding_expr_list = [] #List of expressions for each embedding which we use to idenfity embeddings
     for embedding in remaining_embeddings:
-        nth_power_of_embedding_expr = non_zero_lin_u_expr[1].polynomial().subs(x=embedding)**principal_cusp_width * u_interior_Kv.polynomial().subs(x=embedding)
+        u_pow = 0
+        while non_zero_u_expr[u_pow] == 0:
+            u_pow += 1
+        nth_power_of_embedding_expr = non_zero_u_expr[u_pow].polynomial().subs(x=embedding)**coeff_pow * u_interior_Kv.polynomial().subs(x=embedding)
         nth_power_of_embedding_expr_list.append(nth_power_of_embedding_expr)
     ordered_embeddings = [] #List of embeddings ordered in the same way as 'expr_for_other_embeddings'
     for expr in expr_for_other_embeddings:
-        nth_power_of_expr = expr**principal_cusp_width
+        nth_power_of_expr = expr**coeff_pow
         diffs = [abs(nth_power_of_expr-nth_power_of_embedding_expr) for nth_power_of_embedding_expr in nth_power_of_embedding_expr_list]
         min_diff = min(diffs)
         embedding_index = diffs.index(min_diff)
@@ -770,9 +792,9 @@ def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp
     res = {(str(G.permS),str(G.permR),str(G.permT)): QQbar(Kv.gen())}
     if len(passport) == 1:
         return res
-    lin_u_v_term, weight, i, label = get_lin_u_v_term(q_expansions)
-    expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,i,label)
-    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
+    coeff, weight, coeff_index, label, coeff_pow = find_term_in_K(q_expansions,principal_cusp_width)
+    expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,coeff_index,label)
+    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(coeff,expr_for_other_embeddings,Kv,u_interior_Kv,coeff_pow)
     
     for i in range(1,len(passport)):
         G = passport[i]
