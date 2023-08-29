@@ -187,7 +187,7 @@ def c_vec_to_cusp_expansions_hauptmodul(c_vec_mcbd, S, M_0):
         cusp_expansions[Cusp(ci)] = f.O(M_0)
     return cusp_expansions
 
-def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_trunc_order, modform_type, label, Kv, u, v_Kw, u_interior_Kv, estimated_bit_prec=None):
+def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_trunc_order, modform_type, Kv, u, v_Kw, u_interior_Kv, estimated_bit_prec=None):
     """
     Given a cusp expansion as a (floating point) power series, use u and the LLL algorithm to try to recognize coefficients.
     This function returns FourierExpansion instance of the recognized cusp_expansion truncated to the order up to which the coefficients have been recognized.
@@ -207,22 +207,29 @@ def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_tru
     CC = ComplexField(bit_prec)
     Kw = v_Kw.parent()
     coeff_list_recognized = list()
+    detected_leading_order = False
+    u_pow = 0
     for i in range(min(max_rigorous_trunc_order+1,cusp_expansion.degree()+1)):
-        if i <= label+starting_order:
-            u_pow = 0
+        if detected_leading_order:
+            expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
         else:
-            u_pow = i-(label+starting_order)
-        expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
+            expression_to_recognize = cusp_expansion[i]
         if expression_to_recognize.is_one() == True:
             recognized_expression = Kv(1)
+            if not detected_leading_order:
+                detected_leading_order = True
         elif is_effectively_zero(expression_to_recognize,int(0.8*bits_to_digits(bit_prec))) == True: #This should only detect true zeros while also accounting for precision loss
             recognized_expression = Kv(0)
         else:
             recognized_expression = to_K(expression_to_recognize,Kv)
+            if not detected_leading_order:
+                detected_leading_order = True
         if recognized_expression == None: #Stop because we have been unable to recognize coeff
             break
         recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
         algebraic_expression = recognized_expression_Kw*(u**u_pow)
+        if detected_leading_order:
+            u_pow += 1
         coeff_list_recognized.append(algebraic_expression)
     P = PowerSeriesRing(Kw,cusp_expansion.variable())
     cusp_expansion_rig = P(coeff_list_recognized).O(len(coeff_list_recognized))

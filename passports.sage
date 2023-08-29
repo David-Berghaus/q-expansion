@@ -311,7 +311,7 @@ def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interio
     if dim_M != 0 and G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
         if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
             modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
+            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
         else:
             modforms_fl_weight, modforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
             product_formulas = get_product_formulas_for_forms(G,weight,False)
@@ -324,7 +324,7 @@ def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interio
             for i in range(len(modforms_fl_computed)):
                 label = computable_labels[i]
                 modforms_fl_weight[label] = modforms_fl_computed[i]
-                modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv)
+                modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",Kv,u,v_Kw,u_interior_Kv)
             #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
             modforms_fl[weight] = to_reduced_row_echelon_form([modforms_fl_weight[i] for i in range(dim_M)])
             modforms_rig[weight] = to_reduced_row_echelon_form([modforms_rig_weight[i] for i in range(dim_M)])
@@ -337,7 +337,7 @@ def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interi
     if dim_S != 0:
         if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
             cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
         else:
             cuspforms_fl_weight, cuspforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
             product_formulas = get_product_formulas_for_forms(G,weight,True)
@@ -353,7 +353,7 @@ def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interi
             for i in range(len(cuspforms_fl_computed)):
                 label = computable_labels[i]
                 cuspforms_fl_weight[label] = cuspforms_fl_computed[i]
-                cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv)
+                cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv)
             #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
             cuspforms_fl[weight] = to_reduced_row_echelon_form([cuspforms_fl_weight[i] for i in range(dim_S)])
             cuspforms_rig[weight] = to_reduced_row_echelon_form([cuspforms_rig_weight[i] for i in range(dim_S)])
@@ -380,7 +380,7 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
-            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
             break
     return cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight
 
