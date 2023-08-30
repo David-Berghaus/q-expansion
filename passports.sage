@@ -103,7 +103,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     res = dict()
     res["G"] = B.G.as_permutation_group()
     res["is_congruence"] = G.is_congruence()
-    res["monodromy_group"] = G.perm_group().structure_description()
+    res["monodromy_group"] = f"{G.index()}T{libgap.TransitiveIdentification(G.perm_group())}"
     res["Kv"] = B._Kv
     res["v"] = B._Kv.gen()
     res["u"] = B.u_QQbar
@@ -238,7 +238,7 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     res = dict()
     res["G"] = G.as_permutation_group()
     res["is_congruence"] = G.is_congruence()
-    res["monodromy_group"] = G.perm_group().structure_description()
+    res["monodromy_group"] = f"{G.index()}T{libgap.TransitiveIdentification(G.perm_group())}"
     res["Kv"] = Kv
     res["v"] = Kv.gen()
     res["u"] = u_QQbar
