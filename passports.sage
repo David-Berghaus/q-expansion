@@ -630,21 +630,23 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                         print("weight: ", weight)
                         print("label: ", i)
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
-                if G.dimension_eis(weight) != 0:
-                    eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
-                    for i in range(len(eis_scaling_constant_list_num)):
-                        for j in range(len(eis_scaling_constant_list_num[i])):
-                            if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
-                                print("We detected a eis_scaling_constants that does not match the numerical values!")
-                                print("weight: ", weight)
-                                print("i, j: ", i, j)
-                                print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
-                                print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
-                                print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
-                                eisforms_num, eis_scaling_constant_list_num = None, None #Delete the Eisenstein results becaues they seem to be wrong
-                                break
-                        if eis_scaling_constant_list_num == None:
-                            break
+                # Comparing the Eisenstein series is unfortunately difficult if we use Sage's right_kernel function because it might choose different pivots.
+                # We therefore leave this out for now.
+                # if G.dimension_eis(weight) != 0:
+                #     eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
+                #     for i in range(len(eis_scaling_constant_list_num)):
+                #         for j in range(len(eis_scaling_constant_list_num[i])):
+                #             if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
+                #                 print("We detected a eis_scaling_constants that does not match the numerical values!")
+                #                 print("weight: ", weight)
+                #                 print("i, j: ", i, j)
+                #                 print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
+                #                 print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
+                #                 print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
+                #                 eisforms_num, eis_scaling_constant_list_num = None, None #Delete the Eisenstein results becaues they seem to be wrong
+                #                 break
+                #         if eis_scaling_constant_list_num == None:
+                #             break
 
 def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     """

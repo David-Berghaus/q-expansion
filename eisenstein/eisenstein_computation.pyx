@@ -43,49 +43,76 @@ def compute_eisenstein_series(cuspforms, modforms, return_scaling_constants=Fals
         petersson_products[i] = [conjugate(compute_petersson_product_haberland(cuspforms_CC[i],modforms_CC[j],clear_memoized_caches_bool=False,exp_two_pi_i_a_m_dict=exp_two_pi_i_a_m_dict)) for j in range(dim_M)]
     clear_memoized_caches() #Although we could in principle think about using these for different weights
 
-    M_A, M_b = MatrixSpace(CC,dim_S,dim_S), MatrixSpace(CC,dim_S,1)
-    A = M_A([petersson_products[i][j] for i in range(dim_S) for j in range(dim_E,dim_M)])
-    b_vecs = [-M_b([petersson_products[i][j] for i in range(dim_S)]) for j in range(dim_E)]
-    c_vecs = [A.solve_right(b_vecs[j]) for j in range(dim_E)]
+    M_A, M_b, M_c = MatrixSpace(CC,dim_S,dim_M), MatrixSpace(CC,dim_S,1), MatrixSpace(CC,dim_M,1)
+    digit_prec = bits_to_digits(CC.precision())
+    A = M_A([petersson_products[i] for i in range(dim_S)])
+    trivial_c_vecs = [] #In case we have zero columns in A, we can already use these vectors as Eisenstein series
+    zero_cols = []
+    for col_id in range(A.ncols()):
+        if is_column_effectively_zero(A,col_id,digit_prec): #If a column is zero then this means that the corresponding modform is already an Eisenstein series
+            trivial_c_vecs.append(M_c([1 if i == col_id else 0 for i in range(dim_M)]))
+            zero_cols.append(col_id)
+    #Drop all zero columns
+    A = A.delete_columns(zero_cols)
+    dim_E_reduced = dim_E-len(trivial_c_vecs) #Number of Eisenstein series that are left to be computed
+    #Solve the remaining linear system
+    A = set_effectively_zero_entries_to_zero(A,digit_prec)
+    K = A.right_kernel_matrix()
+    c_vecs = [v for v in K]
 
-    #We are now ready to construct the eisforms from the modforms
+    scaling_constants = {} #Constants by which the modform basis gets scaled to produce eisenstein series
+    label = 0
+    for c_vec in trivial_c_vecs:
+        scaling_constants[label] = [c_vec[i,0] for i in range(dim_M)]
+        label += 1
+    for c_vec in c_vecs:
+        k = 0
+        scaling_constants[label] = []
+        for i in range(dim_M):
+            if i in zero_cols:
+                scaling_constants[label].append(0)
+            else:
+                scaling_constants[label].append(c_vec[k])
+                k += 1
+        label += 1
+        
+    #Sort scaling constants by valuation (that is, the position of the first non-zero entry)
+    non_zero_pos = []
+    for factors in scaling_constants.values():
+        for (i,c) in enumerate(factors):
+            if c != 0:
+                non_zero_pos.append(i)
+                break
+    scaling_constants = dict(sorted(scaling_constants.items(), key=lambda item: non_zero_pos[item[0]]))
+    
+    # We are now ready to construct the eisforms from the modforms
     eisforms = []
-    scaling_constants = dict() #Constants by which the modform basis gets scaled to produce eisenstein series
-    for j in range(dim_E):
-        eisform = modforms_CC[j]
-        normalization = [1 if i == j else 0 for i in range(dim_E)]
-        scaling_constants[j] = normalization
-        for i in range(dim_S):
-            scaling_constant = c_vecs[j][i,0]
-            eisform += modforms_CC[dim_E+i]*scaling_constant
-            scaling_constants[j].append(scaling_constant)
+    for factors in scaling_constants.values():
+        eisform = modforms_CC[0]*factors[0]
+        for i in range(1,dim_M):
+            eisform += modforms_CC[i]*factors[i]
         eisforms.append(eisform)
-
-    #The code below is in principle more generic, but might choose different pivots for different precisions which makes it harder to compare results
-    # digit_prec = bits_to_digits(CC.precision())
-    # M_A = MatrixSpace(CC,dim_S,dim_M)
-    # A = M_A([petersson_products[i] for i in range(dim_S)])
-    # for i in range(A.nrows()):
-    #     for j in range(A.ncols()):
-    #         if is_effectively_zero(A[i,j].abs(),digit_prec):
-    #             A[i,j] = CC(0) #Make sure we set numerical zeros to be effictively zero to perform select the right pivots
-    # K = A.right_kernel_matrix()
-    # c_vecs = [v for v in K]
-
-    #We are now ready to construct the eisforms from the modforms
-    # eisforms = []
-    # scaling_constants = dict() #Constants by which the modform basis gets scaled to produce eisenstein series
-    # for j in range(dim_E):
-    #     scaling_constants[j] = [c_vecs[j][i] for i in range(dim_M)]
-    #     eisform = modforms_CC[0]*scaling_constants[j][0]
-    #     for i in range(1,dim_M):
-    #         eisform += modforms_CC[i]*scaling_constants[j][i]
-    #     eisforms.append(eisform)
 
     if return_scaling_constants == False:
         return eisforms
     else:
         return eisforms, scaling_constants
+
+def is_column_effectively_zero(A, column_id, digit_prec, tol=0.8):
+    """
+    Check if a column of a matrix is effectively zero.
+    """
+    for i in range(A.nrows()):
+        if not is_effectively_zero(A[i,column_id].abs(),int(tol*digit_prec)):
+            return False
+    return True
+
+def set_effectively_zero_entries_to_zero(A, digit_prec, tol=0.8):
+    for i in range(A.nrows()):
+        for j in range(A.ncols()):
+            if is_effectively_zero(A[i,j].abs(),digit_prec):
+                A[i,j] = 0
+    return A
 
 def echelon_basis_to_eisenstein_basis(eisforms, return_scaling_constants=False):
     """
