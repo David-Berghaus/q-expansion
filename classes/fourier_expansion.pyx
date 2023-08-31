@@ -27,7 +27,7 @@ from psage.modform.maass.automorphic_forms_alg import get_M_for_holom
 
 from point_matching.point_matching_arb_wrap import (
     get_coefficients_cuspform_ir_arb_wrap, get_coefficients_modform_ir_arb_wrap, get_coefficients_haupt_ir_arb_wrap,
-    digits_to_bits, bits_to_digits, _get_victor_miller_normalization_and_imposed_zeros, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap
+    digits_to_bits, bits_to_digits, _get_victor_miller_normalization_and_imposed_zeros, get_cuspform_basis_ir_arb_wrap, get_modform_basis_ir_arb_wrap, get_higher_genera_normalizations_and_imposed_zeros
 )
 from belyi.expression_in_u_and_v import factor_q_expansion_into_u_v, convert_from_Kv_to_Kw
 from belyi.number_fields import get_decimal_digit_prec, to_K, is_effectively_zero
@@ -37,10 +37,13 @@ def get_cuspform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=No
     Computes q-expansion of cuspform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 1
-    normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
     if c_vec == None: #We compute c_vec from scratch
-        c_vec, M_0 = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
+        c_vec, M_0, normalization, imposed_zeros = get_coefficients_cuspform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_normalizations=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
+        if S.group().genus() == 0:
+            normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=label)
+        else:
+            normalization, imposed_zeros = get_higher_genera_normalizations_and_imposed_zeros(S,True,label=label)
         if M_0 == 0:
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
     bit_prec = digits_to_bits(digit_prec)
@@ -54,10 +57,13 @@ def get_modform_q_expansion_approx(S, digit_prec, Y=0, M_0=0, label=0, c_vec=Non
     Computes q-expansion of modform numerically and returns result as instance of "FourierExpansion".
     """
     starting_order = 0
-    normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
     if c_vec == None: #We compute c_vec from scratch
-        c_vec, M_0 = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
+        c_vec, M_0, normalization, imposed_zeros = get_coefficients_modform_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_normalizations=True,use_FFT=use_FFT,use_splitting=use_splitting,label=label,prec_loss=prec_loss,use_scipy_lu=use_scipy_lu)
     else: #We construct ApproxModForm from previously computed solution
+        if S.group().genus() == 0:
+            normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=label)
+        else:
+            normalization, imposed_zeros = get_higher_genera_normalizations_and_imposed_zeros(S,False,label=label)
         if M_0 == 0:
             raise ArithmeticError("Cannot construct FourierExpansion from c_vec without specifying M_0!")
     bit_prec = digits_to_bits(digit_prec)
@@ -86,12 +92,12 @@ def get_cuspform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None)
     Computes a basis of cuspforms numerically (in reduced row echelon form) and returns results as instances of "FourierExpansion".
     This function is more efficient than iterating over "get_cuspform_q_expansion_approx".
     """
-    c_vecs, M_0, labels = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
+    c_vecs, M_0, labels, normalizations_and_imposed_zeros = get_cuspform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_normalizations_and_labels=True,labels=labels,prec_loss=prec_loss)
     starting_order = 1
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,True,label=labels[i])
+        normalization, imposed_zeros = normalizations_and_imposed_zeros[i]
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
@@ -103,12 +109,12 @@ def get_modform_basis_approx(S,digit_prec,Y=0,M_0=0,labels=None,prec_loss=None):
     Computes a basis of modforms numerically (in reduced row echelon form) and returns results as instances of "FourierExpansion".
     This function is more efficient than iterating over "get_modform_q_expansion_approx".
     """
-    c_vecs, M_0, labels = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_M_and_labels=True,labels=labels,prec_loss=prec_loss)
+    c_vecs, M_0, labels, normalizations_and_imposed_zeros = get_modform_basis_ir_arb_wrap(S,digit_prec,Y=Y,M_0=M_0,return_normalizations_and_labels=True,labels=labels,prec_loss=prec_loss)
     starting_order = 0
     bit_prec = digits_to_bits(digit_prec)
     basis = []
     for i in range(len(c_vecs)):
-        normalization, imposed_zeros = _get_victor_miller_normalization_and_imposed_zeros(S,False,label=labels[i])
+        normalization, imposed_zeros = normalizations_and_imposed_zeros[i]
         c_vec_mcbd = c_vecs[i]._get_mcbd(bit_prec)
         cusp_expansions = c_vec_to_cusp_expansions(c_vec_mcbd,S,starting_order,normalization,M_0)
         base_ring = cusp_expansions[Cusp(1,0)].base_ring()
@@ -181,7 +187,7 @@ def c_vec_to_cusp_expansions_hauptmodul(c_vec_mcbd, S, M_0):
         cusp_expansions[Cusp(ci)] = f.O(M_0)
     return cusp_expansions
 
-def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_trunc_order, modform_type, label, Kv, u, v_Kw, u_interior_Kv, estimated_bit_prec=None):
+def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_trunc_order, modform_type, Kv, u, v_Kw, u_interior_Kv, estimated_bit_prec=None):
     """
     Given a cusp expansion as a (floating point) power series, use u and the LLL algorithm to try to recognize coefficients.
     This function returns FourierExpansion instance of the recognized cusp_expansion truncated to the order up to which the coefficients have been recognized.
@@ -201,22 +207,29 @@ def recognize_cusp_expansion_using_u(cusp_expansion, weight, G, max_rigorous_tru
     CC = ComplexField(bit_prec)
     Kw = v_Kw.parent()
     coeff_list_recognized = list()
+    detected_leading_order = False
+    u_pow = 0
     for i in range(min(max_rigorous_trunc_order+1,cusp_expansion.degree()+1)):
-        if i <= label+starting_order:
-            u_pow = 0
+        if detected_leading_order:
+            expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
         else:
-            u_pow = i-(label+starting_order)
-        expression_to_recognize = cusp_expansion[i]/(CC(u)**u_pow)
+            expression_to_recognize = cusp_expansion[i]
         if expression_to_recognize.is_one() == True:
             recognized_expression = Kv(1)
+            if not detected_leading_order:
+                detected_leading_order = True
         elif is_effectively_zero(expression_to_recognize,int(0.8*bits_to_digits(bit_prec))) == True: #This should only detect true zeros while also accounting for precision loss
             recognized_expression = Kv(0)
         else:
             recognized_expression = to_K(expression_to_recognize,Kv)
+            if not detected_leading_order:
+                detected_leading_order = True
         if recognized_expression == None: #Stop because we have been unable to recognize coeff
             break
         recognized_expression_Kw = convert_from_Kv_to_Kw(recognized_expression, v_Kw)
         algebraic_expression = recognized_expression_Kw*(u**u_pow)
+        if detected_leading_order:
+            u_pow += 1
         coeff_list_recognized.append(algebraic_expression)
     P = PowerSeriesRing(Kw,cusp_expansion.variable())
     cusp_expansion_rig = P(coeff_list_recognized).O(len(coeff_list_recognized))

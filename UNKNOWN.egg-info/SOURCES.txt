@@ -1,6 +1,7 @@
 .gitignore
 README.md
 benchmarks.sage
+compute_belyi_friends.sage
 create_database_entry.py
 database.sage
 elliptic_curve_from_relations.sage
@@ -68,12 +69,14 @@ classes/modular_splitting_polynomial.pyx
 classes/plu_class.c
 classes/plu_class.pxd
 classes/plu_class.pyx
+data/belyi_friends.sobj
+data/entry_paths.sobj
 data/genus_one_passport_list.sobj
 data/genus_one_passport_list_cong.sobj
+data/genus_one_subgroups_index_18_to_24_max_pp_size_5.sobj
 data/genus_zero_passport_list.sobj
 data/genus_zero_passport_list_cong.sobj
 data/noncong_reps.sobj
-data/sl2z_subgroups_17_18_19_20.sobj
 eisenstein/__init__.py
 eisenstein/eisenstein_computation.c
 eisenstein/eisenstein_computation.pyx

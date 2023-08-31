@@ -347,7 +347,7 @@ def is_normalization_valid(S, normalization, imposed_zeros, is_cuspform):
     To Do:
     We could make this function faster by searching if forms exist using the double precision functionalities.
     """
-    digit_prec = 30
+    digit_prec = 100
     max_iter = 30
     bit_prec = digits_to_bits(digit_prec)
     M_0 = get_M_0(S,digit_prec,is_cuspform=is_cuspform)
@@ -727,7 +727,7 @@ cpdef get_coefficients_gmres_non_scaled_cuspform_arb_wrap(S,int digit_prec,Y=0,i
     res = x_gmres_arb_wrap[0]
     return res.get_window(0,0,M_0,1)
 
-cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
+cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_normalizations=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
     """ 
     Computes expansion coefficients of cuspform using classical iterative refinement
     """
@@ -771,12 +771,12 @@ cpdef get_coefficients_cuspform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    if return_M == False:
+    if return_normalizations == False:
         return res
     else:
-        return res, M_0
+        return res, M_0, normalization, imposed_zeros
 
-cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
+cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_normalizations=False,label=0,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True,max_iter=None,normalization=None,imposed_zeros=None):
     """ 
     Computes Fourier-expansion coefficients of modforms using classical iterative refinement
     """
@@ -820,10 +820,10 @@ cpdef get_coefficients_modform_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=
 
     V.diag_inv_scale_vec(res, res, bit_prec)
 
-    if return_M == False:
+    if return_normalizations == False:
         return res
     else:
-        return res, M_0
+        return res, M_0, normalization, imposed_zeros
 
 cpdef get_coefficients_haupt_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,only_principal_expansion=True,return_M=False,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """ 
@@ -941,7 +941,7 @@ def put_labels_into_V_tilde_classes(normalizations_and_imposed_zeros_complete, l
             label_classes[(len(normalization[0]),tuple(imposed_zeros))] = [label]
     return label_classes
 
-cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
+cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_normalizations_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """
     Compute a basis of cuspforms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -993,15 +993,15 @@ cpdef get_cuspform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retu
     
     res_vec = [res_dict[label] for label in labels]
     
-    if return_M_and_labels == False:
+    if return_normalizations_and_labels == False:
         return res_vec
     else:
         if labels == None:
             multiplicity = S.group().dimension_cusp_forms(S.weight())
             labels = range(multiplicity)
-        return res_vec, M_0, labels
+        return res_vec, M_0, labels, normalizations_and_imposed_zeros
 
-cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_M_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
+cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,return_normalizations_and_labels=False,labels=None,prec_loss=None,use_FFT=True,use_splitting=True,use_scipy_lu=True):
     """
     Compute a basis of modular forms of AutomorphicFormSpace 'S' to 'digit_prec' digits precision.
     """
@@ -1054,10 +1054,10 @@ cpdef get_modform_basis_ir_arb_wrap(S,int digit_prec,Y=0,int M_0=0,int Q=0,retur
     
     res_vec = [res_dict[label] for label in labels]
 
-    if return_M_and_labels == False:
+    if return_normalizations_and_labels == False:
         return res_vec
     else:
         if labels == None:
             multiplicity = S.group().dimension_modular_forms(S.weight())
             labels = range(multiplicity)
-        return res_vec, M_0, labels
+        return res_vec, M_0, labels, normalizations_and_imposed_zeros

@@ -65,8 +65,8 @@ def test_fourier_expansion_basis_cuspform_no_victor_miller():
     f0 = b[0].get_cusp_expansion(Cusp(1,0),trunc_order=30)
     f1 = b[1].get_cusp_expansion(Cusp(1,0),trunc_order=30)
     CC = f0.base_ring()
-    assert abs(f0[11]-CC(5.703802742243766936075989380552076894051090726674,9.879276145916893379172395589694104965256236758875)) < 1e-35
-    assert abs(f1[25]+12) < 1e-35
+    assert abs(f0[10]-CC(5.703802742243766936075989380552076894051090726674,9.879276145916893379172395589694104965256236758875)) < 1e-35
+    assert abs(f1[27]+12) < 1e-35
     print("test_fourier_expansion_basis_cuspform_no_victor_miller ok")
 
 def test_fourier_expansion_basis_modform():

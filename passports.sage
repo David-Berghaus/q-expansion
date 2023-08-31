@@ -15,7 +15,7 @@ from textwrap import indent
 
 from psage.modform.maass.automorphic_forms import AutomorphicFormSpace
 
-from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K
+from belyi.number_fields import is_effectively_zero, get_numberfield_of_coeff, to_K, get_v_Kw, get_u_minpoly
 from belyi.expression_in_u_and_v import convert_from_Kv_to_Kw
 from belyi.elliptic_curve import get_elliptic_curve
 from eisenstein.eisenstein_computation import compute_eisenstein_series, echelon_basis_to_eisenstein_basis
@@ -103,7 +103,7 @@ def compute_passport_data_genus_zero(passport, rigorous_trunc_order, eisenstein_
     res = dict()
     res["G"] = B.G.as_permutation_group()
     res["is_congruence"] = G.is_congruence()
-    res["monodromy_group"] = G.perm_group().structure_description()
+    res["monodromy_group"] = f"{G.index()}T{libgap.TransitiveIdentification(G.perm_group())}"
     res["Kv"] = B._Kv
     res["v"] = B._Kv.gen()
     res["u"] = B.u_QQbar
@@ -162,7 +162,7 @@ def dict_to_state_genus_zero(curr_state):
     """
     return curr_state['B'], curr_state['j_G_rig'], curr_state['cuspforms_rig'], curr_state['modforms_rig']
 
-def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=True, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
+def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, digit_prec, max_weight, construct_higher_weight_from_lower_weight_forms=False, compare_result_to_numerics=True, compute_embeddings=True, return_floating_expansions=True, numerics_digit_prec=40, tol=1e-10, state_file_path=None):
     """
     Compute database entry for given passport.
     If state_file_path != None we store intermediate steps and exit the computation.
@@ -238,7 +238,7 @@ def compute_passport_data_higher_genera(passport, max_closed_form_trunc_order, d
     res = dict()
     res["G"] = G.as_permutation_group()
     res["is_congruence"] = G.is_congruence()
-    res["monodromy_group"] = G.perm_group().structure_description()
+    res["monodromy_group"] = f"{G.index()}T{libgap.TransitiveIdentification(G.perm_group())}"
     res["Kv"] = Kv
     res["v"] = Kv.gen()
     res["u"] = u_QQbar
@@ -311,7 +311,7 @@ def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interio
     if dim_M != 0 and G.dimension_eis(weight) != 0: #If the eisenstein space is zero-dimensional then we could only get cuspforms which have a different normalization...
         if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
             modforms_fl[weight] = get_modform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
+            modforms_rig[weight] = [recognize_cusp_expansion_using_u(modforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_M)]
         else:
             modforms_fl_weight, modforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
             product_formulas = get_product_formulas_for_forms(G,weight,False)
@@ -324,7 +324,7 @@ def compute_modforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interio
             for i in range(len(modforms_fl_computed)):
                 label = computable_labels[i]
                 modforms_fl_weight[label] = modforms_fl_computed[i]
-                modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",label,Kv,u,v_Kw,u_interior_Kv)
+                modforms_rig_weight[label] = recognize_cusp_expansion_using_u(modforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"ModForm",Kv,u,v_Kw,u_interior_Kv)
             #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
             modforms_fl[weight] = to_reduced_row_echelon_form([modforms_fl_weight[i] for i in range(dim_M)])
             modforms_rig[weight] = to_reduced_row_echelon_form([modforms_rig_weight[i] for i in range(dim_M)])
@@ -337,7 +337,7 @@ def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interi
     if dim_S != 0:
         if construct_higher_weight_from_lower_weight_forms == False: #Compute everything from scratch
             cuspforms_fl[weight] = get_cuspform_basis_approx(AutomorphicFormSpace(G,weight),digit_prec)
-            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
         else:
             cuspforms_fl_weight, cuspforms_rig_weight = dict(), dict() #Temporary variables that we use to store forms for each label
             product_formulas = get_product_formulas_for_forms(G,weight,True)
@@ -353,7 +353,7 @@ def compute_cuspforms_higher_genera(weight, G, digit_prec, Kv, u, v_Kw, u_interi
             for i in range(len(cuspforms_fl_computed)):
                 label = computable_labels[i]
                 cuspforms_fl_weight[label] = cuspforms_fl_computed[i]
-                cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv)
+                cuspforms_rig_weight[label] = recognize_cusp_expansion_using_u(cuspforms_fl_computed[i].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv)
             #Now we got full bases for the spaces which we only need to transform into reduced-row-echelon-form
             cuspforms_fl[weight] = to_reduced_row_echelon_form([cuspforms_fl_weight[i] for i in range(dim_S)])
             cuspforms_rig[weight] = to_reduced_row_echelon_form([cuspforms_rig_weight[i] for i in range(dim_S)])
@@ -380,7 +380,7 @@ def compute_lowest_weight_cuspform_space_to_get_u(G, max_closed_form_trunc_order
                 #Now also try to recognize the second coefficient to see if we can factor out additional factors
                 expression_to_recognize = cuspforms_fl[weight][cuspform_index].get_cusp_expansion(Cusp(1,0))/u**2
 
-            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",label,Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
+            cuspforms_rig[weight] = [recognize_cusp_expansion_using_u(cuspforms_fl[weight][label].get_cusp_expansion(Cusp(1,0)),weight,G,max_closed_form_trunc_order,"CuspForm",Kv,u,v_Kw,u_interior_Kv) for label in range(dim_S)]
             break
     return cuspforms_fl, cuspforms_rig, Kv, Kw, v_Kw, u_interior_Kv, u, lowest_non_zero_cuspform_weight
 
@@ -390,17 +390,44 @@ def get_u_from_q_expansion(cusp_expansion, coeff_index, digit_prec, max_extensio
     """
     expression_linear_in_u = cusp_expansion[coeff_index]
     if is_effectively_zero(expression_linear_in_u,digit_prec-10) == True:
-        raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
-    tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
-    if tmp == None:
-        raise ArithmeticError("Not enough precision to identify numberfield!")
-    Kv, Kw, v_Kw, u_interior_Kv = tmp
+        first_non_zero_coeff_index = coeff_index+1
+        while is_effectively_zero(cusp_expansion[first_non_zero_coeff_index],digit_prec-10) == True:
+            first_non_zero_coeff_index += 1
+        u_pow = first_non_zero_coeff_index - coeff_index + 1
+        coeff_index = first_non_zero_coeff_index #We need this later in "try_to_improve_choice_of_u"
+        if principal_cusp_width%u_pow == 0: #Try to recognize u from u_interior^(u_pow//principal_cusp_width)
+            #We now re-use the function to try to get u_interior and Kv
+            tmp = get_numberfield_of_coeff(cusp_expansion[first_non_zero_coeff_index],max_extension_field_degree,principal_cusp_width//u_pow)
+            if tmp == None:
+                raise ArithmeticError("Not enough precision to identify numberfield!")
+            Kv, _, _, u_interior_Kv = tmp
+            CC = ComplexField(digits_to_bits(digit_prec))
+            minpoly = get_u_minpoly(QQbar(u_interior_Kv).nth_root(principal_cusp_width),principal_cusp_width,Kv.degree(),CC.prec())
+            #We now need to find a working embedding of u
+            for u in minpoly.roots(ring=QQbar,multiplicities=False):
+                c = cusp_expansion[first_non_zero_coeff_index]/u**u_pow
+                if to_K(c,Kv) == None: #Check if we can recognize the coefficient which indicates that u embedding is valid
+                    continue
+                Kw.<w> = NumberField(minpoly,embedding=u)
+                v_Kw = get_v_Kw(Kv,Kw,principal_cusp_width,CC.prec())
+                break
+            try:
+                Kw
+            except NameError:
+                raise ArithmeticError("Unable to find u that works!")
+        else:
+            raise NotImplementedError("Please only use cuspforms with non-zero coefficients to recognize u for now!")
+    else:
+        tmp = get_numberfield_of_coeff(expression_linear_in_u,max_extension_field_degree,principal_cusp_width)
+        if tmp == None:
+            raise ArithmeticError("Not enough precision to identify numberfield!")
+        Kv, Kw, v_Kw, u_interior_Kv = tmp
     if principal_cusp_width == 1:
         u = convert_from_Kv_to_Kw(u_interior_Kv,v_Kw)
     else:
         u = Kw.gen()
     #Try to recognize second coeff to see if one can find a better denominator, otherwise leave parameters unchanged
-    Kw, v_Kw, u_interior_Kv, u = try_to_improve_choice_of_u(cusp_expansion,coeff_index+1,Kv,Kw,v_Kw,u_interior_Kv,u,principal_cusp_width, digit_prec)
+    Kw, v_Kw, u_interior_Kv, u = try_to_improve_choice_of_u(cusp_expansion,coeff_index+1,Kv,Kw,v_Kw,u_interior_Kv,u,principal_cusp_width,digit_prec)
     print("u_interior_Kv: ", u_interior_Kv)
     return Kv, Kw, v_Kw, u_interior_Kv, u
 
@@ -603,21 +630,23 @@ def compare_results_to_numerics(G, max_weight, modforms_rig, cuspforms_rig, eis_
                         print("weight: ", weight)
                         print("label: ", i)
                         raise ArithmeticError("We detected a cuspform coefficient that does not match the numerical values!")
-                if G.dimension_eis(weight) != 0:
-                    eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
-                    for i in range(len(eis_scaling_constant_list_num)):
-                        for j in range(len(eis_scaling_constant_list_num[i])):
-                            if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
-                                print("We detected a eis_scaling_constants that does not match the numerical values!")
-                                print("weight: ", weight)
-                                print("i, j: ", i, j)
-                                print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
-                                print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
-                                print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
-                                eisforms_num, eis_scaling_constant_list_num = None, None #Delete the Eisenstein results becaues they seem to be wrong
-                                break
-                        if eis_scaling_constant_list_num == None:
-                            break
+                # Comparing the Eisenstein series is unfortunately difficult if we use Sage's right_kernel function because it might choose different pivots.
+                # We therefore leave this out for now.
+                # if G.dimension_eis(weight) != 0:
+                #     eisforms_num, eis_scaling_constant_list_num = compute_eisenstein_series(cuspforms_num,modforms_num,return_scaling_constants=True)
+                #     for i in range(len(eis_scaling_constant_list_num)):
+                #         for j in range(len(eis_scaling_constant_list_num[i])):
+                #             if does_result_match_numerics(eis_scaling_constants[weight][i][j],eis_scaling_constant_list_num[i][j],tol) == False:
+                #                 print("We detected a eis_scaling_constants that does not match the numerical values!")
+                #                 print("weight: ", weight)
+                #                 print("i, j: ", i, j)
+                #                 print("eis_scaling_constants[weight][i][j]: ", eis_scaling_constants[weight][i][j])
+                #                 print("eis_scaling_constant_list_num[i][j]: ", eis_scaling_constant_list_num[i][j])
+                #                 print("diff: ", abs(eis_scaling_constants[weight][i][j]-eis_scaling_constant_list_num[i][j]))
+                #                 eisforms_num, eis_scaling_constant_list_num = None, None #Delete the Eisenstein results becaues they seem to be wrong
+                #                 break
+                #         if eis_scaling_constant_list_num == None:
+                #             break
 
 def do_coefficients_match_the_numerics(f, f_numerics, tol, u_QQbar):
     """
@@ -682,11 +711,11 @@ def has_equal_list_entry(list, index):
             return True
     return False
 
-def get_lin_u_v_term(q_expansions):
+def find_term_in_K(q_expansions, principal_cusp_width):
     """
-    Choose one coefficient of a cuspform that is linear in u.
+    Choose one coefficient of a cuspform such that coeff**coeff_pow is in K.
     """
-    for weight in range(2,10,2):
+    for weight in sorted(q_expansions.keys()):
         try:
             cuspform = q_expansions[weight]["cuspforms_pretty"][-1] #We are not guaranteed that this is a newform though
         except KeyError:
@@ -697,7 +726,26 @@ def get_lin_u_v_term(q_expansions):
         if cuspform[i][1] == 0:
             continue
         label = len(q_expansions[weight]["cuspforms_pretty"])-1
-        return cuspform[i], weight, i, label
+        return cuspform[i], weight, i, label, principal_cusp_width
+    #If we are here, we could not find an expression that is linear in, u so we try quadratic ones
+    cusp_expansion, weight, coeff_index, label, coeff_pow = None, None, None, None, None
+    for k in sorted(q_expansions.keys()):
+        try:
+            cusp_expansion = q_expansions[min(q_expansions.keys())]["cuspforms_pretty"][-1]
+            weight = k
+            label = len(q_expansions[weight]["cuspforms_pretty"])-1
+            break
+        except:
+            continue
+    first_non_zero_coeff_index = 0
+    while cusp_expansion[first_non_zero_coeff_index] == 0:
+        first_non_zero_coeff_index += 1
+    u_pow = 2
+    while cusp_expansion[first_non_zero_coeff_index+u_pow] == 0:
+        u_pow += 1
+    coeff_index = first_non_zero_coeff_index+u_pow
+    if principal_cusp_width%u_pow == 0:
+        return cusp_expansion[coeff_index], weight, coeff_index, label, principal_cusp_width//u_pow
     raise ArithmeticError("Did not find suitable term linear in u.")
 
 def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
@@ -710,7 +758,7 @@ def get_expr_for_other_embeddings(passport, weight, i, label, digit_prec=30):
         expr_for_other_embeddings.append(expr_for_other_embedding)
     return expr_for_other_embeddings
 
-def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, principal_cusp_width, digit_prec=30):
+def identify_other_embeddings_and_diffs(non_zero_u_expr, expr_for_other_embeddings, Kv, u_interior_Kv, coeff_pow, digit_prec=30):
     """
     Return different embeddings of v in the same order as the elements of 'expr_for_other_embeddings'
     as well as the corresponding differences of the floating expressions to the embedded expressions.
@@ -723,11 +771,14 @@ def identify_other_embeddings_and_diffs(non_zero_lin_u_expr, expr_for_other_embe
             remaining_embeddings.append(embedding)
     nth_power_of_embedding_expr_list = [] #List of expressions for each embedding which we use to idenfity embeddings
     for embedding in remaining_embeddings:
-        nth_power_of_embedding_expr = non_zero_lin_u_expr[1].polynomial().subs(x=embedding)**principal_cusp_width * u_interior_Kv.polynomial().subs(x=embedding)
+        u_pow = 0
+        while non_zero_u_expr[u_pow] == 0:
+            u_pow += 1
+        nth_power_of_embedding_expr = non_zero_u_expr[u_pow].polynomial().subs(x=embedding)**coeff_pow * u_interior_Kv.polynomial().subs(x=embedding)
         nth_power_of_embedding_expr_list.append(nth_power_of_embedding_expr)
     ordered_embeddings = [] #List of embeddings ordered in the same way as 'expr_for_other_embeddings'
     for expr in expr_for_other_embeddings:
-        nth_power_of_expr = expr**principal_cusp_width
+        nth_power_of_expr = expr**coeff_pow
         diffs = [abs(nth_power_of_expr-nth_power_of_embedding_expr) for nth_power_of_embedding_expr in nth_power_of_embedding_expr_list]
         min_diff = min(diffs)
         embedding_index = diffs.index(min_diff)
@@ -743,9 +794,9 @@ def get_all_embeddings(passport, q_expansions, Kv, u_interior_Kv, principal_cusp
     res = {(str(G.permS),str(G.permR),str(G.permT)): QQbar(Kv.gen())}
     if len(passport) == 1:
         return res
-    lin_u_v_term, weight, i, label = get_lin_u_v_term(q_expansions)
-    expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,i,label)
-    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(lin_u_v_term,expr_for_other_embeddings,Kv,u_interior_Kv,principal_cusp_width)
+    coeff, weight, coeff_index, label, coeff_pow = find_term_in_K(q_expansions,principal_cusp_width)
+    expr_for_other_embeddings = get_expr_for_other_embeddings(passport,weight,coeff_index,label)
+    other_embeddings_and_diffs = identify_other_embeddings_and_diffs(coeff,expr_for_other_embeddings,Kv,u_interior_Kv,coeff_pow)
     
     for i in range(1,len(passport)):
         G = passport[i]
@@ -1030,7 +1081,10 @@ def to_sage_script(passport_data, file_path=None):
         cg.write_line("F.<x> = FunctionField(L)")
         cg.write_line("res[\"curve\"] = (F({}))/(F({}))".format(coefficients_to_list(p3),coefficients_to_list(pc)))
     elif passport_data["G"].genus() == 1:
-        cg.write_line("res[\"curve\"] = EllipticCurve({})".format(passport_data["curve"].a_invariants()))
+        if passport_data["curve"]:
+            cg.write_line("res[\"curve\"] = EllipticCurve({})".format(passport_data["curve"].a_invariants()))
+        else:
+            cg.write_line("res[\"curve\"] = None")
     else:
         raise NotImplementedError("Not implemented for genus > 1")
     cg.write_line("")
